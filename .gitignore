@@ -1,0 +1,17 @@
+*~
+
+*.agdai
+
+*.cut
+*.aux
+*.bbl
+*.blg
+*.log
+*.out
+*.pdf
+
+*.yaml.lock
+.stack-work
+
+.diagrams_cache
+diagrams/
