@@ -49,16 +49,23 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
-%% Some recommended packages.
 \usepackage{booktabs}   %% For formal tables: http://ctan.org/pkg/booktabs
 \usepackage{todonotes}
+\usepackage{enumitem}
 \newcommand{\todoi}[2][]{\todo[inline, #1]{#2}}
 \usepackage[backend=pgf, input, extension=pgf, outputdir=diagrams]{diagrams-latex}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\newcommand{\mempty}{\ensuremath{\varepsilon}}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \begin{document}
 
 %% Title information
-\title[Short Title]{Fenwick Trees}         %% [Short Title] is optional;
+\title{Functional Pearl: You Could Have Invented Fenwick Trees}
+   %% [Short Title] is optional;
                                         %% when present, will be used in
                                         %% header instead of Full Title.
 % \titlenote{with title note}             %% \titlenote is optional;
@@ -142,34 +149,37 @@ Text of abstract \ldots.
 
 \section{Introduction}
 
-Suppose we have a sequence of $n$ integers $a_1, a_2, \dots, a_n$. XXX
-two operations:
+XXX write about application in arithmetic coding: need to quickly find
+prefix sums of probabilities.  Read up on this a bit more.
 
-\begin{enumerate}
+Suppose we have a sequence of $n$ integers $a_1, a_2, \dots, a_n$, and
+want to be able to perform two operations:
+
+\begin{enumerate}[label=(\Alph*)]
 \item Modify the value at index $i$.
 \item Find the sum of all values in a particular range $[i \dots j]$,
   that is, $a_i + a_{i+1} + \dots + a_j$.
 \end{enumerate}
 
-If we simply store the integers in an array, then operation (1) takes
-constant time, but operation (2) requires up to $O(n)$ time, since we
-must iterate through the range $i \dots j$ to add up the values.
+If we simply store the integers in a mutable array, then we can modify
+the value at a given index in constant time, but finding the sum of a
+range requires up to $O(n)$ time, since we must iterate through the
+range $i \dots j$ to add up the values.
 
-In order to improve the running time of operation (2), an obvious idea
-is to somehow cache (some) range sums.  However, this must be done
-with care, since the cached sums must also be updated appropriately
-when performing operation (1).  For example, a straightforward
+In order to improve the running time of the range sum operation, an
+obvious idea is to somehow cache (some) range sums.  However, this
+must be done with care, since the cached sums must also be updated
+appropriately when modifying a value.  For example, a straightforward
 approach would be to use an array $P$ where $P[i]$ stores the prefix
-sum $a_1 + \dots + a_i$.  Now operation (2) is fast: we can obtain the
-range sum $a_i + \dots + a_j$ in constant time by computing
+sum $a_1 + \dots + a_i$.  Now finding range sums is fast: we can
+obtain $a_i + \dots + a_j$ in constant time by computing
 $P[j] - P[i-1]$ (for convenience we store $P[0] = 0$ so this works
-even when $i=1$).  Unfortunately, however, operation (1) now takes
-$O(n)$ time: to change $a_i$ requires updating every $P[j]$ for $j
-\geq i$.
+even when $i=1$).  Unfortunately, modifying a value now takes linear
+time: to change $a_i$ requires updating every $P[j]$ for $j \geq i$.
 
 Can we somehow have the best of both worlds?  The answer, known since
 at least XXX (citation), is yes: we can get both operations to run in
-$O(\log n)$ time if we use a divide-and-conquer approach to caching
+$O(\lg n)$ time if we use a divide-and-conquer approach to caching
 range sums.  XXX familiar technique (cite finger trees).  Make a
 binary tree with the sequence at the leaves; every internal node
 stores the sum of its two child nodes.  The resulting data structure
@@ -177,17 +187,30 @@ is known as a \emph{segment tree} (citation?), presumably because each
 internal node ultimately caches the sum of a (contiguous)
 \emph{segment} of the underlying sequence.
 
-\todoi{assume $n$ is a power of two for simplicity (could pad with zeros)}
+For simplicity, we will assume that $n$ is a power of two, although it
+is easy to generalize to situations where it is not (for example, by
+padding with zero). Figure~\ref{fig:segment-tree} shows a segment tree
+built on a random sample array of length $n=16$. Each leaf of the tree
+corresponds to an array entry; each internal node is shown with a grey
+line indicating the range of the underlying array of which it is the
+sum.
 
+\begin{figure}
+\begin{center}
 \begin{diagram}[width=300]
   import FenwickDiagrams
   import SegTree
 
   dia :: Diagram B
-  dia = sampleArray # mkSegTree # fmap (\(Sum n) -> text (show n) <> square 1) # drawSegTree
+  dia = sampleArray
+    # mkSegTree
+    # fmap getSum
+    # drawSegTree drawNode
 \end{diagram}
+\end{center}
+\caption{A segment tree} \label{fig:segment-tree}
+\end{figure}
 
-\todoi{picture of a segment tree}
 \todoi{picture of the prefix sum array for comparison?}
 
 \begin{enumerate}
@@ -195,6 +218,27 @@ internal node ultimately caches the sum of a (contiguous)
   cached range sums which include it.  These are exactly the nodes
   along the path from the leaf at index $i$ to the root of the tree;
   there are $O(\log n)$ such nodes.
+
+\begin{figure}
+\begin{center}
+\begin{diagram}[width=300]
+  import FenwickDiagrams
+  import SegTree
+  import Data.Monoid
+  import Control.Arrow ((***))
+
+  dia :: Diagram B
+  dia = sampleArray
+    # map ((,) (Any False))
+    # mkSegTree
+    # update 5 (Any True, Sum 3)
+    # fmap (getAny *** getSum)
+    # drawSegTree drawNode
+\end{diagram}
+\end{center}
+\caption{A segment tree, updated} \label{fig:segment-tree-update}
+\end{figure}
+
 \item To compute the range sum $a_i + \dots + a_j$, we recurse through
   the tree while keeping track of the range covered by the current
   node.
@@ -207,16 +251,24 @@ internal node ultimately caches the sum of a (contiguous)
   \item Otherwise, recurse on both children and return the sum of the
     results.
   \end{itemize}
+  \todoi{picture showing which segments get picked to add up to a
+    particular range.}
   XXX analysis, we visit at most $2 \lg n$ nodes.
 \end{enumerate}
 
 \section{Segment Trees, Generally}
 
 Although most reference material on segment trees (or Fenwick trees)
-talks about \emph{sums}, this is needlessly specific.  In general, all
-we need is a sequence of elements $a_1, \dots, a_n$ from some
-\emph{monoid} $M$.  \todoi{Recall what a monoid is, notation.  Will
-  still talk about ``sums''.}
+talks about sums of integers, this is needlessly specific.  In
+general, all we need is a sequence of elements $a_1, \dots, a_n$ from
+some \emph{monoid}.  Recall that a monoid is a set $M$ together with
+an associative binary operation $\oplus$ and an identity element
+$\varepsilon \in M$ such that
+$m \oplus \mempty = \mempty \oplus m = m$ for all $m \in M$. We will
+continue to talk about ``sums'' of elements of a monoid $M$ even
+though the monoidal operation need not be sum-like in general (for
+example, the set of natural numbers forms a monoid under
+multiplication).
 
 \todoi{Haskell implementation.}
 \todoi{requires 2x storage.  Indexing scheme?  Relevant in an array implementation.}
@@ -225,15 +277,15 @@ we need is a sequence of elements $a_1, \dots, a_n$ from some
 
 Of course segment trees are redundant in the sense that they cache
 range sums which could easily be recomputed from the original
-sequence.  But that's the whole point: caching these ``redundant''
-sums allows us to compute arbitrary range sums much more quickly,
-without incurring a high cost to maintain them.
+sequence.  That's the whole point: caching these ``redundant'' sums
+allows us to compute arbitrary range sums much more quickly, without
+incurring a high cost to maintain them.  But segment trees are
+redundant in a stronger sense: it turns out that we can throw out
+almost \emph{half} of the data in a segment tree and still retain
+$O(\log n)$ performance for both operations!
 
-But segment trees are redundant in a stronger sense: it turns out that
-we can throw out almost \emph{half} of the data in a segment tree and
-still retain the $O(\log n)$ performance for both operations!  How,
-you ask?  Simple: just throw out the data associated with \emph{every
-  right child}.
+How, you ask?  Simple: just throw out the data associated with
+\emph{every right child}.
 
 \todoi{picture of segment tree with right children deactivated.  Call
   left children \emph{active} and right children \emph{inactive}.}
@@ -328,14 +380,14 @@ bt (S n) i = Branch i (bt n (O i)) (bt n (I i))
   %% \grantnum[<url>]{<sponsorID>}{<number>} should be used to
   %% acknowledge financial support and will be used by metadata
   %% extraction tools.
-  This material is based upon work supported by the
-  \grantsponsor{GS100000001}{National Science
-    Foundation}{http://dx.doi.org/10.13039/100000001} under Grant
-  No.~\grantnum{GS100000001}{nnnnnnn} and Grant
-  No.~\grantnum{GS100000001}{mmmmmmm}.  Any opinions, findings, and
-  conclusions or recommendations expressed in this material are those
-  of the author and do not necessarily reflect the views of the
-  National Science Foundation.
+  % This material is based upon work supported by the
+  % \grantsponsor{GS100000001}{National Science
+  %   Foundation}{http://dx.doi.org/10.13039/100000001} under Grant
+  % No.~\grantnum{GS100000001}{nnnnnnn} and Grant
+  % No.~\grantnum{GS100000001}{mmmmmmm}.  Any opinions, findings, and
+  % conclusions or recommendations expressed in this material are those
+  % of the author and do not necessarily reflect the views of the
+  % National Science Foundation.
 \end{acks}
 
 
