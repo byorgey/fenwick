@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE GADTSyntax    #-}
+{-# LANGUAGE TupleSections #-}
 
 module SegTree where
 
@@ -30,13 +31,19 @@ mkSegTree as = go 1 n (as ++ replicate (n - length as) mempty)
 
 -- Range query
 rq :: Monoid a => Int -> Int -> SegmentTree a -> a
-rq i j (Leaf a k)
-  | i <= k && k <= j = a
-  | otherwise        = mempty
-rq i j (Branch a x y l r)
-  | y < i || j < x   = mempty
-  | i <= x && y <= j = a
-  | otherwise        = rq i j l <> rq i j r
+rq i j st = snd $ rq' i j st
+
+rq' :: Monoid a => Int -> Int -> SegmentTree a -> (SegmentTree (a, Bool), a)
+rq' i j (Leaf a k)
+  | i <= k && k <= j = (Leaf (a, True) k, a)
+  | otherwise        = (Leaf (a, False) k, mempty)
+rq' i j (Branch a x y l r)
+  | y < i || j < x   = (Branch (a, False) x y ((,False) <$> l) ((,False) <$> r), mempty)
+  | i <= x && y <= j = (Branch (a, True) x y ((,False) <$> l) ((,False) <$> r), mempty)
+  | otherwise        = (Branch (a, False) x y l' r', al <> ar)
+    where
+      (l', al) = rq' i j l
+      (r', ar) = rq' i j r
 
 -- Update
 update :: Monoid a => Int -> a -> SegmentTree a -> SegmentTree a

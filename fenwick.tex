@@ -251,8 +251,23 @@ sum.
   \item Otherwise, recurse on both children and return the sum of the
     results.
   \end{itemize}
-  \todoi{picture showing which segments get picked to add up to a
-    particular range.}
+\begin{figure}
+\begin{center}
+\begin{diagram}[width=300]
+  import FenwickDiagrams
+  import SegTree
+  import Data.Monoid
+  import Control.Arrow ((***))
+
+  dia :: Diagram B
+  dia = sampleArray
+    # mkSegTree
+    # fmap getSum
+    # drawSegTree def
+\end{diagram}
+\end{center}
+\caption{Computing a range sum from a segment tree} \label{fig:segment-tree-update}
+\end{figure}
   XXX analysis, we visit at most $2 \lg n$ nodes.
 \end{enumerate}
 
