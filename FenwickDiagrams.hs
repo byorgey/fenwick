@@ -63,6 +63,7 @@ leafWidth = 1.2
 data DrawNodeOpts a b = DNOpts
   { drawNodeData :: a -> Diagram b
   , nodeStyle    :: a -> Style V2 Double
+  , rangeStyle   :: a -> Style V2 Double
   }
 
 instance (TypeableFloat (N b), V b ~ V2, Renderable (Text (N b)) b, Show a) =>
@@ -70,25 +71,30 @@ instance (TypeableFloat (N b), V b ~ V2, Renderable (Text (N b)) b, Show a) =>
   def = DNOpts
     { drawNodeData = fontSizeL 0.6 . text . show
     , nodeStyle    = const defNodeStyle
+    , rangeStyle   = const defRangeStyle
     }
 
 defNodeStyle :: Style V2 Double
 defNodeStyle = mempty # fc white
+
+defRangeStyle :: Style V2 Double
+defRangeStyle = mempty
+  # lw veryThick
+  # lc grey
+  # lineCap LineCapRound
 
 drawNodeDef :: _ => SegNode a -> Int -> Int -> Diagram b
 drawNodeDef = drawNode' def
 
 drawNode' :: _ => DrawNodeOpts a b -> SegNode a -> Int -> Int -> Diagram b
 
-drawNode' (DNOpts dn nsty) (LeafNode, a) _ _
+drawNode' (DNOpts dn nsty _) (LeafNode, a) _ _
   = dn a <> (square 1 <> strutX leafWidth) # applyStyle (nsty a)
 
-drawNode' (DNOpts dn nsty) (InternalNode, a) i j = mconcat
+drawNode' (DNOpts dn nsty rsty) (InternalNode, a) i j = mconcat
   [ dn a <> circle 0.5 # applyStyle (nsty a)
   , hrule ((fromIntegral j - fromIntegral i) * leafWidth + 0.5)
-    # lw veryThick
-    # lc grey
-    # lineCap LineCapRound
+    # applyStyle (rsty a)
   ]
 
 -- (j - i + 1) * leafWidth - (leafWidth - 1)
@@ -103,8 +109,25 @@ showUpdateOpts = STOpts
   { drawNode = drawNode'
       (DNOpts
         { drawNodeData = drawNodeData def . snd
-        , nodeStyle    = \(u,x) ->
+        , nodeStyle    = \(u,_) ->
             defNodeStyle <> case u of { False -> mempty; True -> mempty # lc red }
+        , rangeStyle   = const defRangeStyle
+        }
+      )
+  }
+
+showRangeOpts :: _ => SegTreeOpts (Bool, a) b
+showRangeOpts = STOpts
+  { drawNode = drawNode'
+      (DNOpts
+        { drawNodeData = drawNodeData def . snd
+        , nodeStyle    = \(u,_) ->
+            defNodeStyle <> case u of { False -> mempty; True -> mempty # lc green # fc green }
+        , rangeStyle   = \(u,_) ->
+            mconcat
+            [ defRangeStyle
+            , case u of { False -> mempty # lw medium; True -> mempty # lc green }
+            ]
         }
       )
   }

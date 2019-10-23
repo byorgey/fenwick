@@ -251,19 +251,24 @@ sum.
   \item Otherwise, recurse on both children and return the sum of the
     results.
   \end{itemize}
+
+\todoi{update picture: grey out nodes that we don't visit at all; use
+  colors to indicate which other nodes we recurse through or return 0 from}
 \begin{figure}
 \begin{center}
 \begin{diagram}[width=300]
   import FenwickDiagrams
   import SegTree
   import Data.Monoid
-  import Control.Arrow ((***))
+  import Control.Arrow ((***), second)
 
   dia :: Diagram B
   dia = sampleArray
     # mkSegTree
-    # fmap getSum
-    # drawSegTree def
+    # rq' 4 11
+    # fst
+    # fmap (second getSum)
+    # drawSegTree showRangeOpts
 \end{diagram}
 \end{center}
 \caption{Computing a range sum from a segment tree} \label{fig:segment-tree-update}
