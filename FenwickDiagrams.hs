@@ -20,6 +20,9 @@ type SegNode a = (NodeType, a)
 sampleArray :: [Sum Int]
 sampleArray = map (Sum . negate) [0, -4, -1, -1, -1, 2, -6, 4, 1, -6, 2, -5, 6, -2, -8, -3]
 
+sampleArray4 :: [Sum Int]
+sampleArray4 = map Sum (replicate 64 0)
+
 data SegTreeOpts a b = STOpts
   {
     -- | Node drawing function: takes value of node (marked as leaf or
@@ -56,6 +59,16 @@ drawSegTree o@(STOpts f) (Branch a i j l r) = localize $ vsep 1
 
 leafWidth :: Double
 leafWidth = 1.2
+
+-- leafX l n computes the start and end offsets for leaf l in a tree
+-- with n total leaf nodes.
+leafX :: Int -> Int -> (Double, Double)
+leafX l n =
+  ( fi (l - 1 - n `div` 2) * leafWidth + (leafWidth - 1)/2
+  , fi (l - n `div` 2) * leafWidth
+  )
+
+fi = fromIntegral
 
 -- XXX need to generalize the below node-drawing code.
 -- Want to be able to draw
@@ -104,29 +117,46 @@ drawNode' (DNOpts dn nsty rsty) (InternalNode, a) i j = mconcat
 
 ------------------------------------------------------------
 
+updateColor :: Colour Double
+updateColor = blend 0.5 red white
+
 showUpdateOpts :: _ => SegTreeOpts (Bool, Int) b
 showUpdateOpts = STOpts
   { drawNode = drawNode'
       (DNOpts
         { drawNodeData = drawNodeData def . snd
         , nodeStyle    = \(u,_) ->
-            defNodeStyle <> case u of { False -> mempty; True -> mempty # lc red }
+            defNodeStyle <> case u of { False -> mempty; True -> mempty # fc updateColor }
         , rangeStyle   = const defRangeStyle
         }
       )
   }
 
-showRangeOpts :: _ => SegTreeOpts (Bool, a) b
-showRangeOpts = STOpts
+showRangeOpts :: (V b ~ V2, N b ~ Double, _) => SegTreeOpts (Visit, a) b
+showRangeOpts = showRangeOpts' True True
+
+showRangeOpts' :: (V b ~ V2, N b ~ Double, _) => Bool -> Bool -> SegTreeOpts (Visit, a) b
+showRangeOpts' showNumbers showRangeBars = STOpts
   { drawNode = drawNode'
       (DNOpts
-        { drawNodeData = drawNodeData def . snd
+        { drawNodeData = case showNumbers of
+                           True  -> drawNodeData def . snd
+                           False -> const mempty
         , nodeStyle    = \(u,_) ->
-            defNodeStyle <> case u of { False -> mempty; True -> mempty # lc green # fc green }
+            defNodeStyle <> mempty # case u of
+              { NoVisit -> lc grey
+              ; Zero    -> fc grey
+              ; Stop    -> lc green . fc green
+              ; Recurse -> lc blue  . fc blue
+              }
         , rangeStyle   = \(u,_) ->
             mconcat
             [ defRangeStyle
-            , case u of { False -> mempty # lw medium; True -> mempty # lc green }
+            , mempty # case (u,showRangeBars) of
+                { (Stop, _)  -> lc green
+                ; (_, False) -> lw none
+                ; _          -> lw medium
+                }
             ]
         }
       )

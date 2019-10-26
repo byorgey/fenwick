@@ -1,4 +1,4 @@
-% -*- compile-command: "stack exec -- pdflatex --enable-write18 fenwick.tex" -*-
+% -*- compile-command: "stack exec -- rubber -d --unsafe fenwick.tex" -*-
 
 %% For double-blind review submission, w/o CCS and ACM Reference (max submission space)
 \documentclass[acmsmall,review]{acmart}\settopmatter{printfolios=true,printccs=false,printacmref=false}
@@ -35,7 +35,7 @@
 %\copyrightyear{2018}           %% If different from \acmYear
 
 %% Bibliography style
-% \bibliographystyle{ACM-Reference-Format}
+\bibliographystyle{ACM-Reference-Format}
 %% Citation style
 %% Note: author/year citations are required for papers published as an
 %% issue of PACMPL.
@@ -54,6 +54,36 @@
 \usepackage{enumitem}
 \newcommand{\todoi}[2][]{\todo[inline, #1]{#2}}
 \usepackage[backend=pgf, input, extension=pgf, outputdir=diagrams]{diagrams-latex}
+
+\usepackage{prettyref}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Prettyref
+
+\newrefformat{fig}{Figure~\ref{#1}}
+\newrefformat{sec}{section~\ref{#1}}
+\newrefformat{eq}{equation~\eqref{#1}}
+\newrefformat{prob}{Problem~\ref{#1}}
+\newrefformat{tab}{Table~\ref{#1}}
+\newrefformat{thm}{Theorem~\ref{#1}}
+\newrefformat{lem}{Lemma~\ref{#1}}
+\newrefformat{claim}{Claim~\ref{#1}}
+\newrefformat{obs}{Observation~\ref{#1}}
+\newrefformat{prop}{Proposition~\ref{#1}}
+\newrefformat{defn}{Definition~\ref{#1}}
+\newrefformat{cor}{Corollary~\ref{#1}}
+\providecommand{\pref}{}
+\renewcommand{\pref}[1]{\prettyref{#1}}
+
+% \Pref is just like \pref but it uppercases the first letter; for use
+% at the beginning of a sentence.
+\providecommand{\Pref}{}
+\renewcommand{\Pref}[1]{%
+  \expandafter\ifx\csname r@#1\endcsname\relax {\scriptsize[ref]}
+    \else
+    \edef\reftext{\prettyref{#1}}\expandafter\MakeUppercase\reftext
+    \fi
+}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -175,25 +205,32 @@ sum $a_1 + \dots + a_i$.  Now finding range sums is fast: we can
 obtain $a_i + \dots + a_j$ in constant time by computing
 $P[j] - P[i-1]$ (for convenience we store $P[0] = 0$ so this works
 even when $i=1$).  Unfortunately, modifying a value now takes linear
-time: to change $a_i$ requires updating every $P[j]$ for $j \geq i$.
+time: changing $a_i$ requires updating every $P[j]$ for $j \geq i$.
 
 Can we somehow have the best of both worlds?  The answer, known since
 at least XXX (citation), is yes: we can get both operations to run in
 $O(\lg n)$ time if we use a divide-and-conquer approach to caching
-range sums.  XXX familiar technique (cite finger trees).  Make a
-binary tree with the sequence at the leaves; every internal node
-stores the sum of its two child nodes.  The resulting data structure
-is known as a \emph{segment tree} (citation?), presumably because each
-internal node ultimately caches the sum of a (contiguous)
-\emph{segment} of the underlying sequence.
-
+range sums.  Specifically, make a binary tree with the sequence at the
+leaves, and have every internal node store the sum of its two
+children.  (This should be a familiar idea to many functional
+programmers; for example, finger trees
+\citep{Hinze-Paterson:FingerTree} use a similar sort of scheme.)  The
+resulting data structure is known as a \emph{segment tree} (XXX
+citation?), presumably because each internal node ultimately caches
+the sum of a (contiguous) \emph{segment} of the underlying sequence.
 For simplicity, we will assume that $n$ is a power of two, although it
 is easy to generalize to situations where it is not (for example, by
-padding with zero). Figure~\ref{fig:segment-tree} shows a segment tree
-built on a random sample array of length $n=16$. Each leaf of the tree
-corresponds to an array entry; each internal node is shown with a grey
-line indicating the range of the underlying array of which it is the
-sum.
+padding with zero to force the length to be a power of
+two). \pref{fig:segment-tree} shows a segment tree built on a random
+sample array of length $n=16$. Each leaf of the tree corresponds to an
+array entry; each internal node is shown with a grey bar showing the
+range of the underlying array of which it is the sum.
+
+\todoi{Note that ``segment tree'' means two different things.  The
+  Wikipedia article is about something used in computational geometry
+  for representing intervals.  But lots of places on the web,
+  specially competitive programming stuff, use it to refer to this
+  simpler thing.}
 
 \begin{figure}
 \begin{center}
@@ -217,7 +254,8 @@ sum.
 \item To update the value at index $i$, we also need to update any
   cached range sums which include it.  These are exactly the nodes
   along the path from the leaf at index $i$ to the root of the tree;
-  there are $O(\log n)$ such nodes.
+  there are $O(\log n)$ such nodes.  \pref{fig:segment-tree-update}
+  illustrates this update process for the example segment tree.
 
 \begin{figure}
 \begin{center}
@@ -236,7 +274,7 @@ sum.
     # drawSegTree showUpdateOpts
 \end{diagram}
 \end{center}
-\caption{A segment tree, updated} \label{fig:segment-tree-update}
+\caption{Updating a segment tree} \label{fig:segment-tree-update}
 \end{figure}
 
 \item To compute the range sum $a_i + \dots + a_j$, we recurse through
@@ -251,9 +289,6 @@ sum.
   \item Otherwise, recurse on both children and return the sum of the
     results.
   \end{itemize}
-
-\todoi{update picture: grey out nodes that we don't visit at all; use
-  colors to indicate which other nodes we recurse through or return 0 from}
 \begin{figure}
 \begin{center}
 \begin{diagram}[width=300]
@@ -263,18 +298,56 @@ sum.
   import Control.Arrow ((***), second)
 
   dia :: Diagram B
-  dia = sampleArray
-    # mkSegTree
-    # rq' 4 11
-    # fst
-    # fmap (second getSum)
-    # drawSegTree showRangeOpts
+  dia = vsep 0.7
+    [ sampleArray
+      # mkSegTree
+      # rq' i j
+      # fst
+      # fmap (second getSum)
+      # drawSegTree showRangeOpts
+    , (fst (leafX i n) ^& 0) ~~ (snd (leafX j n) ^& 0)
+      # lc green
+      # applyStyle defRangeStyle
+    ]
+    where
+      i = 4
+      j = 11
+      n = length sampleArray
+\end{diagram}
+\end{center}
+\caption{Computing a range sum from a segment tree} \label{fig:segment-tree-range-sum}
+\end{figure}
+  XXX analysis, we visit at most $2 \lg n$ nodes.
+\end{enumerate}
+
+\begin{figure}
+\begin{center}
+\begin{diagram}[width=300]
+  import FenwickDiagrams
+  import SegTree
+  import Data.Monoid
+  import Control.Arrow ((***), second)
+
+  dia :: Diagram B
+  dia = vsep 0.7
+    [ sampleArray4
+      # mkSegTree
+      # rq' i j
+      # fst
+      # fmap (second getSum)
+      # drawSegTree (showRangeOpts' False False)
+    , (fst (leafX i n) ^& 0) ~~ (snd (leafX j n) ^& 0)
+      # lc green
+      # applyStyle defRangeStyle
+    ]
+    where
+      i = 12
+      j = 42
+      n = length sampleArray4
 \end{diagram}
 \end{center}
 \caption{Computing a range sum from a segment tree} \label{fig:segment-tree-update}
 \end{figure}
-  XXX analysis, we visit at most $2 \lg n$ nodes.
-\end{enumerate}
 
 \section{Segment Trees, Generally}
 
@@ -411,8 +484,8 @@ bt (S n) i = Branch i (bt n (O i)) (bt n (I i))
 \end{acks}
 
 
-%% Bibliography
-% \bibliography{fenwick}
+% Bibliography
+\bibliography{fenwick}
 
 
 %% Appendix

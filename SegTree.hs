@@ -33,14 +33,16 @@ mkSegTree as = go 1 n (as ++ replicate (n - length as) mempty)
 rq :: Monoid a => Int -> Int -> SegmentTree a -> a
 rq i j st = snd $ rq' i j st
 
-rq' :: Monoid a => Int -> Int -> SegmentTree a -> (SegmentTree (Bool, a), a)
+data Visit = NoVisit | Zero | Stop | Recurse
+
+rq' :: Monoid a => Int -> Int -> SegmentTree a -> (SegmentTree (Visit, a), a)
 rq' i j (Leaf a k)
-  | i <= k && k <= j = (Leaf (True,  a) k, a)
-  | otherwise        = (Leaf (False, a) k, mempty)
+  | i <= k && k <= j = (Leaf (Stop,  a) k, a)
+  | otherwise        = (Leaf (Zero, a) k, mempty)
 rq' i j (Branch a x y l r)
-  | y < i || j < x   = (Branch (False, a) x y ((False,) <$> l) ((False,) <$> r), mempty)
-  | i <= x && y <= j = (Branch (True,  a) x y ((False,) <$> l) ((False,) <$> r), mempty)
-  | otherwise        = (Branch (False, a) x y l' r', al <> ar)
+  | y < i || j < x   = (Branch (Zero, a) x y ((NoVisit,) <$> l) ((NoVisit,) <$> r), mempty)
+  | i <= x && y <= j = (Branch (Stop,  a) x y ((NoVisit,) <$> l) ((NoVisit,) <$> r), mempty)
+  | otherwise        = (Branch (Recurse, a) x y l' r', al <> ar)
     where
       (l', al) = rq' i j l
       (r', ar) = rq' i j r
