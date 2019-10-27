@@ -55,6 +55,7 @@
 \newcommand{\todoi}[2][]{\todo[inline, #1]{#2}}
 \usepackage[backend=pgf, input, extension=pgf, outputdir=diagrams]{diagrams-latex}
 
+\usepackage{xspace}
 \usepackage{prettyref}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -88,6 +89,9 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \newcommand{\mempty}{\ensuremath{\varepsilon}}
+
+\newcommand{\Up}{\textbf{U}\xspace}
+\newcommand{\RQ}{\textbf{RQ}\xspace}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -179,41 +183,43 @@ Text of abstract \ldots.
 
 \section{Introduction}
 
-XXX write about application in arithmetic coding: need to quickly find
-prefix sums of probabilities.  Read up on this a bit more.
-
 Suppose we have a sequence of $n$ integers $a_1, a_2, \dots, a_n$, and
-want to be able to perform two operations:
+want to be able to perform an arbitrary sequence of two operations:
 
-\begin{enumerate}[label=(\Alph*)]
-\item Modify the value at index $i$.
-\item Find the sum of all values in a particular range $[i \dots j]$,
-  that is, $a_i + a_{i+1} + \dots + a_j$.
-\end{enumerate}
+\begin{itemize}
+\item \emph{Update} the value at index $i$ to a new value $v$, which
+  we abbreviate \Up.
+\item Find the sum of all values in a particular range $[i, j]$,
+  that is, $a_i + a_{i+1} + \dots + a_j$.  We call this a \emph{range
+    query}, abbreviated \RQ.
+\end{itemize}
 
-If we simply store the integers in a mutable array, then we can modify
-the value at a given index in constant time, but finding the sum of a
-range requires up to $O(n)$ time, since we must iterate through the
-range $i \dots j$ to add up the values.
+If we simply store the integers in a mutable array, then we can update
+in constant time, but a range query requires up to $O(n)$ time, since
+we must iterate through the range $[i, j]$ to add up the values.
 
-In order to improve the running time of the range sum operation, an
-obvious idea is to somehow cache (some) range sums.  However, this
-must be done with care, since the cached sums must also be updated
-appropriately when modifying a value.  For example, a straightforward
-approach would be to use an array $P$ where $P[i]$ stores the prefix
-sum $a_1 + \dots + a_i$.  Now finding range sums is fast: we can
-obtain $a_i + \dots + a_j$ in constant time by computing
-$P[j] - P[i-1]$ (for convenience we store $P[0] = 0$ so this works
-even when $i=1$).  Unfortunately, modifying a value now takes linear
-time: changing $a_i$ requires updating every $P[j]$ for $j \geq i$.
+In order to improve the running time of a range query, one obvious
+idea is to somehow cache (at least some of the) range sums.  However,
+this must be done with care, since the cached sums must also be
+updated appropriately when updating.  For example, a straightforward
+approach would be to use an array $P$ where $P_i$ stores the prefix
+sum $a_1 + \dots + a_i$.  Now range queries are fast: we can obtain
+$a_i + \dots + a_j$ in constant time by computing $P_j - P_{i-1}$ (for
+convenience we set $P_0 = 0$ so this works even when $i=1$).
+Unfortunately, it is update that now takes linear time, since changing
+$a_i$ requires updating $P_j$ for every $j \geq i$.
 
-Can we somehow have the best of both worlds?  The answer, known since
-at least XXX (citation), is yes: we can get both operations to run in
-$O(\lg n)$ time if we use a divide-and-conquer approach to caching
-range sums.  Specifically, make a binary tree with the sequence at the
-leaves, and have every internal node store the sum of its two
-children.  (This should be a familiar idea to many functional
-programmers; for example, finger trees
+Is it possible to get \emph{both} operations to run in sublinear time?
+XXX write about arithmetic coding as original motivation: need to
+quickly find prefix sums of probabilities.  Read up on this a bit
+more.
+
+The answer, known since at least XXX (citation), is yes: we can get
+both operations to run in $O(\lg n)$ time if we use a
+divide-and-conquer approach to caching range sums.  Just make a binary
+tree where the leaves store the sequence itself, and every internal
+node stores the sum of its two children.  (This should be a familiar
+idea to many functional programmers; for example, finger trees
 \citep{Hinze-Paterson:FingerTree} use a similar sort of scheme.)  The
 resulting data structure is known as a \emph{segment tree} (XXX
 citation?), presumably because each internal node ultimately caches
@@ -247,15 +253,16 @@ of the underlying array of which it is the sum.
 \caption{A segment tree} \label{fig:segment-tree}
 \end{figure}
 
-Let's think about how to use a segment tree to implement the two
-required operations.
+Let's see how we can use a segment tree to implement the two required
+operations to run in $O(\lg n)$ time.
 
-\begin{enumerate}[label=(\Alph*)]
+\begin{itemize}
 \item To update the value at index $i$, we also need to update any
   cached range sums which include it.  These are exactly the nodes
   along the path from the leaf at index $i$ to the root of the tree;
   there are $O(\lg n)$ such nodes.  \pref{fig:segment-tree-update}
-  illustrates this update process for the example segment tree.
+  illustrates this update process for the example segment tree from
+  \pref{fig:segment-tree}.
 
 \begin{figure}
 \begin{center}
@@ -277,15 +284,14 @@ required operations.
 \caption{Updating a segment tree} \label{fig:segment-tree-update}
 \end{figure}
 
-\item To compute the range sum $a_i + \dots + a_j$, we recurse through
-  the tree while keeping track of the range covered by the current
-  node.
+\item To perform a range query, we recurse through the tree while
+  keeping track of the range covered by the current node.
   \begin{itemize}
   \item If the range of the current node is wholly contained within
-    the desired range $i \dots j$, return the value of the current
+    the desired range $[i, j]$, return the value of the current
     node.
   \item If the range of the current node does not overlap with the
-    desired range, return $0$.
+    desired range at all, return $0$.
   \item Otherwise, recurse on both children and return the sum of the
     results.
   \end{itemize}
@@ -315,9 +321,9 @@ required operations.
       n = length sampleArray
 \end{diagram}
 \end{center}
-\caption{Computing a range sum from a segment tree} \label{fig:segment-tree-range-sum}
+\caption{Performing a range query on a segment tree} \label{fig:segment-tree-range-query}
 \end{figure}
-\pref{fig:segment-tree-range-sum} illustrates the process of computing
+\pref{fig:segment-tree-range-query} illustrates the process of computing
 the sum of the range $[4 \dots 11]$.  Blue nodes are the ones we
 recurse through; green nodes are those whose range is wholly contained
 in the desired range, and are returned without recursing further; grey
@@ -325,12 +331,13 @@ nodes are disjoint from the desired range and return zero.
 
 On this small example tree, it may seem that we visit a significant
 fraction of the total nodes, but in general, we visit no more than
-about $4 \lg n$ nodes.  \pref{fig:big-range-sum} makes this more
+about $4 \lg n$ nodes.  \pref{fig:big-range-query} makes this more
 clear.  Only one blue node in the entire tree can have two blue
 children, \todoi{why?} and hence each level of the tree can contain at
-most two blue nodes and two non-blue nodes. \todoi{improve this explanation!}
-\end{enumerate}
-
+most two blue nodes and two non-blue nodes. \todoi{improve this
+  explanation!  Something about basically performing a binary search
+  to find each endpoint, with leaves to either side (either fully
+  included nodes towards the range or zero nodes away from it).}
 \begin{figure}
 \begin{center}
 \begin{diagram}[width=300]
@@ -357,13 +364,14 @@ most two blue nodes and two non-blue nodes. \todoi{improve this explanation!}
       n = length sampleArray4
 \end{diagram}
 \end{center}
-\caption{Computing a range sum from a larger segment tree} \label{fig:big-range-sum}
+\caption{Performing a range query on a larger segment tree} \label{fig:big-range-query}
 \end{figure}
+\end{itemize}
 
 \section{Segment Trees, Generally}
 
 Although most reference material on segment trees (or Fenwick trees)
-talks about sums of integers, this is needlessly specific.  In
+talks about sums of \emph{integers}, this is needlessly specific.  In
 general, all we need is a sequence of elements $a_1, \dots, a_n$ from
 some \emph{monoid}.  Recall that a monoid is a set $M$ together with
 an associative binary operation $\oplus$ and an identity element
@@ -376,46 +384,46 @@ multiplication).
 
 \todoi{Haskell implementation.}
 \todoi{requires 2x storage.  Indexing scheme?  Relevant in an array implementation.}
+\todoi{Say something about groups?}
 
 \section{Segment Trees are Redundant}
 
 Of course segment trees are redundant in the sense that they cache
 range sums which could easily be recomputed from the original
 sequence.  That's the whole point: caching these ``redundant'' sums
-allows us to compute arbitrary range sums much more quickly, without
-incurring a high cost to maintain them.  But segment trees are
-redundant in a stronger sense: it turns out that we can throw out
-almost \emph{half} of the data in a segment tree and still retain
-$O(\log n)$ performance for both operations!
+allows us to perform arbitrary range queries more quickly. But segment
+trees are actually redundant in a stronger sense: it turns out that we
+can throw out almost \emph{half} of the data in a segment tree and
+still retain the $O(\log n)$ running time for updates and range
+queries!
 
 How, you ask?  Simple: just throw out the data associated with
 \emph{every right child}.
 
-\todoi{picture of segment tree with right children deactivated.  Call
+\todoi{picture of segment tree with right children inactivated.  Call
   left children \emph{active} and right children \emph{inactive}.}
 
 First, let's prove that there is enough information remaining to
 reconstruct the information that was discarded.
 
 \begin{theorem}
-  After deactivating all the right children in a segment tree, the
+  After inactivating all the right children in a segment tree, the
   value of any inactive node can be computed using only the values of
   active nodes.
 \end{theorem}
 \begin{proof}
   The proof is by induction on the depth of an inactive node from its
-  lowest active ancestor.
+  nearest active ancestor.
   \begin{itemize}
-  \item In the base case, if an inactive node is at depth $1$ from its
-    lowest active ancestor, the situation looks like this:
-    \todoi{picture}.  In this case $p = lr$ by definition, so $r =
-    l^{-1}p$.
+  \item In the base case, if an inactive node is the child of an
+    active node, the situation looks like this: \todoi{picture}  In
+    this case $p = l \oplus r$ by definition, so $r = l^{-1} \oplus p$.
   \item Otherwise, the situation looks like this: \todoi{picture}.
-    Again $r = l^{-1}p$, but we do not know the value of $p$.
-    However, since $p$ is closer to its lowest active ancestor than
+    Again $r = l^{-1} \oplus p$, but we do not know the value of $p$.
+    However, since $p$ is closer to its nearest active ancestor than
     $r$, by the induction hypothesis we can find an expression for $p$
     using only the values of active nodes; substituting this into $r =
-    l^{-1}p$ yields the desired expression for $r$.
+    l^{-1} \oplus p$ yields the desired expression for $r$.
   \end{itemize}
 \end{proof}
 
@@ -433,7 +441,7 @@ used: \todoi{initial segments, subtract}
 \section{Indices}
 
 We now have a tree structure with nodes numbered like so: in short, we
-start with a full binary tree, ``deactivate'' any right children, and
+start with a full binary tree, ``inactivate'' any right children, and
 then number the remaining nodes using a preorder traversal (that is,
 each node's left and right children are recursively numbered first,
 then the node itself).  However, it is not obvious what mathematical
