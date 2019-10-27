@@ -317,7 +317,18 @@ required operations.
 \end{center}
 \caption{Computing a range sum from a segment tree} \label{fig:segment-tree-range-sum}
 \end{figure}
-  XXX analysis, we visit at most $2 \lg n$ nodes.
+\pref{fig:segment-tree-range-sum} illustrates the process of computing
+the sum of the range $[4 \dots 11]$.  Blue nodes are the ones we
+recurse through; green nodes are those whose range is wholly contained
+in the desired range, and are returned without recursing further; grey
+nodes are disjoint from the desired range and return zero.
+
+On this small example tree, it may seem that we visit a significant
+fraction of the total nodes, but in general, we visit no more than
+about $4 \lg n$ nodes.  \pref{fig:big-range-sum} makes this more
+clear.  Only one blue node in the entire tree can have two blue
+children, \todoi{why?} and hence each level of the tree can contain at
+most two blue nodes and two non-blue nodes. \todoi{improve this explanation!}
 \end{enumerate}
 
 \begin{figure}
@@ -346,7 +357,7 @@ required operations.
       n = length sampleArray4
 \end{diagram}
 \end{center}
-\caption{Computing a range sum from a segment tree} \label{fig:segment-tree-update}
+\caption{Computing a range sum from a larger segment tree} \label{fig:big-range-sum}
 \end{figure}
 
 \section{Segment Trees, Generally}
