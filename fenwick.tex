@@ -219,12 +219,11 @@ resulting data structure is known as a \emph{segment tree} (XXX
 citation?), presumably because each internal node ultimately caches
 the sum of a (contiguous) \emph{segment} of the underlying sequence.
 For simplicity, we will assume that $n$ is a power of two, although it
-is easy to generalize to situations where it is not (for example, by
-padding with zero to force the length to be a power of
-two). \pref{fig:segment-tree} shows a segment tree built on a random
-sample array of length $n=16$. Each leaf of the tree corresponds to an
-array entry; each internal node is shown with a grey bar showing the
-range of the underlying array of which it is the sum.
+is easy to generalize to situations where it is not.
+\pref{fig:segment-tree} shows a segment tree built on a random sample
+array of length $n=16$. Each leaf of the tree corresponds to an array
+entry; each internal node is shown with a grey bar showing the range
+of the underlying array of which it is the sum.
 
 \todoi{Note that ``segment tree'' means two different things.  The
   Wikipedia article is about something used in computational geometry
@@ -248,13 +247,14 @@ range of the underlying array of which it is the sum.
 \caption{A segment tree} \label{fig:segment-tree}
 \end{figure}
 
-\todoi{picture of the prefix sum array for comparison?}
+Let's think about how to use a segment tree to implement the two
+required operations.
 
-\begin{enumerate}
+\begin{enumerate}[label=(\Alph*)]
 \item To update the value at index $i$, we also need to update any
   cached range sums which include it.  These are exactly the nodes
   along the path from the leaf at index $i$ to the root of the tree;
-  there are $O(\log n)$ such nodes.  \pref{fig:segment-tree-update}
+  there are $O(\lg n)$ such nodes.  \pref{fig:segment-tree-update}
   illustrates this update process for the example segment tree.
 
 \begin{figure}
@@ -284,7 +284,7 @@ range of the underlying array of which it is the sum.
   \item If the range of the current node is wholly contained within
     the desired range $i \dots j$, return the value of the current
     node.
-  \item If the range of the current node is wholly disjoint from the
+  \item If the range of the current node does not overlap with the
     desired range, return $0$.
   \item Otherwise, recurse on both children and return the sum of the
     results.
