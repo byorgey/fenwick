@@ -400,6 +400,25 @@ queries!
 How, you ask?  Simple: just throw out the data associated with
 \emph{every right child}.
 
+\begin{figure}
+\begin{center}
+\begin{diagram}[width=300]
+  import FenwickDiagrams
+  import SegTree
+  import Data.Monoid
+  import Control.Arrow ((***), second)
+
+  dia :: Diagram B
+  dia = sampleArray
+    # mkSegTree
+    # deactivate
+    # drawSegTree ??
+
+\end{diagram}
+\end{center}
+\caption{Inactivating all right children in a segment tree} \label{fig:deactivate-right}
+\end{figure}
+
 \todoi{picture of segment tree with right children inactivated.  Call
   left children \emph{active} and right children \emph{inactive}.}
 

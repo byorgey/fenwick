@@ -56,3 +56,11 @@ update i d (Leaf a j)
 update i d b@(Branch a x y l r)
   | i < x || y < i = b
   | otherwise = Branch (a <> d) x y (update i d l) (update i d r)
+
+data NodeState = Active | Inactive
+
+deactivate :: SegmentTree a -> SegmentTree (a, NodeState)
+deactivate = go Active
+  where
+    go s (Leaf a i) = Leaf (a,s) i
+    go s (Branch a i j l r) = Branch (a,s) i j (go Active l) (go Inactive r)
