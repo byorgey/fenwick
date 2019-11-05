@@ -161,3 +161,23 @@ showRangeOpts' showNumbers showRangeBars = STOpts
         }
       )
   }
+
+-- data NodeState = Active | Inactive
+
+showDeactiveOpts :: (V b ~ V2, N b ~ Double, _) => SegTreeOpts (a, NodeState) b
+showDeactiveOpts = STOpts
+  { drawNode = drawNode'
+      (DNOpts
+        { drawNodeData = \(a,s) ->
+            case s of
+              Active   -> drawNodeData def a
+              Inactive -> mempty
+        , nodeStyle    = \(_,s) ->
+            defNodeStyle <> mempty # case s of
+              { Active   -> mempty
+              ; Inactive -> lc grey
+              }
+        , rangeStyle   = const (mempty # lw none)
+        }
+      )
+  }

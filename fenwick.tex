@@ -1,4 +1,4 @@
-% -*- compile-command: "stack exec -- rubber -d --unsafe fenwick.tex" -*-
+% -*- compile-command: "stack exec -- pdflatex --enable-write18 fenwick.tex" -*-
 
 %% For double-blind review submission, w/o CCS and ACM Reference (max submission space)
 \documentclass[acmsmall,review]{acmart}\settopmatter{printfolios=true,printccs=false,printacmref=false}
@@ -92,6 +92,8 @@
 
 \newcommand{\Up}{\textbf{U}\xspace}
 \newcommand{\RQ}{\textbf{RQ}\xspace}
+
+\newcommand{\ie}{\emph{i.e.}\xspace}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -398,7 +400,13 @@ still retain the $O(\log n)$ running time for updates and range
 queries!
 
 How, you ask?  Simple: just throw out the data associated with
-\emph{every right child}.
+\emph{every right child}. \pref{fig:deactivate-right} shows the same
+example tree we have been using, but with the data deleted from every
+right child.  Note that ``every right child'' includes both leaves and
+internal nodes: we throw out the data associated to \emph{any} node
+which is the right child of its parent.  We will refer to the nodes
+with discarded data as \emph{inactive} and the remaining nodes (that
+is, left children and the root) as \emph{active}.
 
 \begin{figure}
 \begin{center}
@@ -406,21 +414,18 @@ How, you ask?  Simple: just throw out the data associated with
   import FenwickDiagrams
   import SegTree
   import Data.Monoid
-  import Control.Arrow ((***), second)
+  import Control.Arrow ((***), first, second)
 
   dia :: Diagram B
   dia = sampleArray
     # mkSegTree
     # deactivate
-    # drawSegTree ??
-
+    # fmap (first getSum)
+    # drawSegTree showDeactiveOpts
 \end{diagram}
 \end{center}
 \caption{Inactivating all right children in a segment tree} \label{fig:deactivate-right}
 \end{figure}
-
-\todoi{picture of segment tree with right children inactivated.  Call
-  left children \emph{active} and right children \emph{inactive}.}
 
 First, let's prove that there is enough information remaining to
 reconstruct the information that was discarded.
@@ -435,7 +440,16 @@ reconstruct the information that was discarded.
   nearest active ancestor.
   \begin{itemize}
   \item In the base case, if an inactive node is the child of an
-    active node, the situation looks like this: \todoi{picture}  In
+    active node, the situation looks like this:
+    \begin{diagram}[width=100]
+      import FenwickDiagrams
+      import SegTree
+      dia :: Diagram B
+      dia = (Branch "p" 1 2 (Leaf "l" 1) (Leaf "r" 2))
+        # deactivate
+        # drawSegTree showDeactiveOpts
+    \end{diagram}
+    In
     this case $p = l \oplus r$ by definition, so $r = l^{-1} \oplus p$.
   \item Otherwise, the situation looks like this: \todoi{picture}.
     Again $r = l^{-1} \oplus p$, but we do not know the value of $p$.
