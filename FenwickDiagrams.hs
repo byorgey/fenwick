@@ -1,7 +1,10 @@
 {-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE GADTs                 #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE PartialTypeSignatures #-}
 {-# LANGUAGE TypeFamilies          #-}
+{-# LANGUAGE TypeSynonymInstances  #-}
 {-# LANGUAGE UndecidableInstances  #-}
 {-# OPTIONS_GHC -fno-warn-partial-type-signatures #-}
 
@@ -33,7 +36,7 @@ data SegTreeOpts a b = STOpts
   }
 
 instance (N b ~ Double, V b ~ V2
-         , Renderable (Path V2 Double) b, Renderable (Text Double) b
+         , Drawable b a, Renderable (Path V2 Double) b, Renderable (Text Double) b
          , Show a) =>
   Default (SegTreeOpts a b) where
   def = STOpts { drawNode = drawNodeDef }
@@ -77,14 +80,30 @@ data DrawNodeOpts a b = DNOpts
   { drawNodeData :: a -> Diagram b
   , nodeStyle    :: a -> Style V2 Double
   , rangeStyle   :: a -> Style V2 Double
+  , nodeShape    :: NodeType -> Diagram b
   }
 
-instance (TypeableFloat (N b), V b ~ V2, Renderable (Text (N b)) b, Show a) =>
+class Drawable b a where
+  draw :: a -> Diagram b
+
+instance (V b ~ V2, TypeableFloat (N b), Renderable (Text (N b)) b) => Drawable b Int where
+  draw = fontSizeL 0.6 . text . show
+
+instance (V b ~ V2, TypeableFloat (N b), Renderable (Text (N b)) b) => Drawable b String where
+  draw = fontSizeL 0.6 . text . mathify
+
+mathify = ("$"++) . (++"$")
+
+instance
+  ( N b ~ Double, V b ~ V2
+  , Renderable (Text (N b)) b, Renderable (Path V2 Double) b
+  , Drawable b a) =>
   Default (DrawNodeOpts a b) where
   def = DNOpts
-    { drawNodeData = fontSizeL 0.6 . text . show
+    { drawNodeData = draw
     , nodeStyle    = const defNodeStyle
     , rangeStyle   = const defRangeStyle
+    , nodeShape    = defNodeShape
     }
 
 defNodeStyle :: Style V2 Double
@@ -96,16 +115,32 @@ defRangeStyle = mempty
   # lc grey
   # lineCap LineCapRound
 
-drawNodeDef :: _ => SegNode a -> Int -> Int -> Diagram b
+defNodeShape ::
+  (V b ~ V2, N b ~ Double, Renderable (Path V2 Double) b) =>
+  NodeType -> Diagram b
+defNodeShape LeafNode     = squareNodeShape
+defNodeShape InternalNode = circleNodeShape
+
+squareNodeShape, circleNodeShape ::
+  (V b ~ V2, N b ~ Double, Renderable (Path V2 Double) b) =>
+  Diagram b
+squareNodeShape = square 1 <> strutX leafWidth
+circleNodeShape = circle 0.5 <> strutX leafWidth
+
+drawNodeDef ::
+  ( V b ~ V2, N b ~ Double, Renderable (Path V2 Double) b, Renderable (Text Double) b
+  , Drawable b a) =>
+  SegNode a -> Int -> Int -> Diagram b
 drawNodeDef = drawNode' def
 
-drawNode' :: _ => DrawNodeOpts a b -> SegNode a -> Int -> Int -> Diagram b
+drawNode' ::
+  (V b ~ V2, N b ~ Double, Renderable (Path V2 Double) b, Renderable (Text Double) b) =>
+  DrawNodeOpts a b -> SegNode a -> Int -> Int -> Diagram b
+drawNode' (DNOpts dn nsty _ shp) (LeafNode, a) _ _
+  = dn a <> shp LeafNode # applyStyle (nsty a)
 
-drawNode' (DNOpts dn nsty _) (LeafNode, a) _ _
-  = dn a <> (square 1 <> strutX leafWidth) # applyStyle (nsty a)
-
-drawNode' (DNOpts dn nsty rsty) (InternalNode, a) i j = mconcat
-  [ dn a <> circle 0.5 # applyStyle (nsty a)
+drawNode' (DNOpts dn nsty rsty shp) (InternalNode, a) i j = mconcat
+  [ dn a <> shp InternalNode # applyStyle (nsty a)
   , hrule ((fromIntegral j - fromIntegral i) * leafWidth + 0.5)
     # applyStyle (rsty a)
   ]
@@ -120,64 +155,63 @@ drawNode' (DNOpts dn nsty rsty) (InternalNode, a) i j = mconcat
 updateColor :: Colour Double
 updateColor = blend 0.5 red white
 
-showUpdateOpts :: _ => SegTreeOpts (Bool, Int) b
-showUpdateOpts = STOpts
-  { drawNode = drawNode'
-      (DNOpts
-        { drawNodeData = drawNodeData def . snd
-        , nodeStyle    = \(u,_) ->
-            defNodeStyle <> case u of { False -> mempty; True -> mempty # fc updateColor }
-        , rangeStyle   = const defRangeStyle
-        }
-      )
+mkSTOpts :: _ => DrawNodeOpts a b -> SegTreeOpts a b
+mkSTOpts dnOpts = STOpts { drawNode = drawNode' dnOpts }
+
+showUpdateOpts :: _ => DrawNodeOpts (Bool, Int) b
+showUpdateOpts =
+  DNOpts
+  { drawNodeData = drawNodeData def . snd
+  , nodeStyle    = \(u,_) ->
+      defNodeStyle <> case u of { False -> mempty; True -> mempty # fc updateColor }
+  , rangeStyle   = const defRangeStyle
+  , nodeShape    = defNodeShape
   }
 
-showRangeOpts :: (V b ~ V2, N b ~ Double, _) => SegTreeOpts (Visit, a) b
+showRangeOpts :: (V b ~ V2, N b ~ Double, _) => DrawNodeOpts (Visit, a) b
 showRangeOpts = showRangeOpts' True True
 
-showRangeOpts' :: (V b ~ V2, N b ~ Double, _) => Bool -> Bool -> SegTreeOpts (Visit, a) b
-showRangeOpts' showNumbers showRangeBars = STOpts
-  { drawNode = drawNode'
-      (DNOpts
-        { drawNodeData = case showNumbers of
-                           True  -> drawNodeData def . snd
-                           False -> const mempty
-        , nodeStyle    = \(u,_) ->
-            defNodeStyle <> mempty # case u of
-              { NoVisit -> lc grey
-              ; Zero    -> fc grey
-              ; Stop    -> lc green . fc green
-              ; Recurse -> lc blue  . fc blue
-              }
-        , rangeStyle   = \(u,_) ->
-            mconcat
-            [ defRangeStyle
-            , mempty # case (u,showRangeBars) of
-                { (Stop, _)  -> lc green
-                ; (_, False) -> lw none
-                ; _          -> lw medium
-                }
-            ]
-        }
-      )
+showRangeOpts' :: (V b ~ V2, N b ~ Double, _) => Bool -> Bool -> DrawNodeOpts (Visit, a) b
+showRangeOpts' showNumbers showRangeBars =
+  DNOpts
+  { drawNodeData = case showNumbers of
+                     True  -> drawNodeData def . snd
+                     False -> const mempty
+  , nodeStyle    = \(u,_) ->
+      defNodeStyle <> mempty # case u of
+      { NoVisit -> lc grey
+      ; Zero    -> fc grey
+      ; Stop    -> lc green . fc green
+      ; Recurse -> lc blue  . fc blue
+      }
+  , rangeStyle   = \(u,_) ->
+      mconcat
+      [ defRangeStyle
+      , mempty # case (u,showRangeBars) of
+          { (Stop, _)  -> lc green
+          ; (_, False) -> lw none
+          ; _          -> lw medium
+          }
+      ]
+  , nodeShape = defNodeShape
   }
 
 -- data NodeState = Active | Inactive
 
-showDeactiveOpts :: (V b ~ V2, N b ~ Double, _) => SegTreeOpts (a, NodeState) b
-showDeactiveOpts = STOpts
-  { drawNode = drawNode'
-      (DNOpts
-        { drawNodeData = \(a,s) ->
-            case s of
-              Active   -> drawNodeData def a
-              Inactive -> mempty
-        , nodeStyle    = \(_,s) ->
-            defNodeStyle <> mempty # case s of
-              { Active   -> mempty
-              ; Inactive -> lc grey
-              }
-        , rangeStyle   = const (mempty # lw none)
-        }
-      )
+showInactiveOpts :: (V b ~ V2, N b ~ Double, _) => Bool -> DrawNodeOpts (a, NodeState) b
+showInactiveOpts showInactiveData =
+  DNOpts
+  { drawNodeData = \(a,s) ->
+      case s of
+        Active   -> drawNodeData def a
+        Inactive ->
+          if showInactiveData
+            then drawNodeData def a # fc grey
+            else mempty
+  , nodeStyle    = \(_,s) ->
+      defNodeStyle <> mempty # case s of
+        Active   -> mempty
+        Inactive -> lc grey
+  , rangeStyle   = const (mempty # lw none)
+  , nodeShape    = defNodeShape
   }

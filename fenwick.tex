@@ -280,7 +280,7 @@ operations to run in $O(\lg n)$ time.
     # mkSegTree
     # update 5 (Any True, Sum 3)
     # fmap (getAny *** getSum)
-    # drawSegTree showUpdateOpts
+    # drawSegTree (mkSTOpts showUpdateOpts)
 \end{diagram}
 \end{center}
 \caption{Updating a segment tree} \label{fig:segment-tree-update}
@@ -312,7 +312,7 @@ operations to run in $O(\lg n)$ time.
       # rq' i j
       # fst
       # fmap (second getSum)
-      # drawSegTree showRangeOpts
+      # drawSegTree (mkSTOpts showRangeOpts)
     , (fst (leafX i n) ^& 0) ~~ (snd (leafX j n) ^& 0)
       # lc green
       # applyStyle defRangeStyle
@@ -355,7 +355,7 @@ most two blue nodes and two non-blue nodes. \todoi{improve this
       # rq' i j
       # fst
       # fmap (second getSum)
-      # drawSegTree (showRangeOpts' False False)
+      # drawSegTree (mkSTOpts (showRangeOpts' False False))
     , (fst (leafX i n) ^& 0) ~~ (snd (leafX j n) ^& 0)
       # lc green
       # applyStyle defRangeStyle
@@ -421,7 +421,7 @@ is, left children and the root) as \emph{active}.
     # mkSegTree
     # deactivate
     # fmap (first getSum)
-    # drawSegTree showDeactiveOpts
+    # drawSegTree (mkSTOpts (showInactiveOpts False))
 \end{diagram}
 \end{center}
 \caption{Inactivating all right children in a segment tree} \label{fig:deactivate-right}
@@ -440,17 +440,22 @@ reconstruct the information that was discarded.
   nearest active ancestor.
   \begin{itemize}
   \item In the base case, if an inactive node is the child of an
-    active node, the situation looks like this:
+    active node, the situation looks like \pref{fig:inactive-child}.
+    \begin{figure}
+    \begin{center}
     \begin{diagram}[width=100]
       import FenwickDiagrams
       import SegTree
       dia :: Diagram B
       dia = (Branch "p" 1 2 (Leaf "l" 1) (Leaf "r" 2))
         # deactivate
-        # drawSegTree showDeactiveOpts
+        # drawSegTree (mkSTOpts (showInactiveOpts True) { nodeShape = const circleNodeShape })
     \end{diagram}
-    In
-    this case $p = l \oplus r$ by definition, so $r = l^{-1} \oplus p$.
+    \end{center}
+    \caption{An inactive node whose parent is active}
+    \end{figure}
+    In this case $p = l \oplus r$ by definition, so $r$ can be
+    computed as $l^{-1} \oplus p$.
   \item Otherwise, the situation looks like this: \todoi{picture}.
     Again $r = l^{-1} \oplus p$, but we do not know the value of $p$.
     However, since $p$ is closer to its nearest active ancestor than
