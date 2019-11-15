@@ -432,41 +432,108 @@ reconstruct the information that was discarded.
 
 \begin{theorem}
   After inactivating all the right children in a segment tree, the
-  value of any inactive node can be computed using only the values of
-  active nodes.
+  value of any inactive node can be computed in $O(\lg n)$ time using
+  only the values of active nodes.
 \end{theorem}
 \begin{proof}
   The proof is by induction on the depth of an inactive node from its
-  nearest active ancestor.
+  nearest active ancestor.  Note that every inactive node must have an
+  active ancestor; if nothing else, the root of the tree remains
+  active.
   \begin{itemize}
   \item In the base case, if an inactive node is the child of an
-    active node, the situation looks like \pref{fig:inactive-child}.
+    active node, the situation looks like the diagram on the left side
+    of \pref{fig:inactive-child}.
     \begin{figure}
     \begin{center}
-    \begin{diagram}[width=100]
+    \begin{diagram}[width=150]
       import FenwickDiagrams
       import SegTree
       dia :: Diagram B
-      dia = (Branch "p" 1 2 (Leaf "l" 1) (Leaf "r" 2))
-        # deactivate
-        # drawSegTree (mkSTOpts (showInactiveOpts True) { nodeShape = const circleNodeShape })
+      dia = hsep 2
+        [ t # deactivate # drawSegTree stopts
+          # beneath upedge
+        , t # deactivateR Inactive # drawSegTree stopts
+          # beneath upedge
+        ]
+        where
+          t = Branch "p" 1 2 (Leaf "l" 1) (Leaf "r" 2)
+          iopts = (showInactiveOpts True) { nodeShape = const circleNodeShape }
+          stopts = (mkSTOpts iopts) { stVSep = 0.5 }
+          upedge = ((origin ~~ ((-0.5) ^& 1)) # dashingL [0.05,0.05] 0)
     \end{diagram}
     \end{center}
-    \caption{An inactive node whose parent is active}
+    \caption{An inactive node whose parent is: (L) active (R) inactive} \label{fig:inactive-child}
     \end{figure}
     In this case $p = l \oplus r$ by definition, so $r$ can be
     computed as $l^{-1} \oplus p$.
-  \item Otherwise, the situation looks like this: \todoi{picture}.
-    Again $r = l^{-1} \oplus p$, but we do not know the value of $p$.
-    However, since $p$ is closer to its nearest active ancestor than
-    $r$, by the induction hypothesis we can find an expression for $p$
-    using only the values of active nodes; substituting this into $r =
-    l^{-1} \oplus p$ yields the desired expression for $r$.
+  \item Otherwise, the situation looks like the right side of
+    \pref{fig:inactive-child}.  Again $r = l^{-1} \oplus p$, but we do
+    not know the value of $p$.  However, since $p$ is closer to its
+    nearest active ancestor than $r$, by the induction hypothesis we
+    can find an expression for $p$ using only the values of active
+    nodes; substituting this into $r = l^{-1} \oplus p$ yields the
+    desired expression for $r$.
   \end{itemize}
+  As for taking logarithmic time, the inductive case shows that the
+  number of operations ultimately needed to compute $r$ grows linearly
+  with the depth of $r$ from its nearest active ancestor, which is
+  bounded by the depth of the tree.
 \end{proof}
 
 This proof is, in fact, an algorithm, although it isn't typically
-used: \todoi{initial segments, subtract}
+used, in preference to something more general.  Simply being able to
+\emph{recover} all the discarded information isn't good enough; we
+need to be able to perform range queries and updates as well.  Updates
+are easy: as before, we only need to update nodes along the path from
+the modified leaf to the root, simply skipping any inactive nodes
+along the way.  However, it is less clear that we can still do range
+queries efficiently.  \todoi{Naively, we would need to do $O(\lg n)$
+  work to reconstruct each of $O(\lg n)$ nodes needed to compute a
+  range, leading to $O(\lg^2 n)$ time; but we can do better:}
+
+\todoi{``After inactivating\dots'' is a wordy circumlocution. Let's
+  give a name to a segment tree in which all right children are
+  inactivated (``inactivated segment tree''?) and then just say
+  something like ``In an inactivated segment tree\dots''}
+\begin{theorem}
+  After inactivating all the right children in a segment tree, the sum
+  of \emph{any prefix} of the original array can be computed in $O(\lg
+  n)$ time using only the values of active nodes.
+\end{theorem}
+\begin{proof}
+  By induction on the size $m$ of the required prefix.  In the base
+  case, when $m=0$, the sum of an empty prefix is obviously easy to
+  compute given the existence of an identity value $\mempty$.
+  Otherwise, consider whether $m$ is even or odd.
+  \begin{itemize}
+  \item If $m=2k$ is even, then \todoi{picture!} the prefix sum of the
+    first $2k$ array elements is the same as the prefix sum of the
+    first $k$ elements one level up, which we can find by induction.
+    \todoi{Say something more general, either here or previously,
+      about the fact that removing the last level of a segment tree
+      leaves us with another valid segment tree.}
+  \item On the other hand, if $m = 2k+1$ is odd, then \todoi{picture!}
+    the last element in the desired range is a left child (or the root
+    itself, if $m = 1$) and therefore active.  We can therefore find
+    the sum of the first $2k+1$ elements by combining the sum of the
+    first $2k$ elements with the value of the single active element at
+    the end.
+  \end{itemize}
+  \todoi{Explain why this takes $O(\lg n)$ time.}
+\end{proof}
+
+\begin{corollary}
+  \todoi{IF WE HAVE A GROUP}
+  After inactivating all the right children in a segment tree, we can
+  still perform any range query in $O(\lg n)$ time.
+\end{corollary}
+\begin{proof}
+  $RQ(i,j) = P(j) \ominus P(i-1)$. \todoi{picture}
+\end{proof}
+
+Note that computing $RQ(i,i)$ gives us another way to recover the
+value of an individual inactive element.
 
 \todoi{Send every active node down to the right until it lands in an
   empty spot.  It is clear that this sets up a 1-1 correspondence
