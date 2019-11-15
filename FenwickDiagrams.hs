@@ -33,13 +33,14 @@ data SegTreeOpts a b = STOpts
     --   interval endpoints the node covers
     drawNode :: SegNode a -> Int -> Int -> Diagram b
 
+  , stVSep   :: Double
   }
 
 instance (N b ~ Double, V b ~ V2
          , Drawable b a, Renderable (Path V2 Double) b, Renderable (Text Double) b
          , Show a) =>
   Default (SegTreeOpts a b) where
-  def = STOpts { drawNode = drawNodeDef }
+  def = STOpts { drawNode = drawNodeDef, stVSep = 1 }
 
 drawSegTree :: _ =>
 
@@ -50,8 +51,8 @@ drawSegTree :: _ =>
   SegmentTree a ->
   Diagram b
 
-drawSegTree o@(STOpts f) (Leaf a i)         = f (LeafNode, a) i i
-drawSegTree o@(STOpts f) (Branch a i j l r) = localize $ vsep 1
+drawSegTree o@(STOpts f _ ) (Leaf a i)         = f (LeafNode, a) i i
+drawSegTree o@(STOpts f vs) (Branch a i j l r) = localize $ vsep vs
   [ f (InternalNode, a) i j # named "root"
   , ((drawSegTree o l # named "left") ||| (drawSegTree o r # named "right")) # centerX
   ]
@@ -156,7 +157,7 @@ updateColor :: Colour Double
 updateColor = blend 0.5 red white
 
 mkSTOpts :: _ => DrawNodeOpts a b -> SegTreeOpts a b
-mkSTOpts dnOpts = STOpts { drawNode = drawNode' dnOpts }
+mkSTOpts dnOpts = STOpts { drawNode = drawNode' dnOpts, stVSep = 1 }
 
 showUpdateOpts :: _ => DrawNodeOpts (Bool, Int) b
 showUpdateOpts =
@@ -206,12 +207,12 @@ showInactiveOpts showInactiveData =
         Active   -> drawNodeData def a
         Inactive ->
           if showInactiveData
-            then drawNodeData def a # fc grey
+            then drawNodeData def a # fc (blend 0.5 black darkgrey)
             else mempty
   , nodeStyle    = \(_,s) ->
       defNodeStyle <> mempty # case s of
         Active   -> mempty
-        Inactive -> lc grey
+        Inactive -> fc lightgrey
   , rangeStyle   = const (mempty # lw none)
   , nodeShape    = defNodeShape
   }
