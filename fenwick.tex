@@ -535,15 +535,29 @@ queries efficiently.  \todoi{Naively, we would need to do $O(\lg n)$
 Note that computing $RQ(i,i)$ gives us another way to recover the
 value of an individual inactive element.
 
-\todoi{Send every active node down to the right until it lands in an
-  empty spot.  It is clear that this sets up a 1-1 correspondence
-  between active nodes and indices $1 \dots n$; corresponds to
-  numbering active nodes using a preorder traversal.  This is a
+\section{Fenwick trees}
+
+How should we actually represent an inactivated XXX segment tree?  If we
+stare at \pref{fig:deactivate-right} again, an obvious strategy
+suggests itself: simply take every active node and ``slide'' it down
+and to the right until it lands in an empty spot in the underlying
+array, as illustrated in XXX.  This sets up a 1-1 correspondence
+between active nodes and indices in the range $1 \dots n$, which
+corresponds to numbering active nodes using a preorder traverasal of
+the tree.
+
+\todoi{picture of sliding}
+
+This method of storing the active nodes from an inactivated XXX
+segment tree in an array is precisely what is commonly known as a
+\emph{Fenwick tree}, or \emph{bit-indexed tree}.  Although this is a
+clever use of space, the big question is how we are to implement
+update and range query operations.
+
+\todoi{This is a
   Fenwick tree, or bit-indexed tree.  Question: how to carry out the
   operations?  Code is clever, concise, fast in practice, and
   extremely nonobvious.  Our goal: derive it!}
-
-\section{Indices}
 
 We now have a tree structure with nodes numbered like so: in short, we
 start with a full binary tree, ``inactivate'' any right children, and
