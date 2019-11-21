@@ -17,9 +17,6 @@ import           Diagrams.TwoD.Text
 
 import           SegTree
 
-data NodeType = LeafNode | InternalNode
-type SegNode a = (NodeType, a)
-
 sampleArray :: [Sum Int]
 sampleArray = map (Sum . negate) [0, -4, -1, -1, -1, 2, -6, 4, 1, -6, 2, -5, 6, -2, -8, -3]
 
@@ -30,9 +27,15 @@ data SegTreeOpts a b = STOpts
   {
     -- | Node drawing function: takes value of node (marked as leaf or
     --   internal) leaves and Right for internal nodes, along with
-    --   interval endpoints the node covers
+    --   interval endpoints the node covers.
     drawNode :: SegNode a -> Int -> Int -> Diagram b
 
+    -- | Edge drawing function: takes value and location of two nodes,
+    --   produces diagram /transformation/ (so e.g. it can decide
+    --   whether to draw under or over it).
+  , drawEdge :: SegNode a -> P2 Double -> SegNode a -> P2 (N b) -> Diagram b -> Diagram b
+
+    -- | Vertical separation between levels.
   , stVSep   :: Double
   }
 
@@ -40,7 +43,7 @@ instance (N b ~ Double, V b ~ V2
          , Drawable b a, Renderable (Path V2 Double) b, Renderable (Text Double) b
          , Show a) =>
   Default (SegTreeOpts a b) where
-  def = STOpts { drawNode = drawNodeDef, stVSep = 1 }
+  def = STOpts { drawNode = drawNodeDef, drawEdge = drawEdgeDef, stVSep = 1 }
 
 drawSegTree :: _ =>
 
@@ -51,14 +54,17 @@ drawSegTree :: _ =>
   SegmentTree a ->
   Diagram b
 
-drawSegTree o@(STOpts f _ ) (Leaf a i)         = f (LeafNode, a) i i
-drawSegTree o@(STOpts f vs) (Branch a i j l r) = localize $ vsep vs
+drawSegTree o@(STOpts f _ _ ) (Leaf a i)         = f (LeafNode, a) i i
+drawSegTree o@(STOpts f e vs) (Branch a i j l r) = localize $ vsep vs
   [ f (InternalNode, a) i j # named "root"
   , ((drawSegTree o l # named "left") ||| (drawSegTree o r # named "right")) # centerX
   ]
   # withNames ["root", "left", "right"]
-  ( \[x, l, r] ->
-      applyAll [ beneath (location x ~~ location l), beneath (location x ~~ location r) ]
+  ( \[al, ll, rl] ->
+      applyAll
+      [ e (InternalNode, a) (location al) (getRootNode l) (location ll)
+      , e (InternalNode, a) (location al) (getRootNode r) (location rl)
+      ]
   )
 
 leafWidth :: Double
@@ -128,6 +134,11 @@ squareNodeShape, circleNodeShape ::
 squareNodeShape = square 1 <> strutX leafWidth
 circleNodeShape = circle 0.5 <> strutX leafWidth
 
+drawEdgeDef ::
+  (V b ~ V2, N b ~ Double, Renderable (Path V2 Double) b) =>
+  SegNode a -> P2 Double -> SegNode a -> P2 Double -> Diagram b -> Diagram b
+drawEdgeDef _ x _ y = beneath (x ~~ y)
+
 drawNodeDef ::
   ( V b ~ V2, N b ~ Double, Renderable (Path V2 Double) b, Renderable (Text Double) b
   , Drawable b a) =>
@@ -157,7 +168,7 @@ updateColor :: Colour Double
 updateColor = blend 0.5 red white
 
 mkSTOpts :: _ => DrawNodeOpts a b -> SegTreeOpts a b
-mkSTOpts dnOpts = STOpts { drawNode = drawNode' dnOpts, stVSep = 1 }
+mkSTOpts dnOpts = STOpts { drawNode = drawNode' dnOpts, drawEdge = drawEdgeDef, stVSep = 1 }
 
 showUpdateOpts :: _ => DrawNodeOpts (Bool, Int) b
 showUpdateOpts =

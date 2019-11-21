@@ -100,7 +100,7 @@
 \begin{document}
 
 %% Title information
-\title{Functional Pearl: You Could Have Invented Fenwick Trees}
+\title{You Could Have Invented Fenwick Trees (Functional Pearl)}
    %% [Short Title] is optional;
                                         %% when present, will be used in
                                         %% header instead of Full Title.
@@ -189,8 +189,8 @@ Suppose we have a sequence of $n$ integers $a_1, a_2, \dots, a_n$, and
 want to be able to perform an arbitrary sequence of two operations:
 
 \begin{itemize}
-\item \emph{Update} the value at index $i$ to a new value $v$, which
-  we abbreviate \Up.
+\item \emph{Update} the value at index $i$ to a new value $v$. We
+  abbreviate this operation as \Up.
 \item Find the sum of all values in a particular range $[i, j]$,
   that is, $a_i + a_{i+1} + \dots + a_j$.  We call this a \emph{range
     query}, abbreviated \RQ.
@@ -237,7 +237,7 @@ of the underlying array of which it is the sum.
   Wikipedia article is about something used in computational geometry
   for representing intervals.  But lots of places on the web,
   specially competitive programming stuff, use it to refer to this
-  simpler thing.}
+  simpler thing.  See in particular CP3 sec. 2.4.3.}
 
 \begin{figure}
 \begin{center}
@@ -406,7 +406,9 @@ right child.  Note that ``every right child'' includes both leaves and
 internal nodes: we throw out the data associated to \emph{any} node
 which is the right child of its parent.  We will refer to the nodes
 with discarded data as \emph{inactive} and the remaining nodes (that
-is, left children and the root) as \emph{active}.
+is, left children and the root) as \emph{active}.  We will also say
+that tree with all its right children inactivated in this way has been
+\emph{trimmed}. \todoi{better term}?
 
 \begin{figure}
 \begin{center}
@@ -431,9 +433,8 @@ First, let's prove that there is enough information remaining to
 reconstruct the information that was discarded.
 
 \begin{theorem}
-  After inactivating all the right children in a segment tree, the
-  value of any inactive node can be computed in $O(\lg n)$ time using
-  only the values of active nodes.
+  The value of any inactive node in a trimmed segment tree can be
+  recovered, in $O(\lg n)$ time, using only the values of active nodes.
 \end{theorem}
 \begin{proof}
   The proof is by induction on the depth of an inactive node from its
@@ -488,18 +489,15 @@ need to be able to perform range queries and updates as well.  Updates
 are easy: as before, we only need to update nodes along the path from
 the modified leaf to the root, simply skipping any inactive nodes
 along the way.  However, it is less clear that we can still do range
-queries efficiently.  \todoi{Naively, we would need to do $O(\lg n)$
-  work to reconstruct each of $O(\lg n)$ nodes needed to compute a
-  range, leading to $O(\lg^2 n)$ time; but we can do better:}
+queries in $O(\lg n)$ time.  Naively, we would need to do $O(\lg n)$
+work (using the above algorithm) to reconstruct each of up to
+$O(\lg n)$ nodes needed to compute a range sum, leading to
+$O(\lg^2 n)$ time.  This isn't bad, but we can do better.
 
-\todoi{``After inactivating\dots'' is a wordy circumlocution. Let's
-  give a name to a segment tree in which all right children are
-  inactivated (``inactivated segment tree''?) and then just say
-  something like ``In an inactivated segment tree\dots''}
 \begin{theorem}
-  After inactivating all the right children in a segment tree, the sum
-  of \emph{any prefix} of the original array can be computed in $O(\lg
-  n)$ time using only the values of active nodes.
+  Given a trimmed segment tree, the sum of \emph{any prefix} of the
+  original array can be computed, in $O(\lg n)$ time, using only the
+  values of active nodes.
 \end{theorem}
 \begin{proof}
   By induction on the size $m$ of the required prefix.  In the base
@@ -537,7 +535,7 @@ value of an individual inactive element.
 
 \section{Fenwick trees}
 
-How should we actually represent an inactivated XXX segment tree?  If we
+How should we actually represent a trimmed segment tree?  If we
 stare at \pref{fig:deactivate-right} again, an obvious strategy
 suggests itself: simply take every active node and ``slide'' it down
 and to the right until it lands in an empty spot in the underlying

@@ -16,6 +16,13 @@ getValue :: SegmentTree a -> a
 getValue (Leaf a _)         = a
 getValue (Branch a _ _ _ _) = a
 
+data NodeType = LeafNode | InternalNode
+type SegNode a = (NodeType, a)
+
+getRootNode :: SegmentTree a -> SegNode a
+getRootNode (Leaf a _)         = (LeafNode, a)
+getRootNode (Branch a _ _ _ _) = (InternalNode, a)
+
 mkSegTree :: Monoid a => [a] -> SegmentTree a
 mkSegTree as = go 1 n (as ++ replicate (n - length as) mempty)
   where
