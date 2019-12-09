@@ -311,7 +311,6 @@ operations to run in $O(\lg n)$ time.
       # mkSegTree
       # rq' i j
       # fst
-      # fmap (second getSum)
       # drawSegTree (mkSTOpts showRangeOpts)
     , (fst (leafX i n) ^& 0) ~~ (snd (leafX j n) ^& 0)
       # lc green
@@ -354,7 +353,6 @@ most two blue nodes and two non-blue nodes. \todoi{improve this
       # mkSegTree
       # rq' i j
       # fst
-      # fmap (second getSum)
       # drawSegTree (mkSTOpts (showRangeOpts' False False))
     , (fst (leafX i n) ^& 0) ~~ (snd (leafX j n) ^& 0)
       # lc green
@@ -382,11 +380,22 @@ $m \oplus \mempty = \mempty \oplus m = m$ for all $m \in M$. We will
 continue to talk about ``sums'' of elements of a monoid $M$ even
 though the monoidal operation need not be sum-like in general (for
 example, the set of natural numbers forms a monoid under
-multiplication).
+multiplication).  Note, however, that the ``sum'' metaphor fails us in
+one important way: in general, $\oplus$ need not be commutative, that
+is, we may have $a \oplus b \neq b \oplus a$.  All the data structures
+we will discuss work perfectly well for non-commutative monoids, but
+some care is required to ensure values are properly ordered.
+
+Some monoids also have \emph{inverses}, that is, for each $m \in M$
+there is an element $-m \in M$ such that
+$m \oplus (-m) = (-m) \oplus m = \mempty$.  Such monoids-with-inverses
+are called \emph{groups}.  For convenience, in any group we can also
+define a ``subtraction'' operation $a \ominus b = a \oplus (-b)$.
+Although basic segment trees work just fine with any monoid, other
+related constructions we will consider require a group.
 
 \todoi{Haskell implementation.}
 \todoi{requires 2x storage.  Indexing scheme?  Relevant in an array implementation.}
-\todoi{Say something about groups?}
 
 \section{Segment Trees are Redundant}
 
@@ -394,10 +403,10 @@ Of course segment trees are redundant in the sense that they cache
 range sums which could easily be recomputed from the original
 sequence.  That's the whole point: caching these ``redundant'' sums
 allows us to perform arbitrary range queries more quickly. But segment
-trees are actually redundant in a stronger sense: it turns out that we
-can throw out almost \emph{half} of the data in a segment tree and
-still retain the $O(\log n)$ running time for updates and range
-queries!
+trees are actually redundant in a stronger sense: it turns out that if
+the values come from a group, we can throw out almost \emph{half} of
+the data in a segment tree and still retain the $O(\log n)$ running
+time for updates and range queries!
 
 How, you ask?  Simple: just throw out the data associated with
 \emph{every right child}. \pref{fig:deactivate-right} shows the same
@@ -407,8 +416,8 @@ internal nodes: we throw out the data associated to \emph{any} node
 which is the right child of its parent.  We will refer to the nodes
 with discarded data as \emph{inactive} and the remaining nodes (that
 is, left children and the root) as \emph{active}.  We will also say
-that tree with all its right children inactivated in this way has been
-\emph{trimmed}. \todoi{better term}?
+that a tree with all its right children inactivated in this way has been
+\emph{thinned}.
 
 \begin{figure}
 \begin{center}
@@ -422,18 +431,17 @@ that tree with all its right children inactivated in this way has been
   dia = sampleArray
     # mkSegTree
     # deactivate
-    # fmap (first getSum)
     # drawSegTree (mkSTOpts (showInactiveOpts False))
 \end{diagram}
 \end{center}
 \caption{Inactivating all right children in a segment tree} \label{fig:deactivate-right}
 \end{figure}
 
-First, let's prove that there is enough information remaining to
+First, let's see that there is enough information remaining to
 reconstruct the information that was discarded.
 
 \begin{theorem}
-  The value of any inactive node in a trimmed segment tree can be
+  The value of any inactive node in a thinned segment tree can be
   recovered, in $O(\lg n)$ time, using only the values of active nodes.
 \end{theorem}
 \begin{proof}
@@ -467,13 +475,14 @@ reconstruct the information that was discarded.
     \caption{An inactive node whose parent is: (L) active (R) inactive} \label{fig:inactive-child}
     \end{figure}
     In this case $p = l \oplus r$ by definition, so $r$ can be
-    computed as $l^{-1} \oplus p$.
+    computed as $(-l) \oplus p$. (Not $p \ominus l$, since the
+    group may not be commutative!)
   \item Otherwise, the situation looks like the right side of
-    \pref{fig:inactive-child}.  Again $r = l^{-1} \oplus p$, but we do
+    \pref{fig:inactive-child}.  Again $r = (-l) \oplus p$, but we do
     not know the value of $p$.  However, since $p$ is closer to its
     nearest active ancestor than $r$, by the induction hypothesis we
     can find an expression for $p$ using only the values of active
-    nodes; substituting this into $r = l^{-1} \oplus p$ yields the
+    nodes; substituting this into $r = (-l) \oplus p$ yields the
     desired expression for $r$.
   \end{itemize}
   As for taking logarithmic time, the inductive case shows that the
@@ -482,20 +491,20 @@ reconstruct the information that was discarded.
   bounded by the depth of the tree.
 \end{proof}
 
-This proof is, in fact, an algorithm, although it isn't typically
-used, in preference to something more general.  Simply being able to
+This proof is, in fact, an algorithm, although this algorithm isn't
+typically used, because it is too specialized. Simply being able to
 \emph{recover} all the discarded information isn't good enough; we
 need to be able to perform range queries and updates as well.  Updates
 are easy: as before, we only need to update nodes along the path from
 the modified leaf to the root, simply skipping any inactive nodes
 along the way.  However, it is less clear that we can still do range
 queries in $O(\lg n)$ time.  Naively, we would need to do $O(\lg n)$
-work (using the above algorithm) to reconstruct each of up to
-$O(\lg n)$ nodes needed to compute a range sum, leading to
-$O(\lg^2 n)$ time.  This isn't bad, but we can do better.
+work (using the above algorithm) to reconstruct each of the $O(\lg n)$
+nodes needed to compute a range sum, leading to $O(\lg^2 n)$ time.
+This isn't bad, but we can do better.
 
 \begin{theorem}
-  Given a trimmed segment tree, the sum of \emph{any prefix} of the
+  Given a thinned segment tree, the sum of \emph{any prefix} of the
   original array can be computed, in $O(\lg n)$ time, using only the
   values of active nodes.
 \end{theorem}
@@ -519,10 +528,10 @@ $O(\lg^2 n)$ time.  This isn't bad, but we can do better.
     the end.
   \end{itemize}
   \todoi{Explain why this takes $O(\lg n)$ time.}
+  \todoi{Turn this into working code??}
 \end{proof}
 
 \begin{corollary}
-  \todoi{IF WE HAVE A GROUP}
   After inactivating all the right children in a segment tree, we can
   still perform any range query in $O(\lg n)$ time.
 \end{corollary}
@@ -535,36 +544,70 @@ value of an individual inactive element.
 
 \section{Fenwick trees}
 
-How should we actually represent a trimmed segment tree?  If we
-stare at \pref{fig:deactivate-right} again, an obvious strategy
-suggests itself: simply take every active node and ``slide'' it down
-and to the right until it lands in an empty spot in the underlying
-array, as illustrated in XXX.  This sets up a 1-1 correspondence
-between active nodes and indices in the range $1 \dots n$, which
-corresponds to numbering active nodes using a preorder traverasal of
-the tree.
+How should we actually represent a thinned segment tree?  If we stare
+at \pref{fig:deactivate-right} again, an obvious strategy suggests
+itself: simply take every active node and ``slide'' it down and to the
+right until it lands in an empty spot in the underlying array, as
+illustrated in \pref{fig:sliding-right}.  This sets up a one-to-one
+correspondence between active nodes and indices in the range
+$1 \dots n$.  Another way to understand this indexing scheme is to use
+a postorder traverasal of the tree, skipping over inactive nodes and
+giving consecutive indices to active nodes encountered during the
+traversal.
 
-\todoi{picture of sliding}
+\begin{figure}
+\begin{center}
+\begin{diagram}[width=300]
+  import FenwickDiagrams
+  import SegTree
+  import Data.Monoid
+  import Control.Arrow ((***), first, second)
 
-This method of storing the active nodes from an inactivated XXX
-segment tree in an array is precisely what is commonly known as a
-\emph{Fenwick tree}, or \emph{bit-indexed tree}.  Although this is a
-clever use of space, the big question is how we are to implement
-update and range query operations.
+  dia :: Diagram B
+  dia = vsep 0.5
+    [ sampleArray
+      # mkSegTree
+      # deactivate
+      # drawSegTree opts
+    , arrowV (2 *^ unit_Y)
+    , sampleArray
+    # mkFenwickArray
+    # drawArray (draw . getSum)
+    # centerX
+    ]
 
-\todoi{This is a
-  Fenwick tree, or bit-indexed tree.  Question: how to carry out the
-  operations?  Code is clever, concise, fast in practice, and
-  extremely nonobvious.  Our goal: derive it!}
+  opts = (mkSTOpts (showInactiveOpts False))
+    { drawEdge = drawSlidingEdges }
+\end{diagram}
+\end{center}
+\caption{Sliding active values down a thinned segment tree} \label{fig:sliding-right}
+\end{figure}
 
-We now have a tree structure with nodes numbered like so: in short, we
-start with a full binary tree, ``inactivate'' any right children, and
-then number the remaining nodes using a preorder traversal (that is,
-each node's left and right children are recursively numbered first,
-then the node itself).  However, it is not obvious what mathematical
-operations on indices are needed to move about the tree.
+This method of storing the active nodes from a thinned segment tree in
+an array is precisely what is commonly known as a \emph{Fenwick tree},
+or \emph{bit-indexed tree}. \todoi{XXX cite} Although this is a clever use of
+space, the big question is how to implement the update and range query
+operations.  Our implementations of these operations for segment trees
+worked by recursively descending through the tree. When storing the
+active nodes of a thinned tree in an array, it is not obvious what
+operations on array indices will correspond to moving around the tree.
 
-\todoi{picture}
+\begin{diagram}[width=300]
+  import FenwickDiagrams
+  import SegTree
+
+  dia :: Diagram B
+  dia = sampleArray
+    # mkSegTree
+    # deactivate
+    # drawSegTree stOpts
+
+  stOpts = (mkSTOpts nOpts)
+    { leanRight = True }
+
+  nOpts = (showInactiveOpts False)
+    { leanRightN = True }
+\end{diagram}
 
 By comparison, numbering a full binary tree in level order leads to
 very nice and obvious math for moving around the tree:
@@ -578,29 +621,36 @@ add $1$ (for the right child) or not (for the left child).
 Conversely, to get from a node to its parent, just shift right by one
 bit.
 
+\todoi{This is a
+  Fenwick tree, or bit-indexed tree.  Question: how to carry out the
+  operations?  Code is clever, concise, fast in practice, and
+  extremely nonobvious.  Our goal: derive it!}
+
+
 Our goal will be to first derive functions for converting back and
 forth between Fenwick numbering and full binary tree numbering.  Then
-we can derive operations on Fenwick tree by converting to binary tree
-numbering, doing operation, and converting back.
+we can derive operations on Fenwick trees by converting to binary tree
+numbering, doing operation, and converting back.  XXX fusing away the
+conversion.
 
-\begin{verbatim}
-data BT a where
-  Leaf   :: a -> BT a
-  Branch :: a -> BT a -> BT a -> BT a
+% \begin{verbatim}
+% data BT a where
+%   Leaf   :: a -> BT a
+%   Branch :: a -> BT a -> BT a -> BT a
 
-data Nat where
-  Z :: Nat
-  S :: Nat -> Nat
+% data Nat where
+%   Z :: Nat
+%   S :: Nat -> Nat
 
-data Bin where
-  One :: Bin
-  O :: Bin -> Bin
-  I :: Bin -> Bin
+% data Bin where
+%   One :: Bin
+%   O :: Bin -> Bin
+%   I :: Bin -> Bin
 
-bt :: Nat -> Bin -> BT Bin
-bt Z     i = Leaf i
-bt (S n) i = Branch i (bt n (O i)) (bt n (I i))
-\end{verbatim}
+% bt :: Nat -> Bin -> BT Bin
+% bt Z     i = Leaf i
+% bt (S n) i = Branch i (bt n (O i)) (bt n (I i))
+% \end{verbatim}
 
 %% Acknowledgments
 \begin{acks}                            %% acks environment is optional

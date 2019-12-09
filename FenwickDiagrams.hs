@@ -23,6 +23,9 @@ sampleArray = map (Sum . negate) [0, -4, -1, -1, -1, 2, -6, 4, 1, -6, 2, -5, 6, 
 sampleArray4 :: [Sum Int]
 sampleArray4 = map Sum (replicate 64 0)
 
+drawArray :: _ => (a -> Diagram b) -> [a] -> Diagram b
+drawArray nd = hcat . map (beneath squareNodeShape . nd)
+
 data SegTreeOpts a b = STOpts
   {
     -- | Node drawing function: takes value of node (marked as leaf or
@@ -30,20 +33,26 @@ data SegTreeOpts a b = STOpts
     --   interval endpoints the node covers.
     drawNode :: SegNode a -> Int -> Int -> Diagram b
 
-    -- | Edge drawing function: takes value and location of two nodes,
+    -- | Edge drawing function: takes value, location, and drawings of two nodes,
     --   produces diagram /transformation/ (so e.g. it can decide
     --   whether to draw under or over it).
-  , drawEdge :: SegNode a -> P2 Double -> SegNode a -> P2 (N b) -> Diagram b -> Diagram b
+  , drawEdge ::
+      SegNode a -> Subdiagram b (V b) (N b) Any ->
+      SegNode a -> Subdiagram b (V b) (N b) Any ->
+      Diagram b -> Diagram b
 
     -- | Vertical separation between levels.
   , stVSep   :: Double
+
+    -- | Should we draw the tree leaning to the right?
+  , leanRight :: Bool
   }
 
 instance (N b ~ Double, V b ~ V2
          , Drawable b a, Renderable (Path V2 Double) b, Renderable (Text Double) b
          , Show a) =>
   Default (SegTreeOpts a b) where
-  def = STOpts { drawNode = drawNodeDef, drawEdge = drawEdgeDef, stVSep = 1 }
+  def = STOpts { drawNode = drawNodeDef, drawEdge = drawEdgeDef, stVSep = 1, leanRight = False }
 
 drawSegTree :: _ =>
 
@@ -54,16 +63,23 @@ drawSegTree :: _ =>
   SegmentTree a ->
   Diagram b
 
-drawSegTree o@(STOpts f _ _ ) (Leaf a i)         = f (LeafNode, a) i i
-drawSegTree o@(STOpts f e vs) (Branch a i j l r) = localize $ vsep vs
+alignTo :: (Metric v, Semigroup m, Floating n, Ord n, IsName nm) =>
+  nm -> QDiagram b v n m -> QDiagram b v n m
+alignTo nm = withName nm $ moveOriginTo . location
+
+drawSegTree o@(STOpts f _ _  rt) (Leaf a i)         = f (LeafNode, a) i i
+drawSegTree o@(STOpts f e vs rt) (Branch a i j l r) = localize $ vsep vs
   [ f (InternalNode, a) i j # named "root"
-  , ((drawSegTree o l # named "left") ||| (drawSegTree o r # named "right")) # centerX
+  , ((drawSegTree o l # named "left") ||| (drawSegTree o r # named "right"))
+    # if rt then alignTo "right" else centerX
   ]
   # withNames ["root", "left", "right"]
   ( \[al, ll, rl] ->
       applyAll
-      [ e (InternalNode, a) (location al) (getRootNode l) (location ll)
-      , e (InternalNode, a) (location al) (getRootNode r) (location rl)
+      [ e (InternalNode, a) al
+          (getRootNode l)   ll
+      , e (InternalNode, a) al
+          (getRootNode r)   rl
       ]
   )
 
@@ -88,6 +104,7 @@ data DrawNodeOpts a b = DNOpts
   , nodeStyle    :: a -> Style V2 Double
   , rangeStyle   :: a -> Style V2 Double
   , nodeShape    :: NodeType -> Diagram b
+  , leanRightN   :: Bool
   }
 
 class Drawable b a where
@@ -98,6 +115,9 @@ instance (V b ~ V2, TypeableFloat (N b), Renderable (Text (N b)) b) => Drawable 
 
 instance (V b ~ V2, TypeableFloat (N b), Renderable (Text (N b)) b) => Drawable b String where
   draw = fontSizeL 0.6 . text . mathify
+
+instance Drawable b a => Drawable b (Sum a) where
+  draw = draw . getSum
 
 mathify = ("$"++) . (++"$")
 
@@ -111,6 +131,7 @@ instance
     , nodeStyle    = const defNodeStyle
     , rangeStyle   = const defRangeStyle
     , nodeShape    = defNodeShape
+    , leanRightN   = False
     }
 
 defNodeStyle :: Style V2 Double
@@ -136,8 +157,10 @@ circleNodeShape = circle 0.5 <> strutX leafWidth
 
 drawEdgeDef ::
   (V b ~ V2, N b ~ Double, Renderable (Path V2 Double) b) =>
-  SegNode a -> P2 Double -> SegNode a -> P2 Double -> Diagram b -> Diagram b
-drawEdgeDef _ x _ y = beneath (x ~~ y)
+  SegNode a -> Subdiagram b V2 Double Any ->
+  SegNode a -> Subdiagram b V2 Double Any ->
+  Diagram b -> Diagram b
+drawEdgeDef _ x _ y = beneath (location x ~~ location y)
 
 drawNodeDef ::
   ( V b ~ V2, N b ~ Double, Renderable (Path V2 Double) b, Renderable (Text Double) b
@@ -148,13 +171,14 @@ drawNodeDef = drawNode' def
 drawNode' ::
   (V b ~ V2, N b ~ Double, Renderable (Path V2 Double) b, Renderable (Text Double) b) =>
   DrawNodeOpts a b -> SegNode a -> Int -> Int -> Diagram b
-drawNode' (DNOpts dn nsty _ shp) (LeafNode, a) _ _
+drawNode' (DNOpts dn nsty _ shp _) (LeafNode, a) _ _
   = dn a <> shp LeafNode # applyStyle (nsty a)
 
-drawNode' (DNOpts dn nsty rsty shp) (InternalNode, a) i j = mconcat
+drawNode' (DNOpts dn nsty rsty shp rt) (InternalNode, a) i j = mconcat
   [ dn a <> shp InternalNode # applyStyle (nsty a)
-  , hrule ((fromIntegral j - fromIntegral i) * leafWidth + 0.5)
+  , hrule ((fromIntegral j - fromIntegral i) * leafWidth + leafWidth/2)
     # applyStyle (rsty a)
+    # if rt then (translateX (leafWidth/4) . alignR) else id
   ]
 
 -- (j - i + 1) * leafWidth - (leafWidth - 1)
@@ -168,7 +192,7 @@ updateColor :: Colour Double
 updateColor = blend 0.5 red white
 
 mkSTOpts :: _ => DrawNodeOpts a b -> SegTreeOpts a b
-mkSTOpts dnOpts = STOpts { drawNode = drawNode' dnOpts, drawEdge = drawEdgeDef, stVSep = 1 }
+mkSTOpts dnOpts = STOpts { drawNode = drawNode' dnOpts, drawEdge = drawEdgeDef, stVSep = 1, leanRight = False }
 
 showUpdateOpts :: _ => DrawNodeOpts (Bool, Int) b
 showUpdateOpts =
@@ -178,6 +202,7 @@ showUpdateOpts =
       defNodeStyle <> case u of { False -> mempty; True -> mempty # fc updateColor }
   , rangeStyle   = const defRangeStyle
   , nodeShape    = defNodeShape
+  , leanRightN   = False
   }
 
 showRangeOpts :: (V b ~ V2, N b ~ Double, _) => DrawNodeOpts (Visit, a) b
@@ -206,6 +231,7 @@ showRangeOpts' showNumbers showRangeBars =
           }
       ]
   , nodeShape = defNodeShape
+  , leanRightN = False
   }
 
 -- data NodeState = Active | Inactive
@@ -226,4 +252,23 @@ showInactiveOpts showInactiveData =
         Inactive -> fc lightgrey
   , rangeStyle   = const (mempty # lw none)
   , nodeShape    = defNodeShape
+  , leanRightN   = False
   }
+
+------------------------------------------------------------
+
+drawSlidingEdges ::
+  (V b ~ V2, N b ~ Double, Renderable (Path V2 Double) b) =>
+  SegNode (a, NodeState) -> Subdiagram b V2 Double Any ->
+  SegNode (a, NodeState) -> Subdiagram b V2 Double Any ->
+  Diagram b -> Diagram b
+drawSlidingEdges _ s1 (_, (_, Inactive)) s2 = beneath $ mconcat
+  [ location s1 ~~ location s2
+  , arrowBetween' arrowOpts (location s1 .+^ 0.5 *^ edgeV) (location s2 .-^ 0.5 *^ edgeV)
+    # translate ((0.4 *^) . perp $ edgeV)
+  ]
+  where
+    edgeV = normalize $ location s2 .-. location s1
+    arrowOpts = with & headLength .~ local 0.3
+
+drawSlidingEdges _ s1 _ s2 = beneath (location s1 ~~ location s2)

@@ -36,6 +36,15 @@ mkSegTree as = go 1 n (as ++ replicate (n - length as) mempty)
         l = go i (i+h-1) as1
         r = go (i+h) j   as2
 
+mkFenwickArray :: Monoid a => [a] -> [a]
+mkFenwickArray = map fst . filter ((==Active).snd) . postorder . deactivate . mkSegTree
+  where
+    postorder (Leaf a _)         = [a]
+    postorder (Branch a _ _ l r) = postorder l ++ postorder r ++ [a]
+
+    getNode (a, Active)   = [a]
+    getNode (_, Inactive) = []
+
 -- Range query
 rq :: Monoid a => Int -> Int -> SegmentTree a -> a
 rq i j st = snd $ rq' i j st
@@ -65,6 +74,7 @@ update i d b@(Branch a x y l r)
   | otherwise = Branch (a <> d) x y (update i d l) (update i d r)
 
 data NodeState = Active | Inactive
+  deriving (Eq, Ord, Show)
 
 deactivate :: SegmentTree a -> SegmentTree (a, NodeState)
 deactivate = deactivateR Active
