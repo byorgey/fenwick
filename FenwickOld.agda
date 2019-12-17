@@ -1,5 +1,5 @@
 open import Data.Nat
-open import Data.Nat.Properties using (suc-injective; +-suc; _<?_)
+open import Data.Nat.Properties using (suc-injective; _<?_)
 open import Data.List
 open import Relation.Nullary
 
@@ -10,57 +10,65 @@ variable
   a : Set
 
 data BT : Set → Set where
-  Empty  : BT a
+  Leaf   : (x : a) → BT a
   Branch : (x : a) → BT a → BT a → BT a
 
 indBT : {P : BT a → Set} →
-  P Empty →
+  ((x : a) → P (Leaf x)) →
   ((x : a) → (l r : BT a) → P l → P r → P (Branch x l r)) →
   (t : BT a) → P t
-indBT z _  Empty          = z
-indBT z br (Branch x l r) = br x l r (indBT z br l) (indBT z br r)
+indBT lf br (Leaf x)       = lf x
+indBT lf br (Branch x l r) = br x l r (indBT lf br l) (indBT lf br r)
 
-recBT : {r : Set} → r → (a → r → r → r) → BT a → r
-recBT {r = r} z br = indBT {P = λ _ → r} z (λ x _ _ r₁ r₂ → br x r₁ r₂)
+recBT : {r : Set} → (a → r) → (a → r → r → r) → BT a → r
+recBT {r = r} lf br = indBT {P = λ _ → r} lf (λ x _ _ r₁ r₂ → br x r₁ r₂)
 
 ∣_∣ : BT a → ℕ
-∣_∣ = recBT 0 (λ _ l r → 1 + l + r)
+∣_∣ = recBT (λ _ → 1) (λ _ l r → 1 + l + r)
 
 inorder : BT a → List a
-inorder = recBT [] (λ x l r → l ++ [ x ] ++ r)
+inorder = recBT [_] (λ x l r → l ++ [ x ] ++ r)
 
--- data Bin : Set where
---   𝟙     : Bin
---   _×2   : Bin → Bin
---   _×2+1 : Bin → Bin
+data Bin : Set where
+  𝟙     : Bin
+  _×2   : Bin → Bin
+  _×2+1 : Bin → Bin
+
+ones : ℕ → ℕ
+ones zero = 0
+ones (suc n) = let z = ones n in 1 + z + z
 
 double : ℕ → ℕ
 double zero    = zero
 double (suc n) = suc (suc (double n))
 
-doublePlus : (n : ℕ) → double n ≡ n + n
-doublePlus zero = refl
-doublePlus (suc n) rewrite (+-suc n n) = cong suc (cong suc (doublePlus n))
-
-ones  : ℕ → ℕ
-ones zero = 0
-ones (suc n) = suc (double (ones n))
-
 bt : ℕ → ℕ → BT ℕ
-bt zero    _ = Empty
+bt zero    i = Leaf i
 bt (suc n) i = Branch i (bt n (double i)) (bt n (suc (double i)))
 
-btSize : (n : ℕ) → {b : ℕ} → ∣ bt n b ∣ ≡ ones n
-btSize zero = refl
-btSize (suc n) {b} rewrite (doublePlus (ones n)) | btSize n {double b} | btSize n {suc (double b)}
-  = refl
+btSize : (n : ℕ) → {b : ℕ} → ∣ bt n b ∣ ≡ ones (suc n)
+btSize zero    = refl
+btSize (suc n) {b} =
+  begin
+  ∣ bt (suc n) b ∣
+                                ≡⟨⟩
+  ∣ Branch b (bt n _) (bt n _) ∣
+                                ≡⟨⟩
+  1 + ∣ bt n _ ∣ + ∣ bt n _ ∣
+                                ≡⟨ cong (λ e → 1 + e + ∣ bt n _ ∣) (btSize n) ⟩
+  1 + ones (suc n) + ∣ bt n _ ∣
+                                ≡⟨ cong (λ e → 1 + ones (suc n) + e) (btSize n) ⟩
+  1 + ones (suc n) + ones (suc n)
+                                ≡⟨⟩
+  ones (suc (suc n))
+  ∎
 
 inorder′ : BT a → List a
-inorder′ Empty          = []
+inorder′ (Leaf a)       = [ a ]
 inorder′ (Branch a l r) = inorder′ l ++ [ a ] ++ inorder′ r
 
 inorder-correct : (t : BT a) → inorder t ≡ inorder′ t
-inorder-correct Empty = refl
+inorder-correct (Leaf x) = refl
 inorder-correct (Branch x l r) rewrite inorder-correct l | inorder-correct r = refl
 
 -- interleave : (xs : List a) → (ys : List a) → .(length xs ≡ length ys) → List a
@@ -123,8 +131,14 @@ take-interleave′ n (x ∷ xs) ys eq = cong (_∷_ x) (take-interleave n ys xs 
 
 s : ℕ → List ℕ
 s zero    = [ 0 ]
-s (suc n) = 0 ∷ interleave [ 1 ⋯ ones (suc n) ] (s n)
+s (suc n) = 0 ∷ interleave [ 1 ⋯ ones n ] (s n)
 
-inorder-bt : (n : ℕ) → take (ones n) (drop (ones n) (s n)) ≡ inorder (bt n 1)
+inorder-bt : (n : ℕ) → take (ones (suc n)) (drop (ones (suc n)) (s (suc (suc n)))) ≡ inorder (bt n 1)
 inorder-bt zero = refl
-inorder-bt (suc n) = {!!}
+inorder-bt (suc n) = begin
+  take (ones (suc (suc n))) (drop (ones (suc (suc n))) (s (suc (suc (suc n)))))
+                      ≡⟨⟩
+  take (ones (suc (suc n))) (drop (ones (suc (suc n))) (0 ∷ interleave [ 1 ⋯ ones (suc (suc n)) ] (s (suc (suc n)))))
+                      ≡⟨ {!!} ⟩
+  inorder (bt (suc n) 1)
+  ∎
