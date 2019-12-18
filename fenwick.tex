@@ -88,7 +88,7 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-\newcommand{\mempty}{\ensuremath{\varepsilon}}
+\newcommand{\mempty}{0}
 
 \newcommand{\Up}{\textbf{U}\xspace}
 \newcommand{\RQ}{\textbf{RQ}\xspace}
@@ -216,22 +216,22 @@ XXX write about arithmetic coding as original motivation: need to
 quickly find prefix sums of probabilities.  Read up on this a bit
 more.
 
-The answer, known since at least XXX (citation), is yes: we can get
-both operations to run in $O(\lg n)$ time if we use a
-divide-and-conquer approach to caching range sums.  Just make a binary
-tree where the leaves store the sequence itself, and every internal
-node stores the sum of its two children.  (This should be a familiar
-idea to many functional programmers; for example, finger trees
+The answer, of course, is yes: we can get both operations to run in
+logarithmic time if we use a divide-and-conquer approach to caching
+range sums.  In particular, we can make a balanced binary tree where
+the leaves store the sequence itself, and every internal node stores
+the sum of its children.  (This should be a familiar idea to many
+functional programmers; for example, finger trees
 \citep{Hinze-Paterson:FingerTree} use a similar sort of scheme.)  The
-resulting data structure is known as a \emph{segment tree} (XXX
-citation?), presumably because each internal node ultimately caches
-the sum of a (contiguous) \emph{segment} of the underlying sequence.
-For simplicity, we will assume that $n$ is a power of two, although it
-is easy to generalize to situations where it is not.
-\pref{fig:segment-tree} shows a segment tree built on a random sample
-array of length $n=16$. Each leaf of the tree corresponds to an array
-entry; each internal node is shown with a grey bar showing the range
-of the underlying array of which it is the sum.
+resulting data structure is popularly known as a \emph{segment tree}
+(XXX citation?), presumably because each internal node ultimately
+caches the sum of a (contiguous) \emph{segment} of the underlying
+sequence.  \pref{fig:segment-tree} shows a segment tree built on a
+sample array of length $n=16$ (for simplicity, we will assume that $n$
+is a power of two, although it is easy to generalize to situations
+where it is not). Each leaf of the tree corresponds to an array entry;
+each internal node is drawn with a grey bar showing the range of the
+underlying array of which it is the sum.
 
 \todoi{Note that ``segment tree'' means two different things.  The
   Wikipedia article is about something used in computational geometry
@@ -256,7 +256,7 @@ of the underlying array of which it is the sum.
 \end{figure}
 
 Let's see how we can use a segment tree to implement the two required
-operations to run in $O(\lg n)$ time.
+operations so that they run in logarithmic time.
 
 \begin{itemize}
 \item To update the value at index $i$, we also need to update any
@@ -264,7 +264,9 @@ operations to run in $O(\lg n)$ time.
   along the path from the leaf at index $i$ to the root of the tree;
   there are $O(\lg n)$ such nodes.  \pref{fig:segment-tree-update}
   illustrates this update process for the example segment tree from
-  \pref{fig:segment-tree}.
+  \pref{fig:segment-tree}; updating the entry at index 5 requires
+  modifying only the shaded nodes along the path from the root to the
+  updated entry.
 
 \begin{figure}
 \begin{center}
@@ -290,10 +292,10 @@ operations to run in $O(\lg n)$ time.
   keeping track of the range covered by the current node.
   \begin{itemize}
   \item If the range of the current node is wholly contained within
-    the desired range $[i, j]$, return the value of the current
+    the query range $[i, j]$, return the value of the current
     node.
-  \item If the range of the current node does not overlap with the
-    desired range at all, return $0$.
+  \item If the range of the current node is disjoint from the query
+    range, return $0$.
   \item Otherwise, recurse on both children and return the sum of the
     results.
   \end{itemize}
@@ -327,11 +329,11 @@ operations to run in $O(\lg n)$ time.
 \pref{fig:segment-tree-range-query} illustrates the process of computing
 the sum of the range $[4 \dots 11]$.  Blue nodes are the ones we
 recurse through; green nodes are those whose range is wholly contained
-in the desired range, and are returned without recursing further; grey
-nodes are disjoint from the desired range and return zero.
+in the query range, and are returned without recursing further; grey
+nodes are disjoint from the query range and return zero.
 
 On this small example tree, it may seem that we visit a significant
-fraction of the total nodes, but in general, we visit no more than
+fraction of the total nodes, but in general, we must visit no more than
 about $4 \lg n$ nodes.  \pref{fig:big-range-query} makes this more
 clear.  Only one blue node in the entire tree can have two blue
 children, \todoi{why?} and hence each level of the tree can contain at
@@ -383,41 +385,44 @@ example, the set of natural numbers forms a monoid under
 multiplication).  Note, however, that the ``sum'' metaphor fails us in
 one important way: in general, $\oplus$ need not be commutative, that
 is, we may have $a \oplus b \neq b \oplus a$.  All the data structures
-we will discuss work perfectly well for non-commutative monoids, but
-some care is required to ensure values are properly ordered.
+we will discuss work perfectly well for non-commutative monoids,
+though some care is required to ensure values are properly ordered.
 
 Some monoids also have \emph{inverses}, that is, for each $m \in M$
 there is an element $-m \in M$ such that
 $m \oplus (-m) = (-m) \oplus m = \mempty$.  Such monoids-with-inverses
 are called \emph{groups}.  For convenience, in any group we can also
 define a ``subtraction'' operation $a \ominus b = a \oplus (-b)$.
-Although basic segment trees work just fine with any monoid, other
-related constructions we will consider require a group.
+Although basic segment trees work with any monoid, the constructions
+we consider in the rest of the paper will generally require a group.
 
 \todoi{Haskell implementation.}
 \todoi{requires 2x storage.  Indexing scheme?  Relevant in an array implementation.}
 
 \section{Segment Trees are Redundant}
 
-Of course segment trees are redundant in the sense that they cache
+Of course, segment trees are redundant in the sense that they cache
 range sums which could easily be recomputed from the original
 sequence.  That's the whole point: caching these ``redundant'' sums
-allows us to perform arbitrary range queries more quickly. But segment
-trees are actually redundant in a stronger sense: it turns out that if
-the values come from a group, we can throw out almost \emph{half} of
-the data in a segment tree and still retain the $O(\log n)$ running
-time for updates and range queries!
+trades off space for time, allowing us to perform arbitrary range
+queries more quickly at the cost of doubling the required storage
+space.
 
-How, you ask?  Simple: just throw out the data associated with
-\emph{every right child}. \pref{fig:deactivate-right} shows the same
-example tree we have been using, but with the data deleted from every
-right child.  Note that ``every right child'' includes both leaves and
-internal nodes: we throw out the data associated to \emph{any} node
-which is the right child of its parent.  We will refer to the nodes
-with discarded data as \emph{inactive} and the remaining nodes (that
-is, left children and the root) as \emph{active}.  We will also say
-that a tree with all its right children inactivated in this way has been
-\emph{thinned}.
+However, if the values come from a group, segment trees are
+actually redundant in a stronger sense: we can throw out almost
+\emph{half} of the data in a segment tree and still retain the
+$O(\log n)$ running time for updates and range queries!
+
+How, you ask?  Simple: just throw out the data stored in \emph{every
+  node which is a right child}. \pref{fig:deactivate-right} shows the
+same example tree we have been using, but with the data deleted from
+every right child.  Note that ``every right child'' includes both
+leaves and internal nodes: we throw out the data associated to
+\emph{any} node which is the right child of its parent.  We will refer
+to the nodes with discarded data as \emph{inactive} and the remaining
+nodes (that is, left children and the root) as \emph{active}.  We also
+say that a tree with all its right children inactivated in this way
+has been \emph{thinned}.
 
 \begin{figure}
 \begin{center}
@@ -438,7 +443,10 @@ that a tree with all its right children inactivated in this way has been
 \end{figure}
 
 First, let's see that there is enough information remaining to
-reconstruct the information that was discarded.
+reconstruct the information that was discarded.  You might wish to
+pause at this point and work it out for yourself: can you deduce what
+values must go in the greyed-out nodes in \pref{fig:deactivate-right},
+without peeking at any previous figures?
 
 \begin{theorem}
   The value of any inactive node in a thinned segment tree can be
@@ -494,18 +502,19 @@ reconstruct the information that was discarded.
 This proof is, in fact, an algorithm, although this algorithm isn't
 typically used, because it is too specialized. Simply being able to
 \emph{recover} all the discarded information isn't good enough; we
-need to be able to perform range queries and updates as well.  Updates
-are easy: as before, we only need to update nodes along the path from
-the modified leaf to the root, simply skipping any inactive nodes
-along the way.  However, it is less clear that we can still do range
-queries in $O(\lg n)$ time.  Naively, we would need to do $O(\lg n)$
-work (using the above algorithm) to reconstruct each of the $O(\lg n)$
-nodes needed to compute a range sum, leading to $O(\lg^2 n)$ time.
-This isn't bad, but we can do better.
+need to be able to perform range queries and updates as well.
+
+Updates are easy: as before, we only need to update nodes along the
+path from the modified leaf to the root, simply skipping any inactive
+nodes along the way.  However, it is less clear that we can still do
+range queries in $O(\lg n)$ time.  Naively, we would need to do
+$O(\lg n)$ work (using the above algorithm) to reconstruct each of the
+$O(\lg n)$ nodes needed to compute a range sum, leading to
+$O((\lg n)^2)$ time.  This isn't bad, but we can do better.
 
 \begin{theorem}
   Given a thinned segment tree, the sum of \emph{any prefix} of the
-  original array can be computed, in $O(\lg n)$ time, using only the
+  original array can be computed, in logarithmic time, using only the
   values of active nodes.
 \end{theorem}
 \begin{proof}
@@ -522,7 +531,7 @@ This isn't bad, but we can do better.
       leaves us with another valid segment tree.}
   \item On the other hand, if $m = 2k+1$ is odd, then \todoi{picture!}
     the last element in the desired range is a left child (or the root
-    itself, if $m = 1$) and therefore active.  We can therefore find
+    itself, if $m = 1$) and therefore active.  We can thus find
     the sum of the first $2k+1$ elements by combining the sum of the
     first $2k$ elements with the value of the single active element at
     the end.
@@ -532,10 +541,10 @@ This isn't bad, but we can do better.
 \end{proof}
 
 \begin{corollary}
-  After inactivating all the right children in a segment tree, we can
-  still perform any range query in $O(\lg n)$ time.
+  Range queries on thinned segment trees can be performed in $O(\lg n)$ time.
 \end{corollary}
 \begin{proof}
+  We can compute any range sum by subtracting prefix sums:
   $RQ(i,j) = P(j) \ominus P(i-1)$. \todoi{picture}
 \end{proof}
 
@@ -544,16 +553,16 @@ value of an individual inactive element.
 
 \section{Fenwick trees}
 
-How should we actually represent a thinned segment tree?  If we stare
-at \pref{fig:deactivate-right} again, an obvious strategy suggests
-itself: simply take every active node and ``slide'' it down and to the
-right until it lands in an empty spot in the underlying array, as
-illustrated in \pref{fig:sliding-right}.  This sets up a one-to-one
-correspondence between active nodes and indices in the range
-$1 \dots n$.  Another way to understand this indexing scheme is to use
-a postorder traverasal of the tree, skipping over inactive nodes and
-giving consecutive indices to active nodes encountered during the
-traversal.
+How should we actually store a thinned segment tree in memory?  If we
+stare at \pref{fig:deactivate-right} again, an obvious strategy
+suggests itself: simply take every active node and ``slide'' it down
+and to the right until it lands in an empty spot in the underlying
+array, as illustrated in \pref{fig:sliding-right}.  This sets up a
+one-to-one correspondence between active nodes and indices in the
+range $1 \dots n$.  Another way to understand this indexing scheme is
+to use a postorder traverasal of the tree, skipping over inactive
+nodes and giving consecutive indices to active nodes encountered
+during the traversal. \todoi{Explain in more detail---this is crucial!}
 
 \begin{figure}
 \begin{center}

@@ -2,16 +2,18 @@ open import Data.Nat
 open import Data.Nat.Properties using (suc-injective; +-suc; _<?_)
 open import Data.List
 open import Relation.Nullary
+open import Data.Unit
 
 open import Relation.Binary.PropositionalEquality using (_≡_; refl; cong; sym; module ≡-Reasoning)
 open ≡-Reasoning
 
-variable
-  a : Set
+private
+  variable
+    a : Set
 
 data BT : Set → Set where
   Empty  : BT a
-  Branch : (x : a) → BT a → BT a → BT a
+  Branch : (x : a) → (l : BT a) → (r : BT a) → BT a
 
 indBT : {P : BT a → Set} →
   P Empty →
@@ -25,6 +27,54 @@ recBT {r = r} z br = indBT {P = λ _ → r} z (λ x _ _ r₁ r₂ → br x r₁ 
 
 ∣_∣ : BT a → ℕ
 ∣_∣ = recBT 0 (λ _ l r → 1 + l + r)
+
+------------------------------------------------------------
+-- Segment tree
+
+-- value : BT a → a
+-- value Empty = 0
+-- value (Branch x _ _) = x
+
+-- data IsSegTree : BT a → Set where
+--   Empty  : IsSegTree Empty
+--   Branch :   IsSegTree l
+
+------------------------------------------------------------
+-- Thinning
+--
+-- Need to put some Monoid/Group constraints around, and encode
+-- segment tree properties...?  Would need this to e.g. prove recovery
+-- of a full segment tree from a thinned version.
+
+data Status : Set where
+  Active : Status
+  Inactive : Status
+
+Hole : Status → Set → Set
+Hole Active   a = a
+Hole Inactive _ = ⊤
+
+give : {s : Status} → a → Hole s a
+give {s = Active}   x = x
+give {s = Inactive} x = tt
+
+data ThinnedR : Status → Set → Set where
+  Empty  : {s : Status} → ThinnedR s a
+  Branch : {s : Status} → Hole s a → ThinnedR Active a → ThinnedR Inactive a → ThinnedR s a
+
+Thinned : Set → Set
+Thinned = ThinnedR Active
+
+thin : BT a → Thinned a
+thin = thinR
+  where
+    thinR : {s : Status} → BT a → ThinnedR s a
+    thinR Empty          = Empty
+    thinR (Branch x l r) = Branch (give x) (thinR r) (thinR r)
+
+
+
+------------------------------------------------------------
 
 inorder : BT a → List a
 inorder = recBT [] (λ x l r → l ++ [ x ] ++ r)
