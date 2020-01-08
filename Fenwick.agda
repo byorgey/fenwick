@@ -108,26 +108,38 @@ inorder = recBT [] (λ x l r → l ++ [ x ] ++ r)
 *-2× zero b = refl
 *-2× (S a) b = begin
   2× b + a * 2× b
-                      ≡⟨ cong (λ r → r + a * 2× b) (2×-+ b) ⟩
+
+    ≡⟨ cong₂ _+_ (2×-+ b) refl ⟩
+
   b + b + a * 2× b
-                      ≡⟨ +-assoc b b (a * 2× b) ⟩
+
+    ≡⟨ +-assoc b b (a * 2× b) ⟩
+
   b + (b + a * 2× b)
-                      ≡⟨ cong (_+_ b) (cong (_+_ b) (*-2× a b)) ⟩
-  b + (b + 2× a * b)
-  ∎
+
+    ≡⟨ cong (_+_ b) (cong (_+_ b) (*-2× a b)) ⟩
+
+  b + (b + 2× a * b) ∎
 
 *-S2× : (a b : ℕ) → a * S (2× b) ≡ 2× a * b + a
 *-S2× a b = begin
   a * S (2× b)
-                      ≡⟨ *-comm a _ ⟩
+
+    ≡⟨ *-comm a _ ⟩
+
   a + 2× b * a
-                      ≡⟨ cong (_+_ a) (sym (*-2× b a)) ⟩
+
+    ≡⟨ cong (_+_ a) (sym (*-2× b a)) ⟩
+
   a + b * 2× a
-                      ≡⟨ cong (_+_ a) (*-comm b _) ⟩
+
+    ≡⟨ cong (_+_ a) (*-comm b _) ⟩
+
   a + 2× a * b
-                      ≡⟨ +-comm a _ ⟩
-  2× a * b + a
-  ∎
+
+    ≡⟨ +-comm a _ ⟩
+
+  2× a * b + a ∎
 
 2^ : ℕ → ℕ
 2^ zero = 1
@@ -147,7 +159,10 @@ S-𝟙^ (S n) = cong 2× (S-𝟙^ n)
 
 split-𝟙^ : (n : ℕ) → (𝟙^ (S n)) ≡ 𝟙^ n + 2^ n
 split-𝟙^ n = begin
-  𝟙^ (S n)                          ≡⟨⟩
+  𝟙^ (S n)
+
+    ≡⟨⟩
+
   S (2× (𝟙^ n))
 
     ≡⟨ cong S (2×-+ _) ⟩
@@ -160,8 +175,7 @@ split-𝟙^ n = begin
 
     ≡⟨ cong₂ _+_ refl (S-𝟙^ _) ⟩
 
-  𝟙^ n + 2^ n
-  ∎
+  𝟙^ n + 2^ n ∎
 
 bt : ℕ → ℕ → BT ℕ
 bt zero    _ = Empty
@@ -184,25 +198,34 @@ length-inorder : (t : BT a) → length (inorder t) ≡ ∣ t ∣
 length-inorder Empty          = refl
 length-inorder (Branch x l r) = begin
   length (inorder (Branch x l r))
-                      ≡⟨⟩
+
+    ≡⟨⟩
+
   length (inorder l ++ [ x ] ++ inorder r)
-                      ≡⟨ length-++ (inorder l) ⟩
+
+    ≡⟨ length-++ (inorder l) ⟩
+
   length (inorder l) + length ([ x ] ++ inorder r)
-                      ≡⟨ cong (λ r → length (inorder l) + r) (length-++ [ x ] {inorder r}) ⟩
+
+    ≡⟨ cong₂ _+_ refl (length-++ [ x ] {inorder r}) ⟩
+
   length (inorder l) + (length [ x ] + length (inorder r))
-                      ≡⟨ cong (λ q → q + (length [ x ] + length (inorder r))) (length-inorder l) ⟩
-  ∣ l ∣ + (length [ x ] + length (inorder r))
-                      ≡⟨⟩
-  ∣ l ∣ + (1 + length (inorder r))
-                      ≡⟨ sym (+-assoc ∣ l ∣ _ _) ⟩
-  (∣ l ∣ + 1) + length (inorder r)
-                      ≡⟨ cong (λ q → q + length (inorder r)) (+-comm ∣ l ∣ _) ⟩
-  S (∣ l ∣ + length (inorder r))
-                      ≡⟨ cong (λ q → S (∣ l ∣ + q)) (length-inorder r) ⟩
+
+    ≡⟨ cong₂ _+_ (length-inorder l) (cong₂ _+_ refl (length-inorder r)) ⟩
+
+  ∣ l ∣ + (1 + ∣ r ∣)
+
+    ≡⟨ sym (+-assoc ∣ l ∣ _ _) ⟩
+
+  (∣ l ∣ + 1) + ∣ r ∣
+
+    ≡⟨ cong₂ _+_ (+-comm ∣ l ∣ _) refl ⟩
+
   S (∣ l ∣ + ∣ r ∣)
-                      ≡⟨⟩
-  ∣ Branch x l r ∣
-  ∎
+
+    ≡⟨⟩
+
+  ∣ Branch x l r ∣ ∎
 
 ------------------------------------------------------------
 
@@ -234,19 +257,30 @@ length-⋎ : (xs ys : List a) → (length xs ≡ length ys) → length (xs ⋎ y
 length-⋎ [] [] _ = refl
 length-⋎ (x ∷ xs) (y ∷ ys) eq = begin
   length ((x ∷ xs) ⋎ (y ∷ ys))
-                      ≡⟨⟩
+
+    ≡⟨⟩
+
   length (x ∷ y ∷ xs ⋎ ys)
-                      ≡⟨⟩
+
+    ≡⟨⟩
+
   S (S (length (xs ⋎ ys)))
-                      ≡⟨ cong S (cong S (length-⋎ xs ys (suc-injective eq))) ⟩
+
+    ≡⟨ cong S (cong S (length-⋎ xs ys (suc-injective eq))) ⟩
+
   S (S (length xs + length ys))
-                      ≡⟨ cong S (sym (+-suc _ _)) ⟩
+
+    ≡⟨ cong S (sym (+-suc _ _)) ⟩
+
   S (length xs + S (length ys))
-                      ≡⟨⟩
+
+    ≡⟨⟩
+
   S (length xs) + S (length ys)
-                      ≡⟨⟩
-  length (x ∷ xs) + length (y ∷ ys)
-  ∎
+
+    ≡⟨⟩
+
+  length (x ∷ xs) + length (y ∷ ys) ∎
 
 ⋎-++₀ : (xs₁ xs₂ ys₁ ys₂ : List a) → length xs₁ ≡ length xs₂ →
   (xs₁ ⋎ xs₂) ++ (ys₁ ⋎ ys₂) ≡ (xs₁ ++ ys₁) ⋎ (xs₂ ++ ys₂)
@@ -290,14 +324,20 @@ take-1⋯2^ n = take-applyUpTo (𝟙^ n) (S (2× (𝟙^ n))) (𝟙^-≤ n (S n) 
 
 split-1⋯2^ : (n : ℕ) → 1⋯2^ (S n) ≡ (1⋯2^ n) ++ (2⋯2^ n)
 split-1⋯2^ n = sym (begin
+
   (1⋯2^ n) ++ (2⋯2^ n)
-                      ≡⟨⟩
+
+    ≡⟨⟩
+
   (1⋯2^ n) ++ drop (𝟙^ n) (1⋯2^ (S n))
-                      ≡⟨ cong (λ s → s ++ drop (𝟙^ n) (1⋯2^ S n)) (sym (take-1⋯2^ n)) ⟩
+
+    ≡⟨ cong₂ _++_ (sym (take-1⋯2^ n)) refl ⟩
+
   take (𝟙^ n) (1⋯2^ (S n)) ++ drop (𝟙^ n) (1⋯2^ S n)
-                      ≡⟨ take++drop (𝟙^ n) (1⋯2^ S n) ⟩
-  1⋯2^ (S n)
-  ∎)
+
+    ≡⟨ take++drop (𝟙^ n) (1⋯2^ S n) ⟩
+
+  1⋯2^ (S n) ∎)
 
 -- Is this in the stdlib??
 drop-drop : {A : Set} → (m n : ℕ) → (xs : List A) → drop m (drop n xs) ≡ drop (m + n) xs
@@ -316,17 +356,15 @@ length-drop (S m) n (x ∷ xs) eq = length-drop m n xs (suc-injective eq)
 
 length-2⋯2^ : (n : ℕ) → length (2⋯2^ n) ≡ 2^ n
 length-2⋯2^ n = begin
-  length (2⋯2^ n)                                   ≡⟨⟩
+  length (2⋯2^ n)
+
+    ≡⟨⟩
+
   length (drop (𝟙^ n) (1⋯2^ (S n)))
 
     ≡⟨ length-drop (𝟙^ n) (2^ n) (1⋯2^ (S n)) (trans (length-1⋯2^ (S n)) (split-𝟙^ n)) ⟩
 
-  2^ n
-  ∎
-
-  -- length (drop (𝟙^ n) (1⋯2^ (S n))
-  -- = length (drop (𝟙^ n) (1⋯2^ n ++ 2⋯2^ n))
-  -- = length (2⋯2^n)
+  2^ n ∎
 
 -- interval i n = [i*2^n ... (i+1)*2^n - 1]
 interval : ℕ → ℕ → List ℕ
@@ -372,23 +410,25 @@ interval-++ (S n) i =
 
   where
     lemma₁ : (k : ℕ) → k < 2× (2^ n) → 2× (2^ n) * 2× i + k ≡ 2× (2× (2^ n)) * i + k
-    lemma₁ k _ = cong (λ r → r + k) (*-2× (2× (2^ n)) i)
+    lemma₁ k _ = cong₂ _+_ (*-2× (2× (2^ n)) i) refl
 
     lemma₂ : (k : ℕ) → k < 2× (2^ n) → 2× (2^ n) * S (2× i) + k ≡ 2× (2× (2^ n)) * i + (2× (2^ n) + k)
     lemma₂ k _ rewrite (sym (+-assoc (2^ (S (S n)) * i) (2^ (S n)) k)) =
-      cong (λ r → r + k) (*-S2× (2^ (S n)) i)
+      cong₂ _+_ (*-S2× (2^ (S n)) i) refl
 
 
 2⋯2^≡interval : (n : ℕ) → 2⋯2^ n ≡ interval 1 n
 2⋯2^≡interval zero = refl
 2⋯2^≡interval (S n) = begin
-  2⋯2^ (S n)                      ≡⟨⟩
+  2⋯2^ (S n)
+
+    ≡⟨⟩
+
   drop (𝟙^ (S n)) (1⋯2^ (S (S n)))
 
     ≡⟨ drop-applyUpTo (S ∘ S) _ (2× (𝟙^ n)) _ _ lemma₁ lemma₂ ⟩
 
-  interval 1 (S n)
-  ∎
+  interval 1 (S n) ∎
 
   where
     lemma₁ : 2× (𝟙^ n) + 2× (2^ n) ≡ S (S (2× (2× (𝟙^ n))))
@@ -397,7 +437,10 @@ interval-++ (S n) i =
 
         ≡⟨ cong₂ _+_ refl (cong 2× (sym (S-𝟙^ n))) ⟩
 
-      2× (𝟙^ n) + 2× (S (𝟙^ n))           ≡⟨⟩
+      2× (𝟙^ n) + 2× (S (𝟙^ n))
+
+        ≡⟨⟩
+
       2× (𝟙^ n) + S (S (2× (𝟙^ n)))
 
         ≡⟨ +-suc _ _ ⟩
@@ -410,13 +453,18 @@ interval-++ (S n) i =
 
         ≡⟨ cong S (cong S (sym (2×-+ _))) ⟩
 
-      S (S (2× (2× (𝟙^ n))))
-      ∎
+      S (S (2× (2× (𝟙^ n)))) ∎
 
     lemma₂ : (x : ℕ) → S (S (2× (𝟙^ n) + x)) ≡ 2× (2^ n) * 1 + x
     lemma₂ x = begin
-      S (S (2× (𝟙^ n) + x))     ≡⟨⟩
-      S (S (2× (𝟙^ n))) + x     ≡⟨⟩
+      S (S (2× (𝟙^ n) + x))
+
+        ≡⟨⟩
+
+      S (S (2× (𝟙^ n))) + x
+
+        ≡⟨⟩
+
       2× (S (𝟙^ n)) + x
 
         ≡⟨ cong₂ _+_ (cong 2× (S-𝟙^ n)) refl ⟩
@@ -425,8 +473,7 @@ interval-++ (S n) i =
 
         ≡⟨ cong₂ _+_ (sym (*-identityʳ (2× (2^ n)))) refl ⟩
 
-      2× (2^ n) * 1 + x
-      ∎
+      2× (2^ n) * 1 + x ∎
 
 ------------------------------------------------------------
 
@@ -438,23 +485,34 @@ length-s : (n : ℕ) → length (s n) ≡ 𝟙^ (S n)
 length-s zero = refl
 length-s (S n) = begin
   length (s (S n))
-                      ≡⟨⟩
+
+    ≡⟨⟩
+
   length (0 ∷ (1⋯2^ S n) ⋎ s n)
-                      ≡⟨⟩
+
+    ≡⟨⟩
+
   S (length ((1⋯2^ S n) ⋎ s n))
-                      ≡⟨ cong S (length-⋎ (1⋯2^ S n) (s n)
-                         (trans (length-1⋯2^ _) (sym (length-s n))))
-                       ⟩
+
+    ≡⟨ cong S (length-⋎ (1⋯2^ S n) (s n) (trans (length-1⋯2^ _) (sym (length-s n)))) ⟩
+
   S (length (1⋯2^ S n) + length (s n))
-                      ≡⟨ cong (λ r → S (r + length (s n))) (length-1⋯2^ _) ⟩
+
+    ≡⟨ cong S ( cong₂ _+_ (length-1⋯2^ (S n)) refl) ⟩
+
   S (𝟙^ (S n) + length (s n))
-                      ≡⟨ cong (λ r → S (𝟙^ (S n) + r)) (length-s n) ⟩
+
+    ≡⟨ cong S (cong₂ _+_ refl (length-s n)) ⟩
+
   S (𝟙^ (S n) + 𝟙^ (S n))
-                      ≡⟨ cong S (sym (2×-+ _)) ⟩
+
+    ≡⟨ cong S (sym (2×-+ _)) ⟩
+
   S (2× (𝟙^ (S n)))
-                      ≡⟨⟩
-  𝟙^ (S (S n))
-  ∎
+
+    ≡⟨⟩
+
+  𝟙^ (S (S n)) ∎
 
 length-s≡1⋯2^ : (n : ℕ) → length (s n) ≡ length (1⋯2^ S n)
 length-s≡1⋯2^ n = trans (length-s n) (sym (length-1⋯2^ _))
@@ -465,118 +523,94 @@ s-prefix-∃ (S n) with s-prefix-∃ n
 ... | (ys′ , eq) = ((2⋯2^ S n) ⋎ ys′) ,
   (begin
     s (S (S n))
-                      ≡⟨⟩
+
+      ≡⟨⟩
+
     0 ∷ (1⋯2^ S (S n)) ⋎ s (S n)
-                      ≡⟨ cong (λ r → 0 ∷ ((1⋯2^ S (S n)) ⋎ r)) eq ⟩
-    0 ∷ (1⋯2^ S (S n)) ⋎ (s n ++ ys′)
-                      ≡⟨ cong (λ r → 0 ∷ (r ⋎ (s n ++ ys′))) (split-1⋯2^ (S n)) ⟩
+
+      ≡⟨ cong (_∷_ 0) (cong₂ _⋎_ (split-1⋯2^ (S n)) eq) ⟩
+
     0 ∷ ((1⋯2^ S n) ++ (2⋯2^ S n)) ⋎ (s n ++ ys′)
-                      ≡⟨ cong (_∷_ 0) (sym (⋎-++₀ (1⋯2^ S n) _ _ _ (sym (length-s≡1⋯2^ n)))) ⟩
+
+      ≡⟨ cong (_∷_ 0) (sym (⋎-++₀ (1⋯2^ S n) _ _ _ (sym (length-s≡1⋯2^ n)))) ⟩
+
     0 ∷ ((1⋯2^ S n) ⋎ s n) ++ ((2⋯2^ S n) ⋎ ys′)
-                      ≡⟨⟩
-    (0 ∷ (1⋯2^ S n) ⋎ s n) ++ ((2⋯2^ S n) ⋎ ys′)
-                      ≡⟨⟩
-    s (S n) ++ ((2⋯2^ S n) ⋎ ys′)
-  ∎)
+
+      ≡⟨⟩
+
+    s (S n) ++ ((2⋯2^ S n) ⋎ ys′) ∎)
 
 P : ℕ → List ℕ
 P n = drop (𝟙^ n) (s n)
 
 P-merge : (n : ℕ) → P (S n) ≡ (2⋯2^ n) ⋎ P n
 P-merge n = begin
-  P (S n)                                         ≡⟨⟩
-  drop (𝟙^ (S n)) (s (S n))                       ≡⟨⟩
-  drop (𝟙^ (S n)) (0 ∷ (1⋯2^ S n) ⋎ s n)          ≡⟨⟩
+  P (S n)
+
+    ≡⟨⟩
+
+  drop (𝟙^ (S n)) (s (S n))
+
+    ≡⟨⟩
+
+  drop (𝟙^ (S n)) (0 ∷ (1⋯2^ S n) ⋎ s n)
+
+    ≡⟨⟩
+
   drop (2× (𝟙^ n)) ((1⋯2^ S n) ⋎ s n)
 
     ≡⟨ drop-⋎ (𝟙^ n) _ _ (sym (length-s≡1⋯2^ n)) ⟩
 
-  drop (𝟙^ n) (1⋯2^ S n) ⋎ drop (𝟙^ n) (s n)      ≡⟨⟩
-  (2⋯2^ n) ⋎ drop (𝟙^ n) (s n)                    ≡⟨⟩
-  (2⋯2^ n) ⋎ P n
-  ∎
+  drop (𝟙^ n) (1⋯2^ S n) ⋎ drop (𝟙^ n) (s n)
 
-  -- P-merge zero    = refl
-  -- P-merge (S n) = begin
-  --   P (S (S n))
-  --                       ≡⟨⟩
-  --   drop (𝟙^ S (S n)) (s (S (S n)))
-  --                       ≡⟨⟩
-  --   drop (𝟙^ S (S n)) (0 ∷ (1⋯2^ S (S n)) ⋎ s (S n))
-  --                       ≡⟨⟩
-  --   drop (2× (𝟙^ S n)) ((1⋯2^ S (S n)) ⋎ s (S n))
-  --                       ≡⟨ cong (λ r → drop (2× (𝟙^ S n)) (r ⋎ s (S n))) (split-1⋯2^ (S n)) ⟩
-  --   drop (2× (𝟙^ S n)) (((1⋯2^ S n) ++ (2⋯2^ S n)) ⋎ s (S n))
-  --                       ≡⟨ cong
-  --                            (λ r →
-  --                               drop (2× (𝟙^ S n)) (((1⋯2^ S n) ++ (2⋯2^ S n)) ⋎ r))
-  --                            (s-prefix n) ⟩
-  --   drop (2× (𝟙^ S n)) (((1⋯2^ S n) ++ (2⋯2^ S n)) ⋎ (s n ++ P (S n)))
-  --                       ≡⟨ cong (drop (2× (𝟙^ S n)))
-  --                            (sym (⋎-++₀ (1⋯2^ S n) (s n) _ _ (sym (length-s≡1⋯2^ n)))) ⟩
-  --   drop (2× (𝟙^ S n)) (((1⋯2^ S n) ⋎ s n) ++ ((2⋯2^ S n) ⋎ P (S n)))
-  --                       ≡⟨ cong (λ r → drop r (((1⋯2^ S n) ⋎ s n) ++ ((2⋯2^ S n) ⋎ P (S n))))
-  --                            (2×-+ (𝟙^ S n)) ⟩
-  --   drop ((𝟙^ S n) + (𝟙^ S n)) (((1⋯2^ S n) ⋎ s n) ++ ((2⋯2^ S n) ⋎ P (S n)))
-  --                       ≡⟨ cong
-  --                            (λ r →
-  --                               drop (r + (𝟙^ S n))
-  --                               (((1⋯2^ S n) ⋎ s n) ++ ((2⋯2^ S n) ⋎ P (S n))))
-  --                            (sym (length-1⋯2^ (S n))) ⟩
-  --   drop (length (1⋯2^ S n) + (𝟙^ S n)) (((1⋯2^ S n) ⋎ s n) ++ ((2⋯2^ S n) ⋎ P (S n)))
-  --                       ≡⟨ cong
-  --                            (λ r →
-  --                               drop (length (1⋯2^ S n) + r)
-  --                               (((1⋯2^ S n) ⋎ s n) ++ ((2⋯2^ S n) ⋎ P (S n))))
-  --                            (sym (length-s n)) ⟩
-  --   drop (length (1⋯2^ S n) + length (s n)) (((1⋯2^ S n) ⋎ s n) ++ ((2⋯2^ S n) ⋎ P (S n)))
-  --                       ≡⟨ drop-++ ((length (1⋯2^ S n) + length (s n))) ((1⋯2^ S n) ⋎ s n) _
-  --                            (length-⋎ (1⋯2^ S n) (s n) (sym (length-s≡1⋯2^ n))) ⟩
-  --   (2⋯2^ S n) ⋎ P (S n)
-  --   ∎
+    ≡⟨⟩
 
-    -- WHEW!  leaving the above for now even though I found a much
-    -- better proof (by accident!) above.  Key is to use drop-⋎ rather than
-    -- splitting the RHS and then using drop-++.
+  (2⋯2^ n) ⋎ drop (𝟙^ n) (s n)
+
+    ≡⟨⟩
+
+  (2⋯2^ n) ⋎ P n ∎
+
 
 s-prefix : (n : ℕ) → s (S n) ≡ s n ++ P (S n)
 s-prefix 0 = refl
 s-prefix (S n) = begin
   s (S (S n))
-                      ≡⟨⟩
+
+    ≡⟨⟩
+
   0 ∷ (1⋯2^ S (S n)) ⋎ s (S n)
-                      ≡⟨ cong (λ r → 0 ∷ ((1⋯2^ S (S n)) ⋎ r)) (s-prefix n) ⟩
-  0 ∷ (1⋯2^ S (S n)) ⋎ (s n ++ P (S n))
-                      ≡⟨ cong (λ r → 0 ∷ (r ⋎ (s n ++ P (S n))))
-                              (split-1⋯2^ (S n))
-                       ⟩
+
+    ≡⟨ cong (_∷_ 0) (cong₂ _⋎_ (split-1⋯2^ (S n)) (s-prefix n)) ⟩
+
   0 ∷ ((1⋯2^ S n) ++ (2⋯2^ S n)) ⋎ (s n ++ P (S n))
-                      ≡⟨ cong (_∷_ 0) (sym (⋎-++₀ (1⋯2^ S n) _ _ _ (sym (length-s≡1⋯2^ n)))) ⟩
+
+    ≡⟨ cong (_∷_ 0) (sym (⋎-++₀ (1⋯2^ S n) _ _ _ (sym (length-s≡1⋯2^ n)))) ⟩
+
   0 ∷ ((1⋯2^ S n) ⋎ s n) ++ ((2⋯2^ S n) ⋎ P (S n))
-                      ≡⟨⟩
-  (0 ∷ (1⋯2^ S n) ⋎ s n) ++ ((2⋯2^ S n) ⋎ P (S n))
-                      ≡⟨⟩
+
+    ≡⟨⟩
+
   s (S n) ++ ((2⋯2^ S n) ⋎ P (S n))
-                      ≡⟨ cong (λ r → s (S n) ++ r) (sym (P-merge (S n))) ⟩
-  s (S n) ++ P (S (S n))
-  ∎
+
+    ≡⟨ cong₂ _++_ refl (sym (P-merge (S n))) ⟩
+
+  s (S n) ++ P (S (S n)) ∎
 
 inorder-bt-merge : (n i : ℕ) → inorder (bt (S n) i) ≡ interval i n ⋎ inorder (bt n i)
 inorder-bt-merge zero i rewrite +-identityʳ i | +-identityʳ i = refl
 inorder-bt-merge (S n) i = begin
-  inorder (bt (S (S n)) i) ≡⟨⟩
+  inorder (bt (S (S n)) i)
 
-  inorder (Branch i (bt (S n) (2× i)) (bt (S n) (S (2× i)))) ≡⟨⟩
+    ≡⟨⟩
+
+  inorder (Branch i (bt (S n) (2× i)) (bt (S n) (S (2× i))))
+
+    ≡⟨⟩
 
   inorder (bt (S n) (2× i)) ++ [ i ] ++ inorder (bt (S n) (S (2× i)))
 
-    ≡⟨ cong (λ r → r ++ [ i ] ++ inorder (bt (S n) (S (2× i))))
-            (inorder-bt-merge n _) ⟩
-
-  (interval (2× i) n ⋎ inorder (bt n (2× i))) ++ [ i ] ++ inorder (bt (S n) (S (2× i)))
-
-    ≡⟨ cong (λ r → (interval (2× i) n ⋎ inorder (bt n (2× i))) ++ [ i ] ++ r)
-            (inorder-bt-merge n _) ⟩
+    ≡⟨ cong₂ _++_ (inorder-bt-merge n _) (cong (_++_ [ i ]) (inorder-bt-merge n _)) ⟩
 
   (interval (2× i) n ⋎ inorder (bt n (2× i))) ++ [ i ] ++ (interval (S (2× i)) n ⋎ inorder (bt n (S (2× i))))
 
@@ -584,8 +618,8 @@ inorder-bt-merge (S n) i = begin
 
   ((interval (2× i) n ⋎ inorder (bt n (2× i))) ++ [ i ]) ++ (interval (S (2× i)) n ⋎ inorder (bt n (S (2× i))))
 
-    ≡⟨ cong (λ r → r ++ (interval (S (2× i)) n ⋎ inorder (bt n (S (2× i)))))
-       (⋎-snoc₁ _ _ _ (lemma₁ n _)) ⟩
+    ≡⟨ cong₂ _++_ {x = (interval (2× i) n ⋎ inorder (bt n (2× i))) ++ [ i ]}
+         (⋎-snoc₁ _ _ _ (lemma₁ n _)) refl ⟩
 
   (interval (2× i) n ⋎ (inorder (bt n (2× i)) ++ [ i ])) ++ (interval (S (2× i)) n ⋎ inorder (bt n (S (2× i))))
 
@@ -604,31 +638,41 @@ inorder-bt-merge (S n) i = begin
     lemma₁ : (n i : ℕ) → length (interval i n) ≡ S (length (inorder (bt n i)))
     lemma₁ n i = begin
       length (interval i n)
-                          ≡⟨ length-interval i n ⟩
+
+        ≡⟨ length-interval i n ⟩
+
       2^ n
-                          ≡⟨ sym (S-𝟙^ n) ⟩
+
+        ≡⟨ sym (S-𝟙^ n) ⟩
+
       S (𝟙^ n)
-                          ≡⟨ cong S (sym (trans (length-inorder (bt n i)) (btSize _))) ⟩
-      S (length (inorder (bt n i)))
-      ∎
+
+        ≡⟨ cong S (sym (trans (length-inorder (bt n i)) (btSize _))) ⟩
+
+      S (length (inorder (bt n i))) ∎
 
     lemma₂ : (n i j : ℕ) → length (interval i n) ≡ length (inorder (bt n i) ++ [ j ])
     lemma₂ n i j = begin
       length (interval i n)
-                          ≡⟨ lemma₁ n _ ⟩
+
+        ≡⟨ lemma₁ n _ ⟩
+
       S (length (inorder (bt n i)))
-                          ≡⟨ sym (+-comm _ 1) ⟩
+
+        ≡⟨ sym (+-comm _ 1) ⟩
+
       length (inorder (bt n i)) + 1
-                          ≡⟨ sym (length-++ (inorder (bt n i))) ⟩
-      length (inorder (bt n i) ++ [ j ])
-      ∎
+
+        ≡⟨ sym (length-++ (inorder (bt n i))) ⟩
+
+      length (inorder (bt n i) ++ [ j ]) ∎
 
     lemma₃ : (n i k : ℕ) → k < 2^ n → 2^ n * 2× i + k ≡ 2× (2^ n) * i + k
-    lemma₃ n _ k _ = cong (λ r → r + k) (*-2× (2^ n) _)
+    lemma₃ n _ k _ = cong₂ _+_ (*-2× (2^ n) _) refl
 
     lemma₄ : (n i k : ℕ) → k < 2^ n → 2^ n * S (2× i) + k ≡ 2× (2^ n) * i + (2^ n + k)
     lemma₄ n i k _ rewrite (sym (+-assoc (2× (2^ n) * i) (2^ n) k)) =
-      cong (λ r → r + k) (*-S2× (2^ n) i)
+      cong₂ _+_ (*-S2× (2^ n) i) refl
 
 
 inorder-bt : (n : ℕ) → P n ≡ inorder (bt n 1) ++ [ 0 ]
@@ -654,8 +698,7 @@ inorder-bt (S n) = begin
 
     ≡⟨ cong₂ _++_ (sym (inorder-bt-merge n 1)) refl ⟩
 
-  inorder (bt (S n) 1) ++ [ 0 ]
-  ∎
+  inorder (bt (S n) 1) ++ [ 0 ] ∎
 
   where
     lemma₁ : length (2⋯2^ n) ≡ S (length (inorder (bt n 1)))
@@ -676,5 +719,4 @@ inorder-bt (S n) = begin
 
         ≡⟨ cong S (sym (length-inorder (bt n 1))) ⟩
 
-      S (length (inorder (bt n 1)))
-      ∎
+      S (length (inorder (bt n 1))) ∎
