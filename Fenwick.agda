@@ -153,9 +153,9 @@ inorder = recBT [] (λ x l r → l ++ [ x ] ++ r)
 𝟙^-≤ zero n m≤n = z≤n
 𝟙^-≤ (S m) (S n) (s≤s m≤n) = s≤s (2×-≤ _ _ (𝟙^-≤ m n m≤n))
 
-S-𝟙^ : (n : ℕ) → S (𝟙^ n) ≡ 2^ n
-S-𝟙^ zero = refl
-S-𝟙^ (S n) = cong 2× (S-𝟙^ n)
+S𝟙^ : (n : ℕ) → S (𝟙^ n) ≡ 2^ n
+S𝟙^ zero = refl
+S𝟙^ (S n) = cong 2× (S𝟙^ n)
 
 split-𝟙^ : (n : ℕ) → (𝟙^ (S n)) ≡ 𝟙^ n + 2^ n
 split-𝟙^ n = begin
@@ -173,7 +173,7 @@ split-𝟙^ n = begin
 
   𝟙^ n + S (𝟙^ n)
 
-    ≡⟨ cong₂ _+_ refl (S-𝟙^ _) ⟩
+    ≡⟨ cong₂ _+_ refl (S𝟙^ _) ⟩
 
   𝟙^ n + 2^ n ∎
 
@@ -435,7 +435,7 @@ interval-++ (S n) i =
     lemma₁ = begin
       2× (𝟙^ n) + 2× (2^ n)
 
-        ≡⟨ cong₂ _+_ refl (cong 2× (sym (S-𝟙^ n))) ⟩
+        ≡⟨ cong₂ _+_ refl (cong 2× (sym (S𝟙^ n))) ⟩
 
       2× (𝟙^ n) + 2× (S (𝟙^ n))
 
@@ -467,7 +467,7 @@ interval-++ (S n) i =
 
       2× (S (𝟙^ n)) + x
 
-        ≡⟨ cong₂ _+_ (cong 2× (S-𝟙^ n)) refl ⟩
+        ≡⟨ cong₂ _+_ (cong 2× (S𝟙^ n)) refl ⟩
 
       2× (2^ n) + x
 
@@ -643,7 +643,7 @@ inorder-bt-merge (S n) i = begin
 
       2^ n
 
-        ≡⟨ sym (S-𝟙^ n) ⟩
+        ≡⟨ sym (S𝟙^ n) ⟩
 
       S (𝟙^ n)
 
@@ -709,7 +709,7 @@ inorder-bt (S n) = begin
 
       2^ n
 
-        ≡⟨ sym (S-𝟙^ n) ⟩
+        ≡⟨ sym (S𝟙^ n) ⟩
 
       S (𝟙^ n)
 
