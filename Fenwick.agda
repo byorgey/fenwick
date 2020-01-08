@@ -1,11 +1,17 @@
-open import Data.Nat
-open import Data.Nat.Properties using (suc-injective; +-suc; _<?_)
+open import Data.Bool using (Bool; true; false)
+open import Data.Nat renaming (suc to S)
+open import Data.Nat.Properties using (suc-injective; +-suc; _≤?_; n≤1+n; +-identityʳ; *-identityʳ)
 open import Data.List
+open import Data.List.Properties using (take++drop; length-applyUpTo)
 open import Relation.Nullary
-open import Data.Unit
+open import Data.Unit using (⊤; tt)
+open import Data.Product hiding (map)
+open import Function using (_∘_)
 
-open import Relation.Binary.PropositionalEquality using (_≡_; refl; cong; sym; module ≡-Reasoning)
+open import Relation.Binary.PropositionalEquality using (_≡_; refl; cong; sym; trans; module ≡-Reasoning)
 open ≡-Reasoning
+
+open import Data.List.Relation.Binary.Prefix.Heterogeneous using (Prefix)
 
 private
   variable
@@ -80,29 +86,37 @@ inorder : BT a → List a
 inorder = recBT [] (λ x l r → l ++ [ x ] ++ r)
 
 -- data Bin : Set where
---   𝟙     : Bin
---   _×2   : Bin → Bin
---   _×2+1 : Bin → Bin
+--   𝟙   : Bin
+--   _∷0 : Bin → Bin
+--   _∷1 : Bin → Bin
 
-double : ℕ → ℕ
-double zero    = zero
-double (suc n) = suc (suc (double n))
+2× : ℕ → ℕ
+2× zero    = zero
+2× (S n) = S (S (2× n))
 
-doublePlus : (n : ℕ) → double n ≡ n + n
-doublePlus zero = refl
-doublePlus (suc n) rewrite (+-suc n n) = cong suc (cong suc (doublePlus n))
+2×-≤ : (m n : ℕ) → m ≤ n → 2× m ≤ 2× n
+2×-≤ zero n m≤n = z≤n
+2×-≤ (S m) (S n) (s≤s m≤n) = s≤s (s≤s (2×-≤ m n m≤n))
 
-ones  : ℕ → ℕ
-ones zero = 0
-ones (suc n) = suc (double (ones n))
+2×-+ : (n : ℕ) → 2× n ≡ n + n
+2×-+ zero = refl
+2×-+ (S n) rewrite (+-suc n n) = cong S (cong S (2×-+ n))
+
+𝟙^_ : ℕ → ℕ
+𝟙^ zero = 0
+𝟙^ (S n) = S (2× (𝟙^ n))
+
+𝟙^-≤ : (m n : ℕ) → m ≤ n → 𝟙^ m ≤ 𝟙^ n
+𝟙^-≤ zero n m≤n = z≤n
+𝟙^-≤ (S m) (S n) (s≤s m≤n) = s≤s (2×-≤ _ _ (𝟙^-≤ m n m≤n))
 
 bt : ℕ → ℕ → BT ℕ
 bt zero    _ = Empty
-bt (suc n) i = Branch i (bt n (double i)) (bt n (suc (double i)))
+bt (S n) i = Branch i (bt n (2× i)) (bt n (S (2× i)))
 
-btSize : (n : ℕ) → {b : ℕ} → ∣ bt n b ∣ ≡ ones n
+btSize : (n : ℕ) → {b : ℕ} → ∣ bt n b ∣ ≡ 𝟙^ n
 btSize zero = refl
-btSize (suc n) {b} rewrite (doublePlus (ones n)) | btSize n {double b} | btSize n {suc (double b)}
+btSize (S n) {b} rewrite (2×-+ (𝟙^ n)) | btSize n {2× b} | btSize n {S (2× b)}
   = refl
 
 inorder′ : BT a → List a
@@ -113,68 +127,281 @@ inorder-correct : (t : BT a) → inorder t ≡ inorder′ t
 inorder-correct Empty = refl
 inorder-correct (Branch x l r) rewrite inorder-correct l | inorder-correct r = refl
 
--- interleave : (xs : List a) → (ys : List a) → .(length xs ≡ length ys) → List a
--- interleave [] ys             _  = []
--- interleave (x ∷ xs) (y ∷ ys) pf = x ∷ y ∷ interleave xs ys (suc-injective pf)
+------------------------------------------------------------
 
--- length-drop : (n : ℕ) → (xs : List a) → length (drop n xs) ≡ length xs ∸ n
--- length-drop zero    xs       = refl
--- length-drop (suc n) []       = refl
--- length-drop (suc n) (x ∷ xs) = length-drop n xs
+_⋎_ : (xs ys : List a) → List a
+[] ⋎ _ = []
+(x ∷ xs) ⋎ ys = x ∷ ys ⋎ xs
 
--- length-drop-eq : (n : ℕ) → (xs ys : List a) →
---   length xs ≡ length ys → length (drop n xs) ≡ length (drop n ys)
--- length-drop-eq n xs ys eq rewrite length-drop n xs | length-drop n ys | eq = refl
+drop-⋎ : (n : ℕ) → (xs ys : List a) → (length xs ≡ length ys) →
+  drop (2× n) (xs ⋎ ys) ≡ drop n xs ⋎ drop n ys
+drop-⋎ zero xs ys eq = refl
+drop-⋎ (S n) [] ys eq = refl
+drop-⋎ (S n) (x ∷ xs) (y ∷ ys) eq = drop-⋎ n xs ys (suc-injective eq)
 
--- length-take : (n : ℕ) → (xs : List a) → length (take n xs) ≡ n ⊓ length xs
--- length-take zero xs = refl
--- length-take (suc n) [] = refl
--- length-take (suc n) (x ∷ xs) = cong suc (length-take n xs)
+drop-++ : (n : ℕ) → (xs ys : List a) → length xs ≡ n → drop n (xs ++ ys) ≡ ys
+drop-++ zero [] ys eq = refl
+drop-++ (S n) (x ∷ xs) ys eq = drop-++ n xs ys (suc-injective eq)
 
--- length-take-eq : (n : ℕ) → (xs ys : List a) →
---   length xs ≡ length ys → length (take n xs) ≡ length (take n ys)
--- length-take-eq n xs ys eq rewrite length-take n xs | length-take n ys | eq = refl
+take-⋎ : (n : ℕ) → (xs ys : List a) → (length xs ≡ length ys) →
+  take (2× n) (xs ⋎ ys) ≡ take n xs ⋎ take n ys
+take-⋎ zero xs ys eq = refl
+take-⋎ (S n) [] ys eq = refl
+take-⋎ (S n) (x ∷ xs) (y ∷ ys) eq = cong (_∷_ x) (cong (_∷_ y) (take-⋎ n xs ys (suc-injective eq)))
 
--- drop-interleave : (n : ℕ) → (xs ys : List a) → (eq : length xs ≡ length ys) →
---   drop (double n) (interleave xs ys eq) ≡ interleave (drop n xs) (drop n ys) (length-drop-eq n xs ys eq)
--- drop-interleave zero xs ys eq = refl
--- drop-interleave (suc n) [] [] eq = refl
--- drop-interleave (suc n) (x ∷ xs) (y ∷ ys) eq = drop-interleave n xs ys (suc-injective eq)
+take-⋎′ : (n : ℕ) → (xs ys : List a) → (length xs ≡ S (length ys)) →
+  take (S (2× n)) (xs ⋎ ys) ≡ take (S n) xs ⋎ take n ys
+take-⋎′ n (x ∷ xs) ys eq = cong (_∷_ x) (take-⋎ n ys xs (suc-injective (sym eq)))
 
--- take-interleave : (n : ℕ) → (xs ys : List a) → (eq : length xs ≡ length ys) →
---   take (double n) (interleave xs ys eq) ≡ interleave (take n xs) (take n ys) (length-take-eq n xs ys eq)
--- take-interleave zero xs ys eq = refl
--- take-interleave (suc n) [] [] eq = refl
--- take-interleave (suc n) (x ∷ xs) (y ∷ ys) eq = cong (_∷_ x) (cong (_∷_ y) (take-interleave n xs ys (suc-injective eq)))
+length-⋎ : (xs ys : List a) → (length xs ≡ length ys) → length (xs ⋎ ys) ≡ length xs + length ys
+length-⋎ [] [] _ = refl
+length-⋎ (x ∷ xs) (y ∷ ys) eq = begin
+  length ((x ∷ xs) ⋎ (y ∷ ys))
+                      ≡⟨⟩
+  length (x ∷ y ∷ xs ⋎ ys)
+                      ≡⟨⟩
+  S (S (length (xs ⋎ ys)))
+                      ≡⟨ cong S (cong S (length-⋎ xs ys (suc-injective eq))) ⟩
+  S (S (length xs + length ys))
+                      ≡⟨ cong S (sym (+-suc _ _)) ⟩
+  S (length xs + S (length ys))
+                      ≡⟨⟩
+  S (length xs) + S (length ys)
+                      ≡⟨⟩
+  length (x ∷ xs) + length (y ∷ ys)
+  ∎
 
-interleave : (xs ys : List a) → List a
-interleave [] _ = []
-interleave (x ∷ xs) ys = x ∷ interleave ys xs
+⋎-++ : (xs₁ xs₂ ys₁ ys₂ : List a) → length xs₁ ≡ length xs₂ →
+  (xs₁ ⋎ xs₂) ++ (ys₁ ⋎ ys₂) ≡ (xs₁ ++ ys₁) ⋎ (xs₂ ++ ys₂)
+⋎-++ [] _ [] _ _ = refl
+⋎-++ [] [] _ _ _ = refl
+⋎-++ (x₁ ∷ xs₁) (x₂ ∷ xs₂) ys₁ ys₂ eq = cong (_∷_ x₁) (cong (_∷_ x₂) (⋎-++ xs₁ xs₂ ys₁ ys₂ (suc-injective eq)))
 
-drop-interleave : (n : ℕ) → (xs ys : List a) → (length xs ≡ length ys) →
-  drop (double n) (interleave xs ys) ≡ interleave (drop n xs) (drop n ys)
-drop-interleave zero xs ys eq = refl
-drop-interleave (suc n) [] ys eq = refl
-drop-interleave (suc n) (x ∷ xs) (y ∷ ys) eq = drop-interleave n xs ys (suc-injective eq)
+⋎-++′ : (xs₁ xs₂ ys₁ ys₂ : List a) → length xs₁ ≡ S (length xs₂) →
+  (xs₁ ⋎ xs₂) ++ (ys₁ ⋎ ys₂) ≡ (xs₁ ++ ys₂) ⋎ (xs₂ ++ ys₁)
+⋎-++′ (x ∷ xs₁) xs₂ ys₁ ys₂ eq = {!!}
 
-take-interleave : (n : ℕ) → (xs ys : List a) → (length xs ≡ length ys) →
-  take (double n) (interleave xs ys) ≡ interleave (take n xs) (take n ys)
-take-interleave zero xs ys eq = refl
-take-interleave (suc n) [] ys eq = refl
-take-interleave (suc n) (x ∷ xs) (y ∷ ys) eq = cong (_∷_ x) (cong (_∷_ y) (take-interleave n xs ys (suc-injective eq)))
+------------------------------------------------------------
 
-take-interleave′ : (n : ℕ) → (xs ys : List a) → (length xs ≡ suc (length ys)) →
-  take (suc (double n)) (interleave xs ys) ≡ interleave (take (suc n) xs) (take n ys)
-take-interleave′ n (x ∷ xs) ys eq = cong (_∷_ x) (take-interleave n ys xs (suc-injective (sym eq)))
+-- [1, 2, ..., 2^n - 1]
+1⋯2^_ : ℕ → List ℕ
+1⋯2^ n = applyUpTo S (𝟙^ n)
 
-[_⋯_] : ℕ → ℕ → List ℕ
-[ m ⋯ zero ] = []
-[ m ⋯ suc n ] = m ∷ [ suc m ⋯ n ]
+length-1⋯2^ : (n : ℕ) → length (1⋯2^ n) ≡ 𝟙^ n
+length-1⋯2^ n = length-applyUpTo S _
+
+-- [2^n, ..., 2^(n+1) - 1]
+2⋯2^_ : ℕ → List ℕ
+2⋯2^ n = drop (𝟙^ n) (1⋯2^ (S n))
+
+take-applyUpTo : {A : Set} {f : ℕ → A} → (m n : ℕ) → m ≤ n → take m (applyUpTo f n) ≡ applyUpTo f m
+take-applyUpTo zero n pf = refl
+take-applyUpTo {f = f} (S m) (S n) (s≤s pf) = cong (_∷_ (f zero)) (take-applyUpTo m n pf)
+
+take-1⋯2^ : (n : ℕ) → take (𝟙^ n) (1⋯2^ (S n)) ≡ (1⋯2^ n)
+take-1⋯2^ n = take-applyUpTo (𝟙^ n) (S (2× (𝟙^ n))) (𝟙^-≤ n (S n) (n≤1+n n))
+
+split-1⋯2^ : (n : ℕ) → 1⋯2^ (S n) ≡ (1⋯2^ n) ++ (2⋯2^ n)
+split-1⋯2^ n = sym (begin
+  (1⋯2^ n) ++ (2⋯2^ n)
+                      ≡⟨⟩
+  (1⋯2^ n) ++ drop (𝟙^ n) (1⋯2^ (S n))
+                      ≡⟨ cong (λ s → s ++ drop (𝟙^ n) (1⋯2^ S n)) (sym (take-1⋯2^ n)) ⟩
+  take (𝟙^ n) (1⋯2^ (S n)) ++ drop (𝟙^ n) (1⋯2^ S n)
+                      ≡⟨ take++drop (𝟙^ n) (1⋯2^ S n) ⟩
+  1⋯2^ (S n)
+  ∎)
+
+2^ : ℕ → ℕ
+2^ zero = 1
+2^ (S n) = 2× (2^ n)
+
+-- interval i n = [i*2^n ... (i+1)*2^n - 1]
+interval : ℕ → ℕ → List ℕ
+interval i n = applyUpTo (_+_ (i * 2^ n)) (2^ n)
+
+length-interval : (i n : ℕ) → length (interval i n) ≡ 2^ n
+length-interval _ _ = length-applyUpTo _ _
+
+------------------------------------------------------------
 
 s : ℕ → List ℕ
 s zero    = [ 0 ]
-s (suc n) = 0 ∷ interleave [ 1 ⋯ ones (suc n) ] (s n)
+s (S n) = 0 ∷ (1⋯2^ S n) ⋎ s n
 
-inorder-bt : (n : ℕ) → take (ones n) (drop (ones n) (s n)) ≡ inorder (bt n 1)
-inorder-bt zero = refl
-inorder-bt (suc n) = {!!}
+length-s : (n : ℕ) → length (s n) ≡ 𝟙^ (S n)
+length-s zero = refl
+length-s (S n) = begin
+  length (s (S n))
+                      ≡⟨⟩
+  length (0 ∷ (1⋯2^ S n) ⋎ s n)
+                      ≡⟨⟩
+  S (length ((1⋯2^ S n) ⋎ s n))
+                      ≡⟨ cong S (length-⋎ (1⋯2^ S n) (s n)
+                         (trans (length-1⋯2^ _) (sym (length-s n))))
+                       ⟩
+  S (length (1⋯2^ S n) + length (s n))
+                      ≡⟨ cong (λ r → S (r + length (s n))) (length-1⋯2^ _) ⟩
+  S (𝟙^ (S n) + length (s n))
+                      ≡⟨ cong (λ r → S (𝟙^ (S n) + r)) (length-s n) ⟩
+  S (𝟙^ (S n) + 𝟙^ (S n))
+                      ≡⟨ cong S (sym (2×-+ _)) ⟩
+  S (2× (𝟙^ (S n)))
+                      ≡⟨⟩
+  𝟙^ (S (S n))
+  ∎
+
+length-s≡1⋯2^ : (n : ℕ) → length (s n) ≡ length (1⋯2^ S n)
+length-s≡1⋯2^ n = trans (length-s n) (sym (length-1⋯2^ _))
+
+s-prefix-∃ : (n : ℕ) → Σ[ ys ∈ List ℕ ] (s (S n) ≡ s n ++ ys)
+s-prefix-∃ zero = 1 ∷ zero ∷ [] , refl
+s-prefix-∃ (S n) with s-prefix-∃ n
+... | (ys′ , eq) = ((2⋯2^ S n) ⋎ ys′) ,
+  (begin
+    s (S (S n))
+                      ≡⟨⟩
+    0 ∷ (1⋯2^ S (S n)) ⋎ s (S n)
+                      ≡⟨ cong (λ r → 0 ∷ ((1⋯2^ S (S n)) ⋎ r)) eq ⟩
+    0 ∷ (1⋯2^ S (S n)) ⋎ (s n ++ ys′)
+                      ≡⟨ cong (λ r → 0 ∷ (r ⋎ (s n ++ ys′))) (split-1⋯2^ (S n)) ⟩
+    0 ∷ ((1⋯2^ S n) ++ (2⋯2^ S n)) ⋎ (s n ++ ys′)
+                      ≡⟨ cong (_∷_ 0) (sym (⋎-++ (1⋯2^ S n) _ _ _ (sym (length-s≡1⋯2^ n)))) ⟩
+    0 ∷ ((1⋯2^ S n) ⋎ s n) ++ ((2⋯2^ S n) ⋎ ys′)
+                      ≡⟨⟩
+    (0 ∷ (1⋯2^ S n) ⋎ s n) ++ ((2⋯2^ S n) ⋎ ys′)
+                      ≡⟨⟩
+    s (S n) ++ ((2⋯2^ S n) ⋎ ys′)
+  ∎)
+
+P : ℕ → List ℕ
+P n = drop (𝟙^ n) (s n)
+
+mutual
+  s-prefix : (n : ℕ) → s (S n) ≡ s n ++ P (S n)
+  s-prefix 0 = refl
+  s-prefix (S n) = begin
+    s (S (S n))
+                        ≡⟨⟩
+    0 ∷ (1⋯2^ S (S n)) ⋎ s (S n)
+                        ≡⟨ cong (λ r → 0 ∷ ((1⋯2^ S (S n)) ⋎ r)) (s-prefix n) ⟩
+    0 ∷ (1⋯2^ S (S n)) ⋎ (s n ++ P (S n))
+                        ≡⟨ cong (λ r → 0 ∷ (r ⋎ (s n ++ P (S n))))
+                                (split-1⋯2^ (S n))
+                         ⟩
+    0 ∷ ((1⋯2^ S n) ++ (2⋯2^ S n)) ⋎ (s n ++ P (S n))
+                        ≡⟨ cong (_∷_ 0) (sym (⋎-++ (1⋯2^ S n) _ _ _ (sym (length-s≡1⋯2^ n)))) ⟩
+    0 ∷ ((1⋯2^ S n) ⋎ s n) ++ ((2⋯2^ S n) ⋎ P (S n))
+                        ≡⟨⟩
+    (0 ∷ (1⋯2^ S n) ⋎ s n) ++ ((2⋯2^ S n) ⋎ P (S n))
+                        ≡⟨⟩
+    s (S n) ++ ((2⋯2^ S n) ⋎ P (S n))
+                        ≡⟨ cong (λ r → s (S n) ++ r) (sym (P-merge (S n))) ⟩
+    s (S n) ++ P (S (S n))
+    ∎
+
+  P-merge : (n : ℕ) → P (S n) ≡ (2⋯2^ n) ⋎ P n
+  P-merge zero    = refl
+  P-merge (S n) = begin
+    P (S (S n))
+                        ≡⟨⟩
+    drop (𝟙^ S (S n)) (s (S (S n)))
+                        ≡⟨⟩
+    drop (𝟙^ S (S n)) (0 ∷ (1⋯2^ S (S n)) ⋎ s (S n))
+                        ≡⟨⟩
+    drop (2× (𝟙^ S n)) ((1⋯2^ S (S n)) ⋎ s (S n))
+                        ≡⟨ cong (λ r → drop (2× (𝟙^ S n)) (r ⋎ s (S n))) (split-1⋯2^ (S n)) ⟩
+    drop (2× (𝟙^ S n)) (((1⋯2^ S n) ++ (2⋯2^ S n)) ⋎ s (S n))
+                        ≡⟨ cong
+                             (λ r →
+                                drop (2× (𝟙^ S n)) (((1⋯2^ S n) ++ (2⋯2^ S n)) ⋎ r))
+                             (s-prefix n) ⟩
+    drop (2× (𝟙^ S n)) (((1⋯2^ S n) ++ (2⋯2^ S n)) ⋎ (s n ++ P (S n)))
+                        ≡⟨ cong (drop (2× (𝟙^ S n)))
+                             (sym (⋎-++ (1⋯2^ S n) (s n) _ _ (sym (length-s≡1⋯2^ n)))) ⟩
+    drop (2× (𝟙^ S n)) (((1⋯2^ S n) ⋎ s n) ++ ((2⋯2^ S n) ⋎ P (S n)))
+                        ≡⟨ cong (λ r → drop r (((1⋯2^ S n) ⋎ s n) ++ ((2⋯2^ S n) ⋎ P (S n))))
+                             (2×-+ (𝟙^ S n)) ⟩
+    drop ((𝟙^ S n) + (𝟙^ S n)) (((1⋯2^ S n) ⋎ s n) ++ ((2⋯2^ S n) ⋎ P (S n)))
+                        ≡⟨ cong
+                             (λ r →
+                                drop (r + (𝟙^ S n))
+                                (((1⋯2^ S n) ⋎ s n) ++ ((2⋯2^ S n) ⋎ P (S n))))
+                             (sym (length-1⋯2^ (S n))) ⟩
+    drop (length (1⋯2^ S n) + (𝟙^ S n)) (((1⋯2^ S n) ⋎ s n) ++ ((2⋯2^ S n) ⋎ P (S n)))
+                        ≡⟨ cong
+                             (λ r →
+                                drop (length (1⋯2^ S n) + r)
+                                (((1⋯2^ S n) ⋎ s n) ++ ((2⋯2^ S n) ⋎ P (S n))))
+                             (sym (length-s n)) ⟩
+    drop (length (1⋯2^ S n) + length (s n)) (((1⋯2^ S n) ⋎ s n) ++ ((2⋯2^ S n) ⋎ P (S n)))
+                        ≡⟨ drop-++ ((length (1⋯2^ S n) + length (s n))) ((1⋯2^ S n) ⋎ s n) _
+                             (length-⋎ (1⋯2^ S n) (s n) (sym (length-s≡1⋯2^ n))) ⟩
+    (2⋯2^ S n) ⋎ P (S n)
+    ∎
+
+    -- WHEW!
+
+inorder-bt-merge : (n i : ℕ) → inorder (bt (S n) i) ≡ interval i n ⋎ inorder (bt n i)
+inorder-bt-merge zero i rewrite +-identityʳ (i * 1) | *-identityʳ i = refl
+inorder-bt-merge (S n) i = begin
+  inorder (bt (S (S n)) i)
+                      ≡⟨⟩
+  inorder (Branch i (bt (S n) (2× i)) (bt (S n) (S (2× i))))
+                      ≡⟨⟩
+  inorder (bt (S n) (2× i)) ++ [ i ] ++ inorder (bt (S n) (S (2× i)))
+                      ≡⟨ cong (λ r → r ++ [ i ] ++ inorder (bt (S n) (S (2× i))))
+                           (inorder-bt-merge n _) ⟩
+  (interval (2× i) n ⋎ inorder (bt n (2× i))) ++ [ i ] ++ inorder (bt (S n) (S (2× i)))
+                      ≡⟨ cong (λ r → (interval (2× i) n ⋎ inorder (bt n (2× i))) ++ [ i ] ++ r)
+                           (inorder-bt-merge n _) ⟩
+  (interval (2× i) n ⋎ inorder (bt n (2× i))) ++ [ i ] ++ (interval (S (2× i)) n ⋎ inorder (bt n (S (2× i))))
+                      ≡⟨ {!!} ⟩
+  interval i (S n) ⋎ inorder (bt (S n) i)
+  ∎
+
+-- inorder-bt-merge zero _ = refl
+-- inorder-bt-merge (S n) = begin
+--   inorder (bt (S (S n)) i)
+--                       ≡⟨⟩
+--   inorder (Branch 1 (bt (S n) (2× 1)) (bt (S n) (S (2× 1))))
+--                       ≡⟨⟩
+--   inorder (bt (S n) (2× 1)) ++ [ 1 ] ++ inorder (bt (S n) (S (2× 1)))
+--                       ≡⟨ {!!} ⟩
+--   (2⋯2^ S n) ⋎ inorder (bt (S n) 1)
+--   ∎
+
+-- bt : ℕ → ℕ → BT ℕ
+-- bt zero    _ = Empty
+-- bt (S n) i = Branch i (bt n (2× i)) (bt n (S (2× i)))
+
+
+-- Need to generalize...
+inorder-bt : (n : ℕ) → P n ≡ inorder (bt n 1) ++ [ 0 ]
+inorder-bt n = {!!}
+
+
+-- inorder-bt-gen : (n i ∶ ℕ) → inorder (bt n i) ≡ interleave
+
+-- inorder-bt zero    = refl
+-- inorder-bt (S n) = sym (begin
+--   inorder (bt (S n) 1) ++ [ 0 ]
+--                       ≡⟨⟩
+--   inorder (Branch 1 (bt n 2) (bt n 3)) ++ [ 0 ]
+--                       ≡⟨⟩
+--   (inorder (bt n 2) ++ [ 1 ] ++ inorder (bt n 3)) ++ [ 0 ]
+--                       ≡⟨ {!!} ⟩ -- Can't use IH here.
+--   P (S n)
+--   ∎)
+
+
+-- inorder (bt 3 (2× ∘ S)) =
+--   8 ∷ 4 ∷ 9 ∷ 2 ∷ 10 ∷ 5 ∷ 11 ∷ []
+--
+-- P 2 =
+--   2 ∷ 1 ∷ 3 ∷ 0 ∷ []
+--   10 ∷ 01 ∷ 11
+-- P 3 =
+--   4 ∷ 2 ∷ 5 ∷ 1 ∷ 6 ∷ 3 ∷ 7 ∷ 0 ∷ []
+--   100 ∷ 010 ∷ 101 ∷ 001 ∷ 110 ∷ 011 ∷ 111
+
