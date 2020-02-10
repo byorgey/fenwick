@@ -57,7 +57,7 @@ rq' i j (Leaf a k)
   | otherwise        = (Leaf (Zero, a) k, mempty)
 rq' i j (Branch a x y l r)
   | y < i || j < x   = (Branch (Zero, a) x y ((NoVisit,) <$> l) ((NoVisit,) <$> r), mempty)
-  | i <= x && y <= j = (Branch (Stop,  a) x y ((NoVisit,) <$> l) ((NoVisit,) <$> r), mempty)
+  | i <= x && y <= j = (Branch (Stop, a) x y ((NoVisit,) <$> l) ((NoVisit,) <$> r), a)
   | otherwise        = (Branch (Recurse, a) x y l' r', al <> ar)
     where
       (l', al) = rq' i j l

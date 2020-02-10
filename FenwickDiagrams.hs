@@ -83,8 +83,10 @@ drawSegTree o@(STOpts f e vs rt) (Branch a i j l r) = localize $ vsep vs
       ]
   )
 
-leafWidth :: Double
-leafWidth = 1.2
+boxWidth, leafSep, leafWidth :: Double
+boxWidth = 1
+leafSep = 0.2
+leafWidth = boxWidth + leafSep
 
 -- leafX l n computes the start and end offsets for leaf l in a tree
 -- with n total leaf nodes.
@@ -152,8 +154,8 @@ defNodeShape InternalNode = circleNodeShape
 squareNodeShape, circleNodeShape ::
   (V b ~ V2, N b ~ Double, Renderable (Path V2 Double) b) =>
   Diagram b
-squareNodeShape = square 1 <> strutX leafWidth
-circleNodeShape = circle 0.5 <> strutX leafWidth
+squareNodeShape = square boxWidth       <> strutX leafWidth
+circleNodeShape = circle (boxWidth / 2) <> strutX leafWidth
 
 drawEdgeDef ::
   (V b ~ V2, N b ~ Double, Renderable (Path V2 Double) b) =>
@@ -218,8 +220,8 @@ showRangeOpts' showNumbers showRangeBars =
       defNodeStyle <> mempty # case u of
       { NoVisit -> lc grey
       ; Zero    -> fc grey
-      ; Stop    -> lc green . fc green
-      ; Recurse -> lc blue  . fc blue
+      ; Stop    -> lc green . fc (blend 0.5 green white)
+      ; Recurse -> lc blue  . fc (blend 0.5 blue white)
       }
   , rangeStyle   = \(u,_) ->
       mconcat

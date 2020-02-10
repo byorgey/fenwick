@@ -1,4 +1,4 @@
-% -*- compile-command: "stack exec -- pdflatex --enable-write18 fenwick.tex" -*-
+% -*- compile-command: "stack exec -- rubber -d --unsafe fenwick.tex" -*-
 
 %% For double-blind review submission, w/o CCS and ACM Reference (max submission space)
 \documentclass[acmsmall,review]{acmart}\settopmatter{printfolios=true,printccs=false,printacmref=false}
@@ -57,6 +57,7 @@
 
 \usepackage{xspace}
 \usepackage{prettyref}
+% \usepackage{subdepth}   %% Unify positioning of all subscripts
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Prettyref
@@ -186,51 +187,97 @@ Text of abstract \ldots.
 \section{Introduction}
 
 Suppose we have a sequence of $n$ integers $a_1, a_2, \dots, a_n$, and
-want to be able to perform an arbitrary sequence of two operations:
+want to be able to perform two operations:
 
 \begin{itemize}
-\item \emph{Update} the value at index $i$ to a new value $v$. We
-  abbreviate this operation as \Up.
-\item Find the sum of all values in a particular range $[i, j]$,
-  that is, $a_i + a_{i+1} + \dots + a_j$.  We call this a \emph{range
-    query}, abbreviated \RQ.
+\item \emph{Update} the value at index $i$ to a new value $v$.
+\item Find the sum of all values in a particular range $[i, j]$, that
+  is, $a_i + a_{i+1} + \dots + a_j$.  We call this operation a
+  \emph{range query}.
 \end{itemize}
 
+\begin{figure}
+\begin{center}
+\begin{diagram}[width=150]
+  import FenwickDiagrams
+
+  dia = vsep 0.5
+    [ drawArray draw (map (("a_"++) . show) [1 :: Int .. 8])
+    , mconcat
+      [ arrowV unit_Y
+      , text "$\\emph{update}$" # fontSizeL 0.5 # translate (1.2 ^& (-0.5))
+      ]
+      # translateX (3*leafWidth)
+    , drawArray draw2 [1 :: Int .. 8]
+    , fromOffsets [-0.2 *^ unitY, (3 * leafWidth + boxWidth) *^ unitX, 0.2 *^ unitY]
+      # translateX (boxWidth / 2 + leafSep)
+    , mconcat
+      [ arrowV unit_Y
+      , text "$\\emph{range query}$" # fontSizeL 0.5 # translate (1.8 ^& (-0.5))
+      ]
+      # translateX (2.5 * leafWidth)
+    , text "$a_2 + a_3 + x + a_5$" # fontSizeL 0.6
+      # translateX (2.5 * leafWidth)
+    ]
+    where
+      draw2 4 = draw "x"
+      draw2 n = draw ("a_" ++ show n)
+\end{diagram}
+\end{center}
+\caption{Update and range query operations} \label{fig:update-rq}
+\end{figure}
+
 If we simply store the integers in a mutable array, then we can update
-in constant time, but a range query requires up to $O(n)$ time, since
-we must iterate through the range $[i, j]$ to add up the values.
+in constant time, but a range query requires time linear in the size
+of the range, since we must iterate through the entire range $[i, j]$
+to add up the values.
 
 In order to improve the running time of a range query, one obvious
 idea is to somehow cache (at least some of the) range sums.  However,
 this must be done with care, since the cached sums must also be
 updated appropriately when updating.  For example, a straightforward
 approach would be to use an array $P$ where $P_i$ stores the prefix
-sum $a_1 + \dots + a_i$.  Now range queries are fast: we can obtain
-$a_i + \dots + a_j$ in constant time by computing $P_j - P_{i-1}$ (for
-convenience we set $P_0 = 0$ so this works even when $i=1$).
-Unfortunately, it is update that now takes linear time, since changing
-$a_i$ requires updating $P_j$ for every $j \geq i$.
+sum $a_1 + \dots + a_i$; $P$ can be precomputed in linear time via a
+scan.  Now range queries are fast: we can obtain $a_i + \dots + a_j$
+in constant time by computing $P_j - P_{i-1}$ (for convenience we set
+$P_0 = 0$ so this works even when $i=1$).  Unfortunately, it is update
+that now takes linear time, since changing $a_i$ requires updating
+$P_j$ for every $j \geq i$.
 
 Is it possible to get \emph{both} operations to run in sublinear time?
-XXX write about arithmetic coding as original motivation: need to
-quickly find prefix sums of probabilities.  Read up on this a bit
-more.
+This is more than just academic: the problem was originally considered
+in the context of \emph{arithmetic coding}, a family of techniques for
+turning messages into sequences of bits for storage or transmission.
+In order to minimize the bits required, one generally wants to assign
+shorter bit sequences to more frequent characters, and vice versa;
+this leads to the need to maintain a dynamic table of character
+frequencies.  We \emph{update} the table every time a new character is
+processed, and query the table for \emph{cumulative frequencies} in
+order to subdivide a unit interval into consecutive segments
+proportional to the frequency of each character.  XXX cite Fenwick,
+original Russian paper.  XXX not a tutorial on arithmetic coding.
 
 The answer, of course, is yes: we can get both operations to run in
 logarithmic time if we use a divide-and-conquer approach to caching
 range sums.  In particular, we can make a balanced binary tree where
 the leaves store the sequence itself, and every internal node stores
-the sum of its children.  (This should be a familiar idea to many
+the sum of its children.  (This will be a familiar idea to many
 functional programmers; for example, finger trees
 \citep{Hinze-Paterson:FingerTree} use a similar sort of scheme.)  The
-resulting data structure is popularly known as a \emph{segment tree}
-(XXX citation?), presumably because each internal node ultimately
-caches the sum of a (contiguous) \emph{segment} of the underlying
-sequence.  \pref{fig:segment-tree} shows a segment tree built on a
-sample array of length $n=16$ (for simplicity, we will assume that $n$
-is a power of two, although it is easy to generalize to situations
-where it is not). Each leaf of the tree corresponds to an array entry;
-each internal node is drawn with a grey bar showing the range of the
+resulting data structure is popularly known as a \emph{segment
+  tree}\footnote{There is some confusion of terminology here.  The
+  Wikipedia article on \emph{segment trees} \citep{wiki:SegmentTree}
+  is about an interval data structure used in computational geometry.
+  However, most of the Google search results for ``segment tree'' are
+  from the world of competitive programming, where it refers to the
+  data structure considered in this paper.  The two are largely
+  unrelated.}, presumably because each internal node ultimately caches
+the sum of a (contiguous) \emph{segment} of the underlying sequence.
+\pref{fig:segment-tree} shows a segment tree built on a sample array
+of length $n=16$ (for simplicity, we will assume that $n$ is a power
+of two, although it is easy to generalize to situations where it is
+not). Each leaf of the tree corresponds to an array entry; each
+internal node is drawn with a grey bar showing the range of the
 underlying array of which it is the sum.
 
 \todoi{Note that ``segment tree'' means two different things.  The
@@ -288,7 +335,7 @@ operations so that they run in logarithmic time.
 \caption{Updating a segment tree} \label{fig:segment-tree-update}
 \end{figure}
 
-\item To perform a range query, we recurse through the tree while
+\item To perform a range query, we descend through the tree while
   keeping track of the range covered by the current node.
   \begin{itemize}
   \item If the range of the current node is wholly contained within
@@ -296,7 +343,7 @@ operations so that they run in logarithmic time.
     node.
   \item If the range of the current node is disjoint from the query
     range, return $0$.
-  \item Otherwise, recurse on both children and return the sum of the
+  \item Otherwise, recursively query both children and return the sum of the
     results.
   \end{itemize}
 \begin{figure}
@@ -333,14 +380,12 @@ in the query range, and are returned without recursing further; grey
 nodes are disjoint from the query range and return zero.
 
 On this small example tree, it may seem that we visit a significant
-fraction of the total nodes, but in general, we must visit no more than
+fraction of the total nodes, but in general, we visit no more than
 about $4 \lg n$ nodes.  \pref{fig:big-range-query} makes this more
 clear.  Only one blue node in the entire tree can have two blue
-children, \todoi{why?} and hence each level of the tree can contain at
-most two blue nodes and two non-blue nodes. \todoi{improve this
-  explanation!  Something about basically performing a binary search
-  to find each endpoint, with leaves to either side (either fully
-  included nodes towards the range or zero nodes away from it).}
+children, and hence each level of the tree can contain at most two
+blue nodes and two non-blue nodes. We essentially perform two binary
+searches, one to find each endpoint of the query range.
 \begin{figure}
 \begin{center}
 \begin{diagram}[width=300]
@@ -377,16 +422,16 @@ talks about sums of \emph{integers}, this is needlessly specific.  In
 general, all we need is a sequence of elements $a_1, \dots, a_n$ from
 some \emph{monoid}.  Recall that a monoid is a set $M$ together with
 an associative binary operation $\oplus$ and an identity element
-$\varepsilon \in M$ such that
-$m \oplus \mempty = \mempty \oplus m = m$ for all $m \in M$. We will
-continue to talk about ``sums'' of elements of a monoid $M$ even
-though the monoidal operation need not be sum-like in general (for
-example, the set of natural numbers forms a monoid under
-multiplication).  Note, however, that the ``sum'' metaphor fails us in
-one important way: in general, $\oplus$ need not be commutative, that
-is, we may have $a \oplus b \neq b \oplus a$.  All the data structures
-we will discuss work perfectly well for non-commutative monoids,
-though some care is required to ensure values are properly ordered.
+$\mempty \in M$ such that $m \oplus \mempty = \mempty \oplus m = m$
+for all $m \in M$. We will continue to talk about ``sums'' of elements
+of a monoid $M$ even though the monoidal operation need not be
+sum-like in general (for example, the set of natural numbers forms a
+monoid under multiplication).  However, the ``sum'' metaphor does fail
+in one important way: unlike addition, $\oplus$ need not be
+commutative, that is, we may have $a \oplus b \neq b \oplus a$.  All
+the data structures we will discuss work perfectly well for
+non-commutative monoids, though some care is required to ensure values
+are properly ordered.
 
 Some monoids also have \emph{inverses}, that is, for each $m \in M$
 there is an element $-m \in M$ such that
@@ -395,6 +440,40 @@ are called \emph{groups}.  For convenience, in any group we can also
 define a ``subtraction'' operation $a \ominus b = a \oplus (-b)$.
 Although basic segment trees work with any monoid, the constructions
 we consider in the rest of the paper will generally require a group.
+
+\begin{code}
+data Interval = Int :--: Int
+  deriving (Eq, Show)
+
+infix 1 :--:
+
+(∈) :: Int -> Interval -> Bool
+k ∈ i = (k :--: k) ⊆ i
+
+(⊆) :: Interval -> Interval -> Bool
+(l1 :--: h1) ⊆ (l2 :--: h2) = l2 <= l1 && h1 <= h2
+
+disjoint :: Interval -> Interval -> Bool
+disjoint (l1 :--: h1) (l2 :--: h2) = h1 < l2 || h2 < l1
+
+data SegmentTree a where
+  Empty  :: SegmentTree a
+  Branch :: a -> Interval -> SegmentTree a -> SegmentTree a -> SegmentTree a
+  deriving (Show, Functor)
+
+update :: Monoid a => Int -> a -> SegmentTree a -> SegmentTree a
+update _ _ Empty = Empty
+update k d b@(Branch a i l r)
+  | k ∈ i     = Branch (a <> d) i (update k d l) (update k d r)
+  | otherwise = b
+
+rq :: Monoid a => Interval -> SegmentTree a -> a
+rq _ Empty = mempty
+rq q (Branch a i l r)
+  | disjoint i q = mempty
+  | i ⊆ q        = a
+  | otherwise    = rq q l <> rq q r
+\end{code}
 
 \todoi{Haskell implementation.}
 \todoi{requires 2x storage.  Indexing scheme?  Relevant in an array implementation.}
@@ -411,14 +490,14 @@ space.
 However, if the values come from a group, segment trees are
 actually redundant in a stronger sense: we can throw out almost
 \emph{half} of the data in a segment tree and still retain the
-$O(\log n)$ running time for updates and range queries!
+$O(\lg n)$ running time for updates and range queries!
 
 How, you ask?  Simple: just throw out the data stored in \emph{every
   node which is a right child}. \pref{fig:deactivate-right} shows the
 same example tree we have been using, but with the data deleted from
 every right child.  Note that ``every right child'' includes both
 leaves and internal nodes: we throw out the data associated to
-\emph{any} node which is the right child of its parent.  We will refer
+\emph{every} node which is the right child of its parent.  We will refer
 to the nodes with discarded data as \emph{inactive} and the remaining
 nodes (that is, left children and the root) as \emph{active}.  We also
 say that a tree with all its right children inactivated in this way
@@ -502,7 +581,7 @@ without peeking at any previous figures?
 This proof is, in fact, an algorithm, although this algorithm isn't
 typically used, because it is too specialized. Simply being able to
 \emph{recover} all the discarded information isn't good enough; we
-need to be able to perform range queries and updates as well.
+need to be able to perform range queries and updates.
 
 Updates are easy: as before, we only need to update nodes along the
 path from the modified leaf to the root, simply skipping any inactive
