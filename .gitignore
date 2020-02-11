@@ -9,6 +9,7 @@
 *.log
 *.out
 *.pdf
+*.ptb
 
 *.yaml.lock
 .stack-work
