@@ -293,7 +293,8 @@ resulting data structure is popularly known as a \emph{segment
   is about an interval data structure used in computational geometry.
   However, most of the Google search results for ``segment tree'' are
   from the world of competitive programming, where it refers to the
-  data structure considered in this paper.  The two are largely
+  data structure considered in this paper (see, for example, \citet[\S 2.4.3]
+  {CP3}).  The two are largely
   unrelated.}, presumably because each internal node ultimately caches
 the sum of a (contiguous) \emph{segment} of the underlying sequence.
 \pref{fig:segment-tree} shows a segment tree built on a sample array
@@ -302,12 +303,6 @@ of two, although it is easy to generalize to situations where it is
 not). Each leaf of the tree corresponds to an array entry; each
 internal node is drawn with a grey bar showing the range of the
 underlying array of which it is the sum.
-
-\todoi{Note that ``segment tree'' means two different things.  The
-  Wikipedia article is about something used in computational geometry
-  for representing intervals.  But lots of places on the web,
-  specially competitive programming stuff, use it to refer to this
-  simpler thing.  See in particular CP3 sec. 2.4.3.}
 
 \begin{figure}
 \begin{center}
