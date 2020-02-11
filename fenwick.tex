@@ -199,29 +199,29 @@ want to be able to perform two operations:
 \begin{figure}
 \begin{center}
 \begin{diagram}[width=150]
-  import FenwickDiagrams
+import FenwickDiagrams
 
-  dia = vsep 0.5
-    [ drawArray draw (map (("a_"++) . show) [1 :: Int .. 8])
-    , mconcat
-      [ arrowV unit_Y
-      , text "$\\emph{update}$" # fontSizeL 0.5 # translate (1.2 ^& (-0.5))
-      ]
-      # translateX (3*leafWidth)
-    , drawArray draw2 [1 :: Int .. 8]
-    , fromOffsets [-0.2 *^ unitY, (3 * leafWidth + boxWidth) *^ unitX, 0.2 *^ unitY]
-      # translateX (boxWidth / 2 + leafSep)
-    , mconcat
-      [ arrowV unit_Y
-      , text "$\\emph{range query}$" # fontSizeL 0.5 # translate (1.8 ^& (-0.5))
-      ]
-      # translateX (2.5 * leafWidth)
-    , text "$a_2 + a_3 + x + a_5$" # fontSizeL 0.6
-      # translateX (2.5 * leafWidth)
+dia = vsep 0.5
+  [ drawArray draw (map (("a_"++) . show) [1 :: Int .. 8])
+  , mconcat
+    [ arrowV unit_Y
+    , text "$\\emph{update}$" # fontSizeL 0.5 # translate (1.2 ^& (-0.5))
     ]
-    where
-      draw2 4 = draw "x"
-      draw2 n = draw ("a_" ++ show n)
+    # translateX (3*leafWidth)
+  , drawArray draw2 [1 :: Int .. 8]
+  , fromOffsets [-0.2 *^ unitY, (3 * leafWidth + boxWidth) *^ unitX, 0.2 *^ unitY]
+    # translateX (boxWidth / 2 + leafSep)
+  , mconcat
+    [ arrowV unit_Y
+    , text "$\\emph{range query}$" # fontSizeL 0.5 # translate (1.8 ^& (-0.5))
+    ]
+    # translateX (2.5 * leafWidth)
+  , text "$a_2 + a_3 + x + a_5$" # fontSizeL 0.6
+    # translateX (2.5 * leafWidth)
+  ]
+  where
+    draw2 4 = draw "x"
+    draw2 n = draw ("a_" ++ show n)
 \end{diagram}
 \end{center}
 \caption{Update and range query operations} \label{fig:update-rq}
@@ -681,20 +681,20 @@ active nodes of a thinned tree in an array, it is not obvious what
 operations on array indices will correspond to moving around the tree.
 
 \begin{diagram}[width=300]
-  import FenwickDiagrams
-  import SegTree
+import FenwickDiagrams
+import SegTree
 
-  dia :: Diagram B
-  dia = sampleArray
-    # mkSegTree
-    # deactivate
-    # drawSegTree stOpts
+dia :: Diagram B
+dia = sampleArray
+  # mkSegTree
+  # deactivate
+  # drawSegTree stOpts
 
-  stOpts = (mkSTOpts nOpts)
-    { leanRight = True }
+stOpts = (mkSTOpts nOpts)
+  { leanRight = True }
 
-  nOpts = (showInactiveOpts False)
-    { leanRightN = True }
+nOpts = (showInactiveOpts False)
+  { leanRightN = True }
 \end{diagram}
 
 By comparison, numbering a full binary tree in level order leads to
