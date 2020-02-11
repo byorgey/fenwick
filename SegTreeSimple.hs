@@ -7,36 +7,36 @@ import           Data.List (find)
 data Interval = Int :--: Int
   deriving (Eq, Show)
 
-infix 1 :--:
+inI :: Int -> Interval -> Bool
+k `inI` i = (k :--: k) `subI` i
 
-(∈) :: Int -> Interval -> Bool
-k ∈ i = (k :--: k) ⊆ i
-
-(⊆) :: Interval -> Interval -> Bool
-(l1 :--: h1) ⊆ (l2 :--: h2) = l2 <= l1 && h1 <= h2
+subI :: Interval -> Interval -> Bool
+(lo1 :--: hi1) `subI` (lo2 :--: hi2) = lo2 <= lo1 && hi1 <= hi2
 
 disjoint :: Interval -> Interval -> Bool
-disjoint (l1 :--: h1) (l2 :--: h2) = h1 < l2 || h2 < l1
+disjoint (lo1 :--: hi1) (lo2 :--: hi2) = hi1 < lo2 || hi2 < lo1
 
 data SegmentTree a where
-  Empty  :: SegmentTree a
-  Branch :: a -> Interval -> SegmentTree a -> SegmentTree a -> SegmentTree a
+  Empty   :: SegmentTree a
+  Branch  :: a -> Interval -> SegmentTree a -> SegmentTree a -> SegmentTree a
   deriving (Show, Functor)
 
 update :: Monoid a => Int -> a -> SegmentTree a -> SegmentTree a
 update _ _ Empty = Empty
 update k d b@(Branch a i l r)
-  | k ∈ i     = Branch (a <> d) i (update k d l) (update k d r)
-  | otherwise = b
+  | k `inI` i  = Branch (a <> d) i (update k d l) (update k d r)
+  | otherwise  = b
 
 rq :: Monoid a => Interval -> SegmentTree a -> a
 rq _ Empty = mempty
 rq q (Branch a i l r)
-  | disjoint i q = mempty
-  | i ⊆ q        = a
-  | otherwise    = rq q l <> rq q r
+  | disjoint i q  = mempty
+  | i `subI` q    = a
+  | otherwise     = rq q l <> rq q r
 
 ------------------------------------------------------------
+
+infix 1 :--:
 
 leaf :: a -> Interval -> SegmentTree a
 leaf a i = Branch a i Empty Empty
