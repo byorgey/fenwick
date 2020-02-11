@@ -55,10 +55,11 @@
 %include polycode.fmt
 
 %format :--:   = "\mathrel{:\!\!\text{---}\!\!:}"
-%format `inI`  = "\in"
-%format `subI` = "\subseteq"
-%format inI    = "(\in)"
-%format subI   = "(\subseteq)"
+%format `inR`  = "\in"
+%format inR    = "(" `inR` ")"
+%format `subR` = "\subseteq"
+%format subR   = "(" `subR` ")"
+
 %format <>     = "+ "
 %format mempty = "0 "
 
@@ -463,38 +464,70 @@ define a ``subtraction'' operation $a \ominus b = a \oplus (-b)$.
 Although basic segment trees work with any monoid, the constructions
 we consider in the rest of the paper will generally require a group.
 
-\begin{code}
-{-# LANGUAGE GADTSyntax    #-}
+\section{Implementing Segment Trees}
+\label{sec:impl-seg-trees}
 
-data Interval = Int :--: Int
+\pref{fig:haskell-segtree} exhibits a simple, generic implementation
+of a segment tree in Haskell, using some utilities for working with
+index ranges shown in \pref{fig:ranges}.  We store a segment tree as a
+recursive algebraic data type, and implement |update| and |rq| using
+code that directly corresponds to the recursive descriptions given in
+the previous section.
+
+Although this implementation is simple and relatively straightforward
+to understand, compared to simply storing the sequence of values in an
+array, it incurs a good deal of overhead.  We can be more clever in
+our used of space by storing all the nodes of a segment tree in an
+array, using the standard indexing scheme illustrated in
+\pref{fig:bt-indexing}: the root node is labelled with the index $1$,
+the left and right children of node $i$ are $2i$ and $2i+1$,
+respectively, and hence the parent of node $i$ is
+$\lfloor i/2 \rfloor$.  This indexing scheme is likely familiar to
+many programmers, since binary heaps are often stored using this
+scheme as well.  XXX label with $s_1 \dots s_{2n-1}$; $s_1$ is sum of
+everything, etc.; $a_1 \dots a_n$ become $s_n \dots s_{2n-1}$, and in
+general $a_i$ is stored as $s_{n+i-1}$.
+
+\begin{figure}
+  \begin{code}
+-- ($a$ :--: $b$) represents the closed interval $[a,b]$
+data Range = Int :--: Int
   deriving (Eq, Show)
 
-inI :: Int -> Interval -> Bool
-k `inI` i = (k :--: k) `subI` i
+subR :: Range -> Range -> Bool
+(lo1 :--: hi1) `subR` (lo2 :--: hi2) = lo2 <= lo1 && hi1 <= hi2
 
-subI :: Interval -> Interval -> Bool
-(lo1 :--: hi1) `subI` (lo2 :--: hi2) = lo2 <= lo1 && hi1 <= hi2
+inR :: Int -> Range -> Bool
+k `inR` i = (k :--: k) `subR` i
 
-disjoint :: Interval -> Interval -> Bool
+disjoint :: Range -> Range -> Bool
 disjoint (lo1 :--: hi1) (lo2 :--: hi2) = hi1 < lo2 || hi2 < lo1
+  \end{code}
+  \caption{Range utilities}
+  \label{fig:ranges}
+\end{figure}
 
-data SegmentTree a where
-  Empty   :: SegmentTree a
-  Branch  :: a -> Interval -> SegmentTree a -> SegmentTree a -> SegmentTree a
+\begin{figure}
+\begin{code}
+data SegTree a where
+  Empty   :: SegTree a
+  Branch  :: a -> Range -> SegTree a -> SegTree a -> SegTree a
 
-update :: Monoid a => Int -> a -> SegmentTree a -> SegmentTree a
+update :: Monoid a => Int -> a -> SegTree a -> SegTree a
 update _ _ Empty = Empty
-update k d b@(Branch a i l r)
-  | k `inI` i  = Branch (a <> d) i (update k d l) (update k d r)
-  | otherwise  = b
+update i v b@(Branch a rng l r)
+  | i `inR` rng  = Branch (a <> v) rng (update i v l) (update i v r)
+  | otherwise    = b
 
-rq :: Monoid a => Interval -> SegmentTree a -> a
+rq :: Monoid a => Range -> SegTree a -> a
 rq _ Empty = mempty
-rq q (Branch a i l r)
-  | disjoint i q  = mempty
-  | i `subI` q    = a
-  | otherwise     = rq q l <> rq q r
+rq q (Branch a rng l r)
+  | disjoint rng q  = mempty
+  | rng `subR` q    = a
+  | otherwise       = rq q l <> rq q r
 \end{code}
+\caption{Simple segment tree implementation in Haskell} \label{fig:haskell-segtree}
+\end{figure}
 
 \todoi{requires 2x storage.  Indexing scheme?  Relevant in an array implementation.}
 
