@@ -54,6 +54,10 @@ instance (N b ~ Double, V b ~ V2
   Default (SegTreeOpts a b) where
   def = STOpts { drawNode = drawNodeDef, drawEdge = drawEdgeDef, stVSep = 1, leanRight = False }
 
+alignTo :: (Metric v, Semigroup m, Floating n, Ord n, IsName nm) =>
+  nm -> QDiagram b v n m -> QDiagram b v n m
+alignTo nm = withName nm $ moveOriginTo . location
+
 drawSegTree :: _ =>
 
   -- | Options controlling how to draw the tree
@@ -62,10 +66,6 @@ drawSegTree :: _ =>
   -- | The segment tree to draw
   SegmentTree a ->
   Diagram b
-
-alignTo :: (Metric v, Semigroup m, Floating n, Ord n, IsName nm) =>
-  nm -> QDiagram b v n m -> QDiagram b v n m
-alignTo nm = withName nm $ moveOriginTo . location
 
 drawSegTree o@(STOpts f _ _  rt) (Leaf a i)         = f (LeafNode, a) i i
 drawSegTree o@(STOpts f e vs rt) (Branch a i j l r) = localize $ vsep vs

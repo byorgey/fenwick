@@ -1,4 +1,4 @@
-% -*- compile-command: "stack exec -- rubber -v -d --unsafe fenwick.lhs" -*-
+% -*- compile-command: "./build.sh" -*-
 
 %% For double-blind review submission, w/o CCS and ACM Reference (max submission space)
 \documentclass[acmsmall,review]{acmart}\settopmatter{printfolios=true,printccs=false,printacmref=false}
@@ -469,20 +469,6 @@ recursive algebraic data type, and implement |update| and |rq| using
 code that directly corresponds to the recursive descriptions given in
 the previous section.
 
-Although this implementation is simple and relatively straightforward
-to understand, compared to simply storing the sequence of values in an
-array, it incurs a good deal of overhead.  We can be more clever in
-our used of space by storing all the nodes of a segment tree in an
-array, using the standard indexing scheme illustrated in
-\pref{fig:bt-indexing}: the root node is labelled with the index $1$,
-the left and right children of node $i$ are $2i$ and $2i+1$,
-respectively, and hence the parent of node $i$ is
-$\lfloor i/2 \rfloor$.  This indexing scheme is likely familiar to
-many programmers, since binary heaps are often stored using this
-scheme as well.  XXX label with $s_1 \dots s_{2n-1}$; $s_1$ is sum of
-everything, etc.; $a_1 \dots a_n$ become $s_n \dots s_{2n-1}$, and in
-general $a_i$ is stored as $s_{n+i-1}$.
-
 \begin{figure}
   \begin{code}
 -- ($a$ :--: $b$) represents the closed interval $[a,b]$
@@ -524,7 +510,42 @@ rq q (Branch a rng l r)
 \caption{Simple segment tree implementation in Haskell} \label{fig:haskell-segtree}
 \end{figure}
 
-\todoi{requires 2x storage.  Indexing scheme?  Relevant in an array implementation.}
+Although this implementation is simple and relatively straightforward
+to understand, compared to simply storing the sequence of values in an
+array, it incurs a good deal of overhead.  We can be more clever in
+our use of space by storing all the nodes of a segment tree in an
+array, using the standard indexing scheme illustrated in
+\pref{fig:bt-indexing}: the root node is labelled with the index $1$,
+the left and right children of node $i$ are $2i$ and $2i+1$,
+respectively, and hence the parent of node $i$ is
+$\lfloor i/2 \rfloor$.  This indexing scheme is likely familiar to
+many programmers, since binary heaps are often stored using this
+scheme as well.  XXX label with $s_1 \dots s_{2n-1}$; $s_1$ is sum of
+everything, etc.; $a_1 \dots a_n$ become $s_n \dots s_{2n-1}$, and in
+general $a_i$ is stored as $s_{n+i-1}$.
+
+\begin{figure}
+  \centering
+  \begin{diagram}[width=250]
+import Diagrams.Prelude hiding (Empty)
+import Diagrams.TwoD.Layout.Tree
+import Data.Maybe (fromJust)
+
+-- bt depth root
+bt :: Int -> Int -> BTree Int
+bt 0 _ = Empty
+bt d r = BNode r (bt (d-1) (2*r)) (bt (d-1) (2*r+1))
+
+dia = bt 4 1
+  # symmLayoutBin' (with & slHSep .~ 4 & slVSep .~ 4)
+  # fromJust
+  # renderTree dn (~~)
+
+dn i = text ("$" ++ show i ++ "$") <> circle 1 # fc white
+  \end{diagram}
+  \caption{Indexing a binary tree}
+  \label{fig:bt-indexing}
+\end{figure}
 
 \section{Segment Trees are Redundant}
 
