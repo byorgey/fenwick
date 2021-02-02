@@ -708,7 +708,7 @@ and to the right until it lands in an empty spot in the underlying
 array, as illustrated in \pref{fig:sliding-right}.  This sets up a
 one-to-one correspondence between active nodes and indices in the
 range $1 \dots n$.  Another way to understand this indexing scheme is
-to use a postorder traverasal of the tree, skipping over inactive
+to use a postorder traversal of the tree, skipping over inactive
 nodes and giving consecutive indices to active nodes encountered
 during the traversal. \todoi{Explain in more detail---this is crucial!}
 
