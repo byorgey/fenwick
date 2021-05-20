@@ -520,9 +520,12 @@ the left and right children of node $i$ are $2i$ and $2i+1$,
 respectively, and hence the parent of node $i$ is
 $\lfloor i/2 \rfloor$.  This indexing scheme is likely familiar to
 many programmers, since binary heaps are often stored using this
-scheme as well.  XXX label with $s_1 \dots s_{2n-1}$; $s_1$ is sum of
-everything, etc.; $a_1 \dots a_n$ become $s_n \dots s_{2n-1}$, and in
-general $a_i$ is stored as $s_{n+i-1}$.
+scheme as well.  If we label the segment tree array with
+$s_1 \dots s_{2n-1}$, then $s_1$ stores the sum of all the $a_i$,
+$s_2$ stores the sum of the first half of the $a_i$, $s_3$ stores the
+sum of the second half, and so on.  $a_1 \dots a_n$ themselves are
+stored as $s_n \dots s_{2n-1}$, and in general $a_i$ is stored as
+$s_{n+i-1}$.
 
 \begin{figure}
   \centering
@@ -546,6 +549,14 @@ dn i = text ("$" ++ show i ++ "$") <> circle 1 # fc white
   \caption{Indexing a binary tree}
   \label{fig:bt-indexing}
 \end{figure}
+
+The important point is that since descending recursively through the
+tree corresponds to simple operations on indices, all the algorithms
+we have discussed can be straightforwardly transformed into imperative
+code that works with a mutable array: for example, instead of storing
+a reference to the current subtree, we store an integer index; every
+time we want to descend to the left or right we simply double the
+current index or double and add one; and so on.
 
 \section{Segment Trees are Redundant}
 
@@ -765,18 +776,6 @@ stOpts = (mkSTOpts nOpts)
 nOpts = (showInactiveOpts False)
   { leanRightN = True }
 \end{diagram}
-
-By comparison, numbering a full binary tree in level order leads to
-very nice and obvious math for moving around the tree:
-
-\todoi{picture of full binary tree numbered in level order}
-
-In particular, the root of the tree has index $1$, and the left and
-right children of node $i$ are $2i$ and $2i+1$, respectively.  That
-is, to get from a node to its children, shift left by one bit and then
-add $1$ (for the right child) or not (for the left child).
-Conversely, to get from a node to its parent, just shift right by one
-bit.
 
 \todoi{This is a
   Fenwick tree, or bit-indexed tree.  Question: how to carry out the
