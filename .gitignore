@@ -10,6 +10,11 @@
 *.out
 *.pdf
 *.ptb
+*.fdb_latexmk
+*.fls
+*.nav
+*.snm
+*.toc
 
 *.yaml.lock
 .stack-work
