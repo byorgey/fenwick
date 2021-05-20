@@ -15,6 +15,7 @@
 *.nav
 *.snm
 *.toc
+*.vrb
 
 *.yaml.lock
 .stack-work
