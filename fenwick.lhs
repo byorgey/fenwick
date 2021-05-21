@@ -19,8 +19,8 @@
 \acmVolume{1}
 \acmNumber{ICFP} % CONF = POPL or ICFP or OOPSLA
 \acmArticle{1}
-\acmYear{2020}
-\acmMonth{9}
+\acmYear{2021}
+\acmMonth{8}
 \acmDOI{} % \acmDOI{10.1145/nnnnnnn.nnnnnnn}
 \startPage{1}
 
@@ -52,6 +52,7 @@
 %% lhs2TeX
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+\let\Bbbk\undefined  % https://github.com/kosmikus/lhs2tex/issues/82
 %include polycode.fmt
 
 %format :--:   = "\mathrel{:\!\!\text{---}\!\!:}"
@@ -277,8 +278,8 @@ this leads to the need to maintain a dynamic table of character
 frequencies.  We \emph{update} the table every time a new character is
 processed, and query the table for \emph{cumulative frequencies} in
 order to subdivide a unit interval into consecutive segments
-proportional to the frequency of each character.  XXX cite Fenwick,
-original Russian paper.  XXX not a tutorial on arithmetic coding.
+proportional to the frequency of each character.  \todoi{cite Fenwick,
+original Russian paper.  not a tutorial on arithmetic coding.}
 
 The answer, of course, is yes: we can get both operations to run in
 logarithmic time if we use a divide-and-conquer approach to caching
@@ -288,13 +289,13 @@ the sum of its children.  (This will be a familiar idea to many
 functional programmers; for example, finger trees
 \citep{Hinze-Paterson:FingerTree} use a similar sort of scheme.)  The
 resulting data structure is popularly known as a \emph{segment
-  tree}\footnote{There is some confusion of terminology here.  The
-  Wikipedia article on \emph{segment trees} \citep{wiki:SegmentTree}
-  is about an interval data structure used in computational geometry.
-  However, most of the Google search results for ``segment tree'' are
-  from the world of competitive programming, where it refers to the
-  data structure considered in this paper (see, for example, \citet[\S 2.4.3]
-  {CP3}).  The two are largely
+  tree}\footnote{There is some confusion of terminology here.  As of
+  this writing, the Wikipedia article on \emph{segment trees}
+  \citep{wiki:SegmentTree} is about an interval data structure used in
+  computational geometry.  However, most of the Google search results
+  for ``segment tree'' are from the world of competitive programming,
+  where it refers to the data structure considered in this paper (see,
+  for example, \citet[\S 2.4.3] {CP3}).  The two are largely
   unrelated.}, presumably because each internal node ultimately caches
 the sum of a (contiguous) \emph{segment} of the underlying sequence.
 \pref{fig:segment-tree} shows a segment tree built on a sample array
@@ -567,10 +568,10 @@ trades off space for time, allowing us to perform arbitrary range
 queries more quickly at the cost of doubling the required storage
 space.
 
-However, if the values come from a group, segment trees are
-actually redundant in a stronger sense: we can throw out almost
-\emph{half} of the data in a segment tree and still retain the
-$O(\lg n)$ running time for updates and range queries!
+However, if the values come from a group, segment trees are redundant
+in a stronger sense: we can throw out almost \emph{half} of the data
+in a segment tree and still retain the logarithmic running time for
+updates and range queries!
 
 How, you ask?  Simple: just throw out the data stored in \emph{every
   node which is a right child}. \pref{fig:deactivate-right} shows the
