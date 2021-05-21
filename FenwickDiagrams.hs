@@ -26,6 +26,15 @@ sampleArray4 = map Sum (replicate 64 0)
 drawArray :: _ => (a -> Diagram b) -> [a] -> Diagram b
 drawArray nd = hcat . map (beneath squareNodeShape . nd)
 
+rangeBracket :: _ => Int -> Int -> Diagram b
+rangeBracket i j =
+  fromOffsets
+  [ -0.2 *^ unitY
+  , (fromIntegral (j - i) * leafWidth + boxWidth) *^ unitX
+  , 0.2 *^ unitY
+  ]
+  # translateX (-boxWidth / 2 + leafWidth * fromIntegral (i - 1))
+
 data SegTreeOpts a b = STOpts
   {
     -- | Node drawing function: takes value of node (marked as leaf or

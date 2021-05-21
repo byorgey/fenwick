@@ -10,6 +10,12 @@
 *.out
 *.pdf
 *.ptb
+*.fdb_latexmk
+*.fls
+*.nav
+*.snm
+*.toc
+*.vrb
 
 *.yaml.lock
 .stack-work
@@ -18,3 +24,11 @@
 diagrams/
 
 fenwick.tex
+
+*.hi
+*.o
+*.class
+
+TAGS
+
+_minted-*
