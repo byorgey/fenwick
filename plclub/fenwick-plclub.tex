@@ -37,7 +37,7 @@
 
 % \setbeameroption{show only notes}
 
-\usepackage[english]{babel}
+% \usepackage[english]{babel}
 \usepackage[T1]{fontenc}
 \usepackage{graphicx}
 \graphicspath{{images/}}
@@ -47,10 +47,27 @@
 \usepackage{fancyvrb}
 
 \usepackage[backend=pgf, input, extension=pgf, outputdir=diagrams]{diagrams-latex}
+\usepackage{sproof}
 
 \usepackage{minted}
 
-% TODO: include picture of Fenwick tree on title slide
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\newcommand{\toB}{\mathit{toBinary}}
+\newcommand{\fromB}{\mathit{fromBinary}}
+\newcommand{\set}[1]{\mathit{set}\;{#1}}
+\newcommand{\unset}[1]{\mathit{unset}\;{#1}}
+\newcommand{\while}[2]{\mathit{while}\;{#1}\;{#2}}
+\newcommand{\even}{\mathit{even}}
+\newcommand{\odd}{\mathit{odd}}
+\newcommand{\shl}{\mathit{shl}}
+\newcommand{\shr}{\mathit{shr}}
+\newcommand{\activeParent}{\mathit{activeParent}}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% Todo: include picture of Fenwick tree on title slide
 
 \title{You Could Have Invented Fenwick Trees!}
 \date{\includegraphics[height=0.25in]{plclub-logo_small} \\ 21 May 2021}
@@ -278,11 +295,10 @@ dia = vsep 0.5
 \end{center}
 \end{xframe}
 
-% TODO include range bars in this picture
-
 \begin{xframe}{Fenwick tree = right-leaning, thinned segment tree}
   \begin{center}
 \begin{diagram}[width=300]
+{-# LANGUAGE LambdaCase #-}
 import FenwickDiagrams
 import SegTree
 
@@ -296,7 +312,9 @@ stOpts = (mkSTOpts nOpts)
   { leanRight = True }
 
 nOpts = (showInactiveOpts False)
-  { leanRightN = True }
+  { leanRightN = True
+  , rangeStyle = \case { (_, Active) -> defRangeStyle; _ -> mempty # lw none }
+  }
 \end{diagram}
 
 \onslide<2>{\dots but how to move around?}
@@ -388,8 +406,8 @@ dn i = text ("$" ++ showIntAtBase 2 ("01"!!) i "" ++ "$") <> circle 1 # fc white
   \begin{itemize}
   \item Derive Fenwick tree $\leftrightarrow$ binary
     tree index conversion
-  \item Compute motion through a Fenwick tree as $\mathit{fromBinary}
-    \circ \mathit{binaryMotion} \circ \mathit{toBinary}$
+  \item Compute motion through a Fenwick tree (array) as $\fromB
+    \circ \mathit{binaryMotion} \circ \toB$
   \item Fuse
   \item Profit!
   \end{itemize}
@@ -499,10 +517,10 @@ dn (i,ml) = mconcat
 \begin{xframe}{toBinary}
   \begin{align*}
     [] \merge \_ &= [] \\
-    (x:xs) \merge ys &= x : (ys \merge xs) \\ \\
+    (x::xs) \merge ys &= x :: (ys \merge xs) \\ \\
     s_0 &= [1] \\
     s_n &= [2^n, 2^n + 2, \dots, 2^{n+1}-2] \merge s_{n-1} \\ \\
-    \mathit{toBinary}_n(k) &= s_n\;!\;k \qquad \text{(1-indexed)}
+    \toB_n(k) &= s_n\;!\;k \qquad \text{(1-indexed)}
   \end{align*}
 \end{xframe}
 
@@ -521,31 +539,34 @@ dn (i,ml) = mconcat
     toBinary_n(2k-1) &= [2^n, 2^n + 2, \dots]\;!\; k = 2^n + 2(k-1)
   \end{align*}
   \onslide<2->{
-    \[ \mathit{toBinary}_n(j) = \begin{cases}
-        \mathit{toBinary}_{n-1}(j/2) & \text{$j$ even} \\ 2^n + j - 1
+    \[ \toB_n(j) = \begin{cases}
+        \toB_{n-1}(j/2) & \text{$j$ even} \\ 2^n + j - 1
         & \text{$j$ odd} \end{cases} \]
   } \bigskip
 \end{xframe}
 
 \begin{xframe}{Simplifying toBinary}
-    \[ \mathit{toBinary}_n(j) = \begin{cases}
-        \mathit{toBinary}_{n-1}(j/2) & \text{$j$ even} \\ 2^n + j - 1
+    \[ \toB_n(j) = \begin{cases}
+        \toB_{n-1}(j/2) & \text{$j$ even} \\ 2^n + j - 1
         & \text{$j$ odd} \end{cases} \] \bigskip
 
   Let $k = 2^a b$ where $b$ is odd.  Then
-  \[ \mathit{toBinary}_n(2^a b) = \mathit{toBinary}_{n-a}(b) =
+  \[ \toB_n(2^a b) = \toB_{n-a}(b) =
     2^{n-a} + b - 1. \]
 \end{xframe}
 
 \begin{xframe}{toBinary as bit operations?}
-  \[ \mathit{toBinary}_n(2^a b) = 2^{n-a} + b - 1 \]
+  \[ \toB_n(2^a b) = 2^{n-a} + b - 1 \]
 
   Given $k = 2^a b < 2^n$ ($2^n \to 1$ is special case):
   \begin{itemize}
   \item set $2^n$ bit ($2^n + 2^a b$)
   \item shift right until final bit is $1$  ($2^{n-a} + b$)
   \item set final bit to $0$ ($2^{n-a} + b - 1$)
-  \end{itemize} \bigskip
+  \end{itemize} \medskip
+
+  \[ \toB_n = \unset 0 \circ \while{\even}{\shr} \circ
+    \set{n} \]
 
   \onslide<2->{Question: what is the right DSL for expressing this bit
     manipulation procedure?}
@@ -553,13 +574,124 @@ dn (i,ml) = mconcat
     % TODO: express this using a little bit DSL
 \end{xframe}
 
-\begin{xframe}{fromBinary?}
-  $\mathit{fromBinary}_n$ ($1 \to 2^n$ is special case):
+\begin{xframe}{fromBinary}
+  \[ \toB_n = \unset 0 \circ \while{\even}{\shr} \circ
+    \set{n} \]
+
+  $\fromB_n$ ($1 \to 2^n$ is special case):
   \begin{itemize}
   \item set final bit to $1$
   \item shift left until MSB is $2^n$
   \item set $2^n$ bit to 0
-  \end{itemize}
+  \end{itemize} \medskip
+
+  \[ \fromB_n = \unset n \circ \while{(< 2^n)}{\shl} \circ \set 0 \]
+\end{xframe}
+
+\begin{xframe}{$\fromB_n \circ \toB_n$ example}
+  \begin{sproof}
+    \stmt{00110100}
+    \reason{\to}{$\set n$}
+    \stmt{10110100}
+    \reason{\to}{$\while{\even}{\shr}$}
+    \stmt{00101101}
+    \reason{\to}{$\unset 0$}
+    \stmt{00101100}
+    \reason{\to}{$\set 0$}
+    \stmt{00101101}
+    \reason{\to}{$\while{(< 2^n)}{\shl}$}
+    \stmt{10110100}
+    \reason{\to}{$\unset n$}
+    \stmt{00110100}
+  \end{sproof}
+\end{xframe}
+
+\begin{xframe}{Update}
+  \begin{center}
+\begin{diagram}[width=300]
+import Diagrams.Prelude hiding (Empty)
+import Diagrams.TwoD.Layout.Tree
+import Data.Maybe (fromJust)
+import Control.Monad.State
+
+-- bt depth root left?
+bt :: Int -> Int -> Bool -> State Int (BTree (Int, Maybe Int))
+bt 0 _ _ = return Empty
+bt d r left = do
+  lt <- bt (d-1) (2*r) True
+  rt <- bt (d-1) (2*r+1) False
+  l <- get
+  when left (modify (+1))
+  return (BNode (r, if left then Just l else Nothing) lt rt)
+
+dia = evalState (bt 5 1 True) 1
+  # symmLayoutBin' (with & slHSep .~ 4 & slVSep .~ 4)
+  # fromJust
+  # renderTree dn (~~)
+
+dn :: (Int, Maybe Int) -> Diagram B
+dn (i,ml) = mconcat
+  [ text ("$" ++ show i ++ "$") # translateX (-0.7)
+  , vrule 3
+  , circle 1.5
+  , case ml of
+      Nothing -> arc' 1.5 (direction unit_Y) ((1/2) @@ turn)
+                 # closeTrail # strokeT # translateY (-1.5)
+                 # fc grey # lw none
+      Just l  -> text ("$" ++ show l ++ "$") # fc blue # translateX 0.7
+                 # fontSizeL 0.9
+  , circle 1.5 # fc (case ml of { Just 6 -> lgr ; Just 8 -> lgr ; _ -> white })
+               # lw none
+  ]
+  # fontSizeL 0.7
+  where
+    lgr = lightgreen
+\end{diagram}
+
+\onslide<2->{
+  \[ \activeParent = \while{\odd}{\shr} \circ \shr \]
+}
+\end{center}
+\end{xframe}
+
+\begin{xframe}{Update}
+  \begin{align*}
+    \mathit{nextUpdate_n}
+    &= \fromB_n \circ \activeParent \circ \toB_n \\
+    &= \unset n \circ \while{(< 2^n)}{\shl} \circ \set 0 \\
+    &\qquad\circ \while{\odd}{\shr} \circ \shr \\
+    &\qquad\circ \unset 0 \circ \while{\even}{\shr} \circ \set{n} \\
+    &= \unset n \circ \while{(< 2^n)}{\shl} \\
+    &\qquad\circ \set 0 \circ \while{\odd}{\shr} \circ
+      \while{\even}{\shr} \\
+    &\qquad\circ \set{n} \\
+    &= \dots \; ? \; \dots \\
+    &= \lambda x. x + \mathit{LSB}\;x
+  \end{align*}
+\end{xframe}
+
+\begin{xframe}{Update example}
+  \begin{sproof}
+    \stmt{00110}
+    \reason{\to}{$\set n$}
+    \stmt{10110}
+    \reason{\to}{$\while{\even}{\shr}$}
+    \stmt{01011}
+    \reason{\to}{$\while{\odd}{\shr}$}
+    \stmt{00010}
+    \reason{\to}{$\set 0$}
+    \stmt{00011}
+    \reason{\to}{$\while{(< 2^n)}{\shl}$}
+    \stmt{11000}
+    \reason{\to}{$\unset n$}
+    \stmt{01000}
+  \end{sproof}
+\end{xframe}
+
+\begin{xframe}{}
+  \begin{center}
+    Thanks!
+  \end{center}
 \end{xframe}
 
 \end{document}

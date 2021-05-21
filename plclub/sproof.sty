@@ -1,0 +1,13 @@
+\newenvironment{sproof}{%
+    \begin{tabbing}
+    \phantom{$\equiv$} \= \qquad\qquad\qquad\qquad\qquad \= \kill
+}{
+    \end{tabbing}
+}
+\newcommand{\stmt}[1]{\> \ensuremath{#1} \\}
+\newcommand{\lstmt}[1]{\> \ensuremath{#1} }
+\newcommand{\reason}[2]{\ensuremath{#1} \>\> \{ \quad #2 \quad \} \\}
+
+\newcommand{\subpart}[1]{\llcorner #1 \lrcorner}
+\newcommand{\suppart}[1]{\ulcorner #1 \urcorner}
+
