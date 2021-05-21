@@ -4,11 +4,11 @@ import           Control.Arrow (first)
 import           Data.Bits
 
 s 0 = [1]
-s n = interleave2 [2^n, 2^n + 2 ..] (s (n-1))
+s n = interleave [2^n, 2^n + 2 .. 2^(n+1) - 2] (s (n-1))
 
-interleave2 [] _          = []
-interleave2 _ []          = []
-interleave2 (a:as) (b:bs) = a : b : interleave2 as bs
+-- interleave2 [] _          = []
+-- interleave2 _ []          = []
+-- interleave2 (a:as) (b:bs) = a : b : interleave2 as bs
 
 interleave [] _      = []
 interleave (x:xs) ys = x : interleave ys xs

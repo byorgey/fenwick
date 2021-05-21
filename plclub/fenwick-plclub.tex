@@ -20,8 +20,8 @@
       \begin{center}
         {\Huge \insertsectionhead}
 
-        \vspace{0.25in}
-        \includegraphics[width=2in]{\secimage}
+        % \vspace{0.25in}
+        % \includegraphics[width=2in]{\secimage}
       \end{center}
     \end{frame}
   }
@@ -73,12 +73,19 @@
   \end{center}
 \end{frame}
 
-\begin{frame}{About this talk}
-  TODO: graph of git commits on this project
-\end{frame}
+% \begin{frame}
+%   \begin{center}
+%     \includegraphics[width=2.5in,angle=-90]{noah-isaac}
+%     \includegraphics[width=2.5in,angle=-90]{isaac-ruth}
+%   \end{center}
+% \end{frame}
+
+% \begin{frame}{About this talk}
+%   TODO: graph of git commits on this project
+% \end{frame}
 
 % TODO: drawArray a_1 ... a_8 as section image
-\def\secimage{plclub-logo_small}
+% \def\secimage{array}
 \section{Introduction}
 
 \begin{xframe}{Sequence operations}
@@ -218,7 +225,8 @@ dia = vsep 0.5
   dia = sampleArray
     # mkSegTree
     # fmap getSum
-    # drawSegTree def
+    # drawSegTree def { drawNode = drawNode' def { rangeStyle = const (mempty # lw none) } }
+
 \end{diagram}
 \end{center}
 \end{xframe}
@@ -306,15 +314,252 @@ nOpts = (showInactiveOpts False)
       A New Data Structure for Cumulative Frequency Tables
     \end{minipage}
   \end{center}
+  % IFTIME show Ryabko paper too
 \end{xframe}
 
-\begin{xframe}{Fenwick trees}
-  % TODO: show Ryabko paper?
+\begin{xframe}{Implementing Fenwick trees}
+  \inputminted[fontsize=\footnotesize]{java}{FenwickTree.java}
 \end{xframe}
 
-\begin{xframe}{XXX}
-  
-  \inputminted{java}{Fenwick.java}
+% IF TIME, show why this definition of LSB works.
+% Otherwise leave it as exercise.  2's complement, to negate we flip
+% all the bits then increment.  This means -x has all opposite bits as
+% x up to the LSB, then is the same from the LSB onwards.
+
+\begin{xframe}{LSB = Least Significant Bit}
+  \[ \mathrm{LSB}(01101100) = 00000100 \]
+  \bigskip
+
+  \onslide<2->{
+    $\mathrm{LSB}(x) = x \mathbin{\&} (-x)$?  Hint: in 2's complement,
+    $(-x) = \overline{x} + 1$.
+  }
+\end{xframe}
+
+\section{Indexing trees}
+
+\begin{xframe}{Indexing full binary trees}
+  \begin{center}
+  \begin{diagram}[width=250]
+import Diagrams.Prelude hiding (Empty)
+import Diagrams.TwoD.Layout.Tree
+import Data.Maybe (fromJust)
+
+-- bt depth root
+bt :: Int -> Int -> BTree Int
+bt 0 _ = Empty
+bt d r = BNode r (bt (d-1) (2*r)) (bt (d-1) (2*r+1))
+
+dia = bt 4 1
+  # symmLayoutBin' (with & slHSep .~ 4 & slVSep .~ 4)
+  # fromJust
+  # renderTree dn (~~)
+
+dn i = text ("$" ++ show i ++ "$") <> circle 1 # fc white
+  \end{diagram}
+  \end{center}
+\end{xframe}
+
+\begin{xframe}{Indexing full binary trees, in binary}
+  \begin{center}
+  \begin{diagram}[width=250]
+import Diagrams.Prelude hiding (Empty)
+import Diagrams.TwoD.Layout.Tree
+import Data.Maybe (fromJust)
+import Numeric
+
+-- bt depth root
+bt :: Int -> Int -> BTree Int
+bt 0 _ = Empty
+bt d r = BNode r (bt (d-1) (2*r)) (bt (d-1) (2*r+1))
+
+dia = bt 4 1
+  # symmLayoutBin' (with & slHSep .~ 4 & slVSep .~ 4)
+  # fromJust
+  # renderTree dn (~~)
+  # fontSizeL 0.8
+
+dn i = text ("$" ++ showIntAtBase 2 ("01"!!) i "" ++ "$") <> circle 1 # fc white # lw none
+  \end{diagram}
+  \end{center}
+\end{xframe}
+
+\begin{xframe}{The Plan}
+  \begin{itemize}
+  \item Derive Fenwick tree $\leftrightarrow$ binary
+    tree index conversion
+  \item Compute motion through a Fenwick tree as $\mathit{fromBinary}
+    \circ \mathit{binaryMotion} \circ \mathit{toBinary}$
+  \item Fuse
+  \item Profit!
+  \end{itemize}
+\end{xframe}
+
+\begin{xframe}{Fenwick $\to$ binary}
+  \begin{center}
+  \begin{diagram}[width=250]
+import Diagrams.Prelude hiding (Empty)
+import Diagrams.TwoD.Layout.Tree
+import Data.Maybe (fromJust)
+import Control.Monad.State
+
+-- bt depth root left?
+bt :: Int -> Int -> Bool -> State Int (BTree (Int, Maybe Int))
+bt 0 _ _ = return Empty
+bt d r left = do
+  lt <- bt (d-1) (2*r) True
+  rt <- bt (d-1) (2*r+1) False
+  l <- get
+  when left (modify (+1))
+  return (BNode (r, if left then Just l else Nothing) lt rt)
+
+dia = evalState (bt 4 1 True) 1
+  # symmLayoutBin' (with & slHSep .~ 4 & slVSep .~ 4)
+  # fromJust
+  # renderTree dn (~~)
+
+dn :: (Int, Maybe Int) -> Diagram B
+dn (i,ml) = mconcat
+  [ text ("$" ++ show i ++ "$") # translateX (-0.7)
+  , vrule 3
+  , circle 1.5
+  , case ml of
+      Nothing -> arc' 1.5 (direction unit_Y) ((1/2) @@ turn)
+                 # closeTrail # strokeT # translateY (-1.5)
+                 # fc grey # lw none
+      Just l  -> text ("$" ++ show l ++ "$") # fc blue # translateX 0.7
+                 # fontSizeL 0.9
+  , circle 1.5 # fc white # lw none
+  ]
+  # fontSizeL 0.7
+  \end{diagram}
+  \vspace{0.25in}
+
+  \begin{tabular}{cccccccc}
+    \textcolor{blue}{1} & \textcolor{blue}{2} & \textcolor{blue}{3}  & \textcolor{blue}{4} & \textcolor{blue}{5} & \textcolor{blue}{6} & \textcolor{blue}{7} & \textcolor{blue}{8} \\
+    8 & 4 & 10 & 2 & 12 & 6 & 14 & 1
+  \end{tabular}
+  \end{center}
+
+\end{xframe}
+
+\begin{xframe}{Fenwick $\to$ binary}
+  \begin{center}
+  \begin{diagram}[width=300]
+import Diagrams.Prelude hiding (Empty)
+import Diagrams.TwoD.Layout.Tree
+import Data.Maybe (fromJust)
+import Control.Monad.State
+
+-- bt depth root left?
+bt :: Int -> Int -> Bool -> State Int (BTree (Int, Maybe Int))
+bt 0 _ _ = return Empty
+bt d r left = do
+  lt <- bt (d-1) (2*r) True
+  rt <- bt (d-1) (2*r+1) False
+  l <- get
+  when left (modify (+1))
+  return (BNode (r, if left then Just l else Nothing) lt rt)
+
+dia = evalState (bt 5 1 True) 1
+  # symmLayoutBin' (with & slHSep .~ 4 & slVSep .~ 4)
+  # fromJust
+  # renderTree dn (~~)
+
+dn :: (Int, Maybe Int) -> Diagram B
+dn (i,ml) = mconcat
+  [ text ("$" ++ show i ++ "$") # translateX (-0.7)
+  , vrule 3
+  , circle 1.5
+  , case ml of
+      Nothing -> arc' 1.5 (direction unit_Y) ((1/2) @@ turn)
+                 # closeTrail # strokeT # translateY (-1.5)
+                 # fc grey # lw none
+      Just l  -> text ("$" ++ show l ++ "$") # fc blue # translateX 0.7
+                 # fontSizeL 0.9
+  , circle 1.5 # fc white # lw none
+  ]
+  # fontSizeL 0.7
+  \end{diagram}
+  \vspace{0.25in}
+
+  \begingroup
+  \setlength{\tabcolsep}{4pt}
+  \begin{tabular}{cccccccccccccccc}
+    \textcolor{blue}{1} & \textcolor{blue}{2} & \textcolor{blue}{3}  & \textcolor{blue}{4} & \textcolor{blue}{5} & \textcolor{blue}{6} & \textcolor{blue}{7} & \textcolor{blue}{8} & \textcolor{blue}{9} & \textcolor{blue}{10} & \textcolor{blue}{11} & \textcolor{blue}{12} & \textcolor{blue}{13} & \textcolor{blue}{14} & \textcolor{blue}{15} & \textcolor{blue}{16} \\
+    16 & \textcolor{green}{8} & 18 & \textcolor{green}{4} & 20 & \textcolor{green}{10}
+     & 22 & \textcolor{green}{2} & 24 & \textcolor{green}{12} & 26 & \textcolor{green}{6} & 28 & \textcolor{green}{14} & 30 & \textcolor{green}{1}
+  \end{tabular}
+  \endgroup
+  \end{center}
+
+\end{xframe}
+
+\newcommand{\merge}{\curlyvee}
+\begin{xframe}{toBinary}
+  \begin{align*}
+    [] \merge \_ &= [] \\
+    (x:xs) \merge ys &= x : (ys \merge xs) \\ \\
+    s_0 &= [1] \\
+    s_n &= [2^n, 2^n + 2, \dots, 2^{n+1}-2] \merge s_{n-1} \\ \\
+    \mathit{toBinary}_n(k) &= s_n\;!\;k \qquad \text{(1-indexed)}
+  \end{align*}
+\end{xframe}
+
+\begin{xframe}{Interleaving lemmas}
+  \begin{align*}
+    (xs \merge ys)\; ! \; 2k &= ys\;!\;k \\
+    (xs \merge ys)\; ! \; (2k - 1) &= xs\;!\;k
+  \end{align*}
+\end{xframe}
+
+\begin{xframe}{Simplifying toBinary}
+  \begin{align*}
+    s_0 &= [1] \\
+    s_n &= [2^n, 2^n + 2, \dots, 2^{n+1}-2] \merge s_{n-1} \\ \\
+    toBinary_n(2k)   &= s_n\;!\;2k = s_{n-1}\;!\;k \\
+    toBinary_n(2k-1) &= [2^n, 2^n + 2, \dots]\;!\; k = 2^n + 2(k-1)
+  \end{align*}
+  \onslide<2->{
+    \[ \mathit{toBinary}_n(j) = \begin{cases}
+        \mathit{toBinary}_{n-1}(j/2) & \text{$j$ even} \\ 2^n + j - 1
+        & \text{$j$ odd} \end{cases} \]
+  } \bigskip
+\end{xframe}
+
+\begin{xframe}{Simplifying toBinary}
+    \[ \mathit{toBinary}_n(j) = \begin{cases}
+        \mathit{toBinary}_{n-1}(j/2) & \text{$j$ even} \\ 2^n + j - 1
+        & \text{$j$ odd} \end{cases} \] \bigskip
+
+  Let $k = 2^a b$ where $b$ is odd.  Then
+  \[ \mathit{toBinary}_n(2^a b) = \mathit{toBinary}_{n-a}(b) =
+    2^{n-a} + b - 1. \]
+\end{xframe}
+
+\begin{xframe}{toBinary as bit operations?}
+  \[ \mathit{toBinary}_n(2^a b) = 2^{n-a} + b - 1 \]
+
+  Given $k = 2^a b < 2^n$ ($2^n \to 1$ is special case):
+  \begin{itemize}
+  \item set $2^n$ bit ($2^n + 2^a b$)
+  \item shift right until final bit is $1$  ($2^{n-a} + b$)
+  \item set final bit to $0$ ($2^{n-a} + b - 1$)
+  \end{itemize} \bigskip
+
+  \onslide<2->{Question: what is the right DSL for expressing this bit
+    manipulation procedure?}
+
+    % TODO: express this using a little bit DSL
+\end{xframe}
+
+\begin{xframe}{fromBinary?}
+  $\mathit{fromBinary}_n$ ($1 \to 2^n$ is special case):
+  \begin{itemize}
+  \item set final bit to $1$
+  \item shift left until MSB is $2^n$
+  \item set $2^n$ bit to 0
+  \end{itemize}
 \end{xframe}
 
 \end{document}

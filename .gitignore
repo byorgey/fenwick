@@ -24,3 +24,11 @@
 diagrams/
 
 fenwick.tex
+
+*.hi
+*.o
+*.class
+
+TAGS
+
+_minted-*
