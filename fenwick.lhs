@@ -1,4 +1,4 @@
-% -*- compile-command: "./build.sh" -*-
+% -*- mode: LaTeX; compile-command: "./build.sh" -*-
 
 %% For double-blind review submission, w/o CCS and ACM Reference (max submission space)
 \documentclass[acmsmall,review]{acmart}\settopmatter{printfolios=true,printccs=false,printacmref=false}
@@ -442,17 +442,18 @@ Although most reference material on segment trees (or Fenwick trees)
 talks about sums of \emph{integers}, this is needlessly specific.  In
 general, all we need is a sequence of elements $a_1, \dots, a_n$ from
 some \emph{monoid}.  Recall that a monoid is a set $M$ together with
-an associative binary operation $\oplus$ and an identity element
-$\mempty \in M$ such that $m \oplus \mempty = \mempty \oplus m = m$
-for all $m \in M$. We will continue to talk about ``sums'' of elements
-of a monoid $M$ even though the monoidal operation need not be
-sum-like in general (for example, the set of natural numbers forms a
-monoid under multiplication).  However, the ``sum'' metaphor does fail
-in one important way: unlike addition, $\oplus$ need not be
-commutative, that is, we may have $a \oplus b \neq b \oplus a$.  All
-the data structures we will discuss work perfectly well for
-non-commutative monoids, though some care is required to ensure values
-are properly ordered.
+an associative binary operation $\oplus : M \times M \to M$ and an
+identity element $\mempty \in M$ such that
+$m \oplus \mempty = \mempty \oplus m = m$ for all $m \in M$. We will
+continue to talk about ``sums'' of elements of a monoid $M$ even
+though the monoidal operation need not be sum-like in general (for
+example, the set of natural numbers forms a monoid under
+multiplication).  However, the ``sum'' metaphor does fail in one
+important way: unlike addition, $\oplus$ need not be commutative, that
+is, we may have $a \oplus b \neq b \oplus a$.  All the data structures
+we will discuss work perfectly well for non-commutative monoids,
+though some care is required to ensure values are combined in the
+correct order.
 
 Some monoids also have \emph{inverses}, that is, for each $m \in M$
 there is an element $-m \in M$ such that
@@ -707,8 +708,8 @@ $O((\lg n)^2)$ time.  This isn't bad, but we can do better.
 \end{corollary}
 \begin{proof}
   We can compute any range sum by subtracting prefix sums:
-  $RQ(i,j) = P(j) \ominus P(i-1)$. \todoi{picture}
-  \todoi{What about commutativity??}
+  $RQ(i,j) = -P(i-1) \oplus P(j)$ (or just $P(j) \ominus P(i-1)$ for
+  commutative groups). \todoi{picture}
 \end{proof}
 
 Note that computing $RQ(i,i)$ gives us another way to recover the
@@ -786,12 +787,29 @@ nOpts = (showInactiveOpts False)
   operations?  Code is clever, concise, fast in practice, and
   extremely nonobvious.  Our goal: derive it!}
 
-
 Our goal will be to first derive functions for converting back and
 forth between Fenwick numbering and full binary tree numbering.  Then
-we can derive operations on Fenwick trees by converting to binary tree
-numbering, doing operation, and converting back.  XXX fusing away the
-conversion.
+we can derive operations on Fenwick trees from operations on segment
+trees by converting to binary tree numbering, doing the operation, and
+converting back.  Fusing away the conversions via equational reasoning
+will yield concise implementations of operations directly on Fenwick
+trees.
+
+\section{Indexing binary trees}
+
+\todo{incorporate some of this into previous section where I already
+  wrote about this?}
+Figure \todoi{figure: binary tree with binary labels} shows a
+well-known scheme for indexing the nodes of a binary tree (for
+example, this scheme, or something like it, is commonly used to
+implement binary heaps).  The root has label 1; every time we descend
+one level we append an extra bit: $0$ when we descend to the left
+child and $1$ when we descend to the right.  Thus, the index of each
+node records the sequence of left-right choices along the path to that
+node from the root.  Going from a node to its children is as simple as
+doing a left bit-shift and optionally adding 1; going from a node to
+its parent is a right bit-shift.  This defines a bijection from the
+positive natural numbers to the nodes of an infinite binary tree
 
 % \begin{verbatim}
 % data BT a where
