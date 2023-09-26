@@ -281,6 +281,8 @@ order to subdivide a unit interval into consecutive segments
 proportional to the frequency of each character.  \todoi{cite Fenwick,
 original Russian paper.  not a tutorial on arithmetic coding.}
 
+\todo{Mention sqrt decomposition: $O(1)$ update, $O(\sqrt n)$ range queries}
+
 The answer, of course, is yes: we can get both operations to run in
 logarithmic time if we use a divide-and-conquer approach to caching
 range sums.  In particular, we can make a balanced binary tree where
