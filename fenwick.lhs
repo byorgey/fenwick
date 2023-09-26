@@ -706,6 +706,7 @@ $O((\lg n)^2)$ time.  This isn't bad, but we can do better.
 \begin{proof}
   We can compute any range sum by subtracting prefix sums:
   $RQ(i,j) = P(j) \ominus P(i-1)$. \todoi{picture}
+  \todoi{What about commutativity??}
 \end{proof}
 
 Note that computing $RQ(i,i)$ gives us another way to recover the
