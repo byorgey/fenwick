@@ -120,6 +120,8 @@
 
 \newcommand{\ie}{\emph{i.e.}\xspace}
 
+\newcommand{\term}[1]{\emph{#1}}
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \begin{document}
@@ -170,7 +172,16 @@
 %% Note: \begin{abstract}...\end{abstract} environment must come
 %% before \maketitle command
 \begin{abstract}
-Text of abstract \ldots.
+  \emph{Fenwick trees}, also known as \emph{bit-indexed trees}, are a
+  clever solution to the problem of maintaining a sequence of values
+  while allowing both updates and range queries in sublinear time.
+  Their implementation is concise and efficient---but also somewhat
+  baffling, consisting largely of nonobvious bitwise operations on
+  indices.  In this functional pearl, we begin with \emph{segment
+    trees}, a much more straightforward, easy-to-verify, purely
+  functional solution to the problem, and use equational reasoning to
+  derive the implementation of Fenwick trees as an optimized variant
+  of segment trees.
 \end{abstract}
 
 
