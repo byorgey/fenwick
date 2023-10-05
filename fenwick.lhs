@@ -530,12 +530,16 @@ to understand, compared to simply storing the sequence of values in an
 array, it incurs a good deal of overhead.  We can be more clever in
 our use of space by storing all the nodes of a segment tree in an
 array, using the standard indexing scheme illustrated in
-\pref{fig:bt-indexing}: the root node is labelled with the index $1$,
-the left and right children of node $i$ are $2i$ and $2i+1$,
-respectively, and hence the parent of node $i$ is
-$\lfloor i/2 \rfloor$.  This indexing scheme is likely familiar to
-many programmers, since binary heaps are often stored using this
-scheme as well.  If we label the segment tree array with
+\pref{fig:bt-indexing} (for example, this scheme, or something like
+it, is commonly used to implement binary heaps).  The root has label
+$1$; every time we descend one level we append an extra bit: $0$ when
+we descend to the left child and $1$ when we descend to the right.
+Thus, the index of each node records the sequence of left-right
+choices along the path to that node from the root.  Going from a node
+to its children is as simple as doing a left bit-shift and optionally
+adding 1; going from a node to its parent is a right bit-shift.  This
+defines a bijection from the positive natural numbers to the nodes of
+an infinite binary tree.  If we label the segment tree array with
 $s_1 \dots s_{2n-1}$, then $s_1$ stores the sum of all the $a_i$,
 $s_2$ stores the sum of the first half of the $a_i$, $s_3$ stores the
 sum of the second half, and so on.  $a_1 \dots a_n$ themselves are
@@ -806,21 +810,12 @@ converting back.  Fusing away the conversions via equational reasoning
 will yield concise implementations of operations directly on Fenwick
 trees.
 
-\section{Indexing binary trees}
+\section{Converting XXX}
 
-\todo{incorporate some of this into previous section where I already
-  wrote about this?}
-Figure \todoi{figure: binary tree with binary labels} shows a
-well-known scheme for indexing the nodes of a binary tree (for
-example, this scheme, or something like it, is commonly used to
-implement binary heaps).  The root has label 1; every time we descend
-one level we append an extra bit: $0$ when we descend to the left
-child and $1$ when we descend to the right.  Thus, the index of each
-node records the sequence of left-right choices along the path to that
-node from the root.  Going from a node to its children is as simple as
-doing a left bit-shift and optionally adding 1; going from a node to
-its parent is a right bit-shift.  This defines a bijection from the
-positive natural numbers to the nodes of an infinite binary tree
+Figure \todoi{figure: binary tree labelled with both binary and
+  thinned in-order labels} shows a binary tree where nodes have been
+numbered in two different ways: all nodes have been labelled with the
+simple binary indexing scheme
 
 % \begin{verbatim}
 % data BT a where
