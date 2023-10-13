@@ -250,7 +250,7 @@ want to be able to perform two operations:
 
 \begin{itemize}
 \item \emph{Update} the value at index $i$ to a new value $v$.
-\item Find the sum of all values in a particular range $[i, j]$, that
+\item Find the sum of all values in any given range $[i, j]$, that
   is, $a_i + a_{i+1} + \dots + a_j$.  We call this operation a
   \emph{range query}.
 \end{itemize}
@@ -292,20 +292,21 @@ of the range, since we must iterate through the entire range $[i, j]$
 to add up the values.
 
 In order to improve the running time of a range query, one obvious
-idea is to somehow cache (at least some of the) range sums.  However,
-this must be done with care, since the cached sums must also be
-updated appropriately when updating.  For example, a straightforward
-approach would be to use an array $P$ where $P_i$ stores the prefix
-sum $a_1 + \dots + a_i$; $P$ can be precomputed in linear time via a
-scan.  Now range queries are fast: we can obtain $a_i + \dots + a_j$
-in constant time by computing $P_j - P_{i-1}$ (for convenience we set
-$P_0 = 0$ so this works even when $i=1$).  Unfortunately, it is update
-that now takes linear time, since changing $a_i$ requires updating
-$P_j$ for every $j \geq i$.
+idea is to somehow cache (at least some of) the range sums.  However,
+this must be done with care, since the cached sums must be kept up to
+date when updating the value at an index.  For example, a
+straightforward approach would be to use an array $P$ where $P_i$
+stores the prefix sum $a_1 + \dots + a_i$; $P$ can be precomputed in
+linear time via a scan.  Now range queries are fast: we can obtain
+$a_i + \dots + a_j$ in constant time by computing $P_j - P_{i-1}$ (for
+convenience we set $P_0 = 0$ so this works even when $i=1$).
+Unfortunately, it is update that now takes linear time, since changing
+$a_i$ requires updating $P_j$ for every $j \geq i$.
 
 Is it possible to get \emph{both} operations to run in sublinear time?
 This is more than just academic: the problem was originally considered
-in the context of \emph{arithmetic coding}, a family of techniques for
+in the context of \emph{arithmetic coding} \todoi{cite original
+  arithmetic coding paper, Jeremy paper}, a family of techniques for
 turning messages into sequences of bits for storage or transmission.
 In order to minimize the bits required, one generally wants to assign
 shorter bit sequences to more frequent characters, and vice versa;
@@ -313,17 +314,34 @@ this leads to the need to maintain a dynamic table of character
 frequencies.  We \emph{update} the table every time a new character is
 processed, and query the table for \emph{cumulative frequencies} in
 order to subdivide a unit interval into consecutive segments
-proportional to the frequency of each character.  \todoi{cite Fenwick,
-original Russian paper.  not a tutorial on arithmetic coding.}
+proportional to the frequency of each character. \todoi{cite Fenwick,
+  original Russian paper.  not a tutorial on arithmetic coding.}
 
-\todo{Mention sqrt decomposition: $O(1)$ update, $O(\sqrt n)$ range queries}
+The answer, of course, is yes.  One simple technique is to divide the
+sequence into $\sqrt n$ buckets, each of size $\sqrt n$, and create an
+additional array of size $\sqrt n$ to cache the sum of each bucket.
+Updates still run in $O(1)$, since we simply have to update the value
+at the given index along with the sum of the corresponding bucket.
+Range queries now run in $O(\sqrt n)$ time: to find the sum
+$a_i + \dots + a_j$, we manually add the values from $a_i$ to the end
+of its bucket, and from $a_j$ to the beginning of its bucket; for all
+the buckets in between we can just look up their sum.
+\todoi{picture?}
 
-The answer, of course, is yes: we can get both operations to run in
-logarithmic time if we use a divide-and-conquer approach to caching
-range sums.  In particular, we can make a balanced binary tree where
-the leaves store the sequence itself, and every internal node stores
-the sum of its children.  (This will be a familiar idea to many
-functional programmers; for example, finger trees
+We can make range queries even faster, at the cost of making updates
+slightly slower, by introducing additional levels of caching.  For
+example, we can divide the sequence into $\sqrt[3] n$ ``big buckets'',
+and then further subdivide each big bucket into $\sqrt[3] n$ ``small
+buckets'', with each small bucket holding $\sqrt[3] n$ values.  The
+sum of each bucket is cached; now each update requires modifying three
+values, and range queries run in $O(\sqrt[3] n)$ time.
+
+In the limit, we end up with a binary divide-and-conquer approach to
+caching range sums, with both update and range query taking $O(\lg n)$
+time.  In particular, we can make a balanced binary tree where the
+leaves store the sequence itself, and every internal node stores the
+sum of its children.  (This will be a familiar idea to many functional
+programmers; for example, finger trees
 \citep{Hinze-Paterson:FingerTree} use a similar sort of scheme.)  The
 resulting data structure is popularly known as a \emph{segment
   tree}\footnote{There is some confusion of terminology here.  As of
@@ -497,6 +515,9 @@ are called \emph{groups}.  For convenience, in any group we can also
 define a ``subtraction'' operation $a \ominus b = a \oplus (-b)$.
 Although basic segment trees work with any monoid, the constructions
 we consider in the rest of the paper will generally require a group.
+\todoi{actually, depends on whether your update operation lets you set
+  value arbitrarily (requires group to update cached sums!), or allows
+  you to combine with a given value.}
 
 \section{Implementing Segment Trees}
 \label{sec:impl-seg-trees}
