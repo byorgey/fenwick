@@ -69,6 +69,13 @@
 %format hi1
 %format hi2
 
+%format `interleave` = "\interleaveop"
+%format interleave = "(" `interleave` ")"
+
+%format pow (a) (b) = a "^ {" b "}"
+
+%format * = "\cdot"
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Packages
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -113,6 +120,21 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+%%% structured proofs
+\newenvironment{sproof}{%
+    \begin{tabbing}
+    \phantom{$\equiv$} \= \qquad\qquad\qquad\qquad\qquad \= \kill
+}{
+    \end{tabbing}
+}
+\newcommand{\stmt}[1]{\> \ensuremath{#1} \\}
+\newcommand{\lstmt}[1]{\> \ensuremath{#1} }
+\newcommand{\reason}[2]{\ensuremath{#1} \>\> \{ \quad #2 \quad \} \\}
+
+\newcommand{\subpart}[1]{\llcorner #1 \lrcorner}
+\newcommand{\suppart}[1]{\ulcorner #1 \urcorner}
+
+%%% Other math stuff
 \newcommand{\mempty}{0}
 
 \newcommand{\Up}{\textbf{U}\xspace}
@@ -121,6 +143,8 @@
 \newcommand{\ie}{\emph{i.e.}\xspace}
 
 \newcommand{\term}[1]{\emph{#1}}
+
+\newcommand{\interleaveop}{\curlyvee}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -485,7 +509,8 @@ code that directly corresponds to the recursive descriptions given in
 the previous section.
 
 \begin{figure}
-  \begin{code}
+\begin{code}
+
 -- ($a$ :--: $b$) represents the closed interval $[a,b]$
 data Range = Int :--: Int
   deriving (Eq, Show)
@@ -498,13 +523,15 @@ k `inR` i = (k :--: k) `subR` i
 
 disjoint :: Range -> Range -> Bool
 disjoint (lo1 :--: hi1) (lo2 :--: hi2) = hi1 < lo2 || hi2 < lo1
-  \end{code}
+
+\end{code}
   \caption{Range utilities}
   \label{fig:ranges}
 \end{figure}
 
 \begin{figure}
 \begin{code}
+
 data SegTree a where
   Empty   :: SegTree a
   Branch  :: a -> Range -> SegTree a -> SegTree a -> SegTree a
@@ -521,6 +548,7 @@ rq q (Branch a rng l r)
   | disjoint rng q  = mempty
   | rng `subR` q    = a
   | otherwise       = rq q l <> rq q r
+
 \end{code}
 \caption{Simple segment tree implementation in Haskell} \label{fig:haskell-segtree}
 \end{figure}
@@ -835,6 +863,142 @@ simple binary indexing scheme
 % bt Z     i = Leaf i
 % bt (S n) i = Branch i (bt n (O i)) (bt n (I i))
 % \end{verbatim}
+
+Our goal is to come up with a way to calculate the binary index for a
+given Fenwick index or vice versa.  To this end, consider the sequence
+of binary indices corresponding to the Fenwick indices $1 \dots 2^n$.
+For example, when $n = 4$ (as in XXX fig. whatever), we have the
+sequence shown in \pref{tab:indexing}.
+
+\begin{table}[htp]
+  \centering
+  \begin{tabular}{cccccccccccccccc}
+  1 & 2 & 3 & 4 & 5 & 6 & 7 & 8 & 9 & 10 & 11 & 12 & 13 & 14 & 15 & 16
+  \\
+  16 & 8 & 18 & 4 & 20 & 10 & 22 & 2 & 24 & 12 & 26 & 6 & 28 & 14 & 30 & 1
+  \end{tabular}
+  \caption{Fenwick $\leftrightarrow$ binary indexing for $n = 4$}
+  \label{tab:indexing}
+\end{table}
+
+Staring at this table, a few patterns stand out.  First, all the
+numbers on the bottom row are even except for the final $1$---which
+makes sense, since other than the root only left children are
+included, which have a binary index twice that of their parent.
+Second, we can see the even numbers $16 \dots 30$, in order, in all
+the odd positions.  These are exactly the leaves of the tree, and
+indeed, we can see that every other node in the Fenwick array will be
+a leaf from the original tree.  Alternating with these, in the even
+positions, are the numbers $8\; 4\; 10\; 2 \dots$, which correspond to
+all the non-leaf nodes; but these would be exactly the sequence of
+binary indices in a tree with $n = 3$.
+
+These observations lead to the recurrence shown in \pref{fig:seqrec}
+for the sequence $b_n$ of binary indices stored in the Fenwick array
+for trees of size $2^n$.
+
+\begin{figure}
+
+%if false
+\begin{code}
+
+pow :: Int -> Int -> Int
+pow = (^)
+
+\end{code}
+%endif
+
+\begin{code}
+
+interleave :: [a] -> [a] -> [a]
+[] `interleave` _ = []
+(x : xs) `interleave` ys = x : (ys `interleave` xs)
+
+b :: Int -> [Int]
+b 0 = [1]
+b n = [pow 2 n, pow 2 n + 2 .. pow 2 (n+1) - 2] `interleave` b (n-1)
+
+\end{code}
+
+\caption{Recurrence for sequence of binary indices in a Fenwick
+    array}
+  \label{fig:seqrec}
+\end{figure}
+
+We can check that this does in fact reproduce the observed sequence
+for $n = 4$:
+
+\begin{verbatim}
+ghci> b 4
+[16,8,18,4,20,10,22,2,24,12,26,6,28,14,30,1]
+\end{verbatim}
+
+Let |s ! k| denote the $k$th item in the list $s$ (counting from 1),
+as defined in \pref{fig:index-interleave}.  The same figure also lists
+two easy lemmas about the interaction between indexing and
+interleaving, namely, |(xs `interleave` ys) ! (2*k) = ys ! k|, and
+|(xs `interleave` ys) ! (2*k - 1) = xs!k|.  With these in hand, we can
+define the Fenwick $\to$ binary index conversion function |f2b n k = b
+n ! k|, and then simplify it as follows.
+
+\begin{figure}
+  \centering
+\begin{code}
+
+(a : _) ! 1 = a
+(_ : as) ! k = as ! (k-1)
+
+\end{code}
+
+\begin{spec}
+(xs `interleave` ys) ! (2*k)      = ys ! k
+(xs `interleave` ys) ! (2*k - 1)  = xs ! k
+\end{spec}
+
+\begin{code}
+
+f2b n k = b n ! k        -- $1 \leq k \leq 2^n$
+
+\end{code}
+
+  \caption{Indexing and interleaving}
+  \label{fig:index-interleave}
+\end{figure}
+
+\begin{sproof}
+  \stmt{|f2b n (2*k)|}
+  \reason{=}{Definition of |f2b|}
+  \stmt{|b n ! (2 * k)|}
+  \reason{=}{Definition of |b|}
+  \stmt{|([pow 2 n, pow 2 n + 2 .. pow 2 (n+1) - 2] `interleave` b (n-1)) ! (2 * k)|}
+  \reason{=}{|`interleave`-!| lemma}
+  \stmt{b (n-1) ! k}
+  \reason{=}{Definition of |f2b|}
+  \stmt{|f2b (n-1) k|}
+\end{sproof}
+
+OTOH
+
+\begin{sproof}
+  \stmt{|f2b n (2*k-1)|}
+  \reason{=}{Definition of |f2b|}
+  \stmt{|b n ! (2 * k-1)|}
+  \reason{=}{Definition of |b|}
+  \stmt{|([pow 2 n, pow 2 n + 2 .. pow 2 (n+1) - 2] `interleave` b (n-1)) ! (2 * k-1)|}
+  \reason{=}{|`interleave`-!| lemma}
+  \stmt{|([pow 2 n, pow 2 n + 2 .. pow 2 (n+1) - 2] ! k|}
+  \reason{=}{XXX}
+  \stmt{|pow 2 n + 2*(k-1)|}
+\end{sproof}
+
+Thus we have
+\[ |f2b n j| = \begin{cases} |f2b (n-1) (j/2)| & j \text{ even} \\ 2^n
+    + j - 1 & j \text{ odd} \end{cases} \] Note that when $n = 0$ we
+must have $j = 1$, and hence $|f2b 0 1| = 2^0 + 1 - 1 = 1$, as
+required, so this definition is valid for all $n \geq 0$.  Now factor
+$j$ uniquely as $2^a \cdot b$ where $b$ is odd.  Then by induction it
+is easy to see that
+\[ |f2b n (pow 2 a * b) = f2b (n - a) b| = 2^{n-a} + b - 1. \]
 
 %% Acknowledgments
 \begin{acks}                            %% acks environment is optional
