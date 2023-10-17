@@ -43,6 +43,7 @@
 \usepackage{xspace}
 \usepackage{prettyref}
 \usepackage{amsthm}
+\usepackage{bbm}
 % \usepackage{subdepth}   %% Unify positioning of all subscripts
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -941,6 +942,91 @@ required, so this definition is valid for all $n \geq 0$.  Now factor
 $j$ uniquely as $2^a \cdot b$ where $b$ is odd.  Then by induction it
 is easy to see that
 \[ |f2b n (pow 2 a * b) = f2b (n - a) b| = 2^{n-a} + b - 1. \]
+
+Before we go further, we must take a short detour to discuss
+representing and working with binary numbers.
+
+\section{2's Complement Binary}
+
+The bit tricks usually employed to implement Fenwick trees rely on a 2's
+complement representation of binary numbers, so we will do the same.
+Rather than fix a specific bit width, it will be much more elegant to
+work with \emph{infinite} bit strings.  For example, the infinite
+string of all 1's represents $-1$.
+
+\newcommand{\bits}{\ensuremath{\mathbbm{2}}}
+
+However, defining and working with infinite bit strings would
+typically require \emph{coinduction}.  For example, if we let
+$F(X) = \bits \times X$ be the structure functor representing a ``cons''
+constructor adding a single bit (where $\bits = \{0, 1\}$ denotes the
+type of bits), the least fixed point $\mu F$ is the
+empty set, whereas the greatest fixed point $\nu F$ yields the set of
+all binary sequences $\bits^{\mathbb{N}}$.  But losing the nice tools of
+pattern matching and recursion would be a steep price to pay!
+
+\newcommand{\zeros}{\ensuremath{\overline{\mathbf{0}}}\xspace}
+\newcommand{\ones}{\ensuremath{\overline{\mathbf{1}}}\xspace}
+
+Instead, let \zeros denote the infinite sequence of all 0's, and \ones
+denote the infinite sequence of all 1's.  Then consider the functor
+functor \[ B(X) = \{\zeros, \ones\} \cup \bits \times X. \]  Now the least
+fixed point $\mu B$ is the set of all \emph{finitely supported}
+infinite bit sequences, \ie infinite bit sequences which start with some
+arbitrary finite sequence of bits but eventually end with all zeros or
+all ones.  This represents exactly the embedding of the integers
+$\mathbb{Z}$ into the 2-adic numbers, which is precisely what we need.
+
+There are two ways we can understand this construction.  If we
+take the set of all infinite binary sequences $\bits^{\mathbb{N}}$ as
+given, we can simply define $\zeros = \lambda x. 0$ and
+$\ones = \lambda x. 1$, and think of $\mu B$ as directly building a
+subset of our semantic domain.  Alternatively, we can think of \ones
+and \zeros as initially uninterpreted ``constructors'', so that
+$\mu B$ is a set of ``abstract syntax trees'' representing chains of
+bits terminating in \zeros or \ones.  In this case we must
+also be careful to quotient by the relations $\zeros = 0 : \zeros$ and
+$\ones = 1 : \ones$, that is, if we cons a zero onto the beginning of
+\zeros we get back \zeros again.  In either case, note that this means
+we are not allowed to ``pattern match'' on \zeros or \ones: when
+processing a bit string there is no way to know when the finite prefix
+has ended and we have reached the infinitely repeating part.
+
+XXX we will just represent by lists in Haskell.
+
+\begin{code}
+
+data Bit = O | I  deriving (Eq, Ord, Show, Enum)
+type Bits = [Bit]
+
+showBits :: Bits -> String
+showBits = ("..."++) . reverse . map (("01"!!) . fromEnum) . take 16
+
+zeros = repeat O
+ones = repeat I
+
+inc :: Bits -> Bits
+inc (O : bs)  =  I : bs
+inc (I : bs)  =  O : inc bs
+
+lsb :: Bits -> Bits
+lsb (O : bs) = O : lsb bs
+lsb (I : _)  = I : zeros
+
+(.+.) :: Bits -> Bits -> Bits
+(O : x)  .+. (O : y)  = O  : (x .+. y)
+(O : x)  .+. (I : y)  = I  : (x .+. y)
+(I : x)  .+. (O : y)  = I  : (x .+. y)
+(I : x)  .+. (I : y)  = O  : inc (x .+. y)
+
+(.&.) :: Bit -> Bit -> Bit
+O .&. _ = O
+I .&. b = b
+
+(.&&.) :: Bits -> Bits -> Bits
+(.&&.) = zipWith (.&.)
+
+\end{code}
 
 \section*{Acknowledgements}
 
