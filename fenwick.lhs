@@ -106,6 +106,11 @@
 
 \newcommand{\interleaveop}{\curlyvee}
 
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\Z}{\mathbb{Z}}
+
+\newcommand{\sem}[1]{\llbracket {#1} \rrbracket}
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \begin{document}
@@ -946,9 +951,9 @@ is easy to see that
 Before we go further, we must take a short detour to discuss
 representing and working with binary numbers.
 
-\section{2's Complement Binary}
+\section{Two's Complement Binary}
 
-The bit tricks usually employed to implement Fenwick trees rely on a 2's
+The bit tricks usually employed to implement Fenwick trees rely on a two's
 complement representation of binary numbers, so we will do the same.
 Rather than fix a specific bit width, it will be much more elegant to
 work with \emph{infinite} bit strings.  For example, the infinite
@@ -970,29 +975,46 @@ pattern matching and recursion would be a steep price to pay!
 
 Instead, let \zeros denote the infinite sequence of all 0's, and \ones
 denote the infinite sequence of all 1's.  Then consider the functor
-functor \[ B(X) = \{\zeros, \ones\} \cup \bits \times X. \]  Now the least
+\[ B(X) = \{\zeros, \ones\} \cup \bits \times X. \] Now the least
 fixed point $\mu B$ is the set of all \emph{finitely supported}
-infinite bit sequences, \ie infinite bit sequences which start with some
-arbitrary finite sequence of bits but eventually end with all zeros or
-all ones.  This represents exactly the embedding of the integers
-$\mathbb{Z}$ into the 2-adic numbers, which is precisely what we need.
+infinite bit sequences, \ie infinite bit sequences which start with
+some arbitrary finite sequence of bits but eventually end with all
+zeros or all ones.  This represents exactly the embedding of the
+integers $\mathbb{Z}$ into the 2-adic numbers, which is precisely what
+we need.
 
-There are two ways we can understand this construction.  If we
-take the set of all infinite binary sequences $\bits^{\mathbb{N}}$ as
+There are two ways we can understand this construction.  If we take
+the set of all infinite binary sequences $\bits^{\mathbb{N}}$ as
 given, we can simply define $\zeros = \lambda x. 0$ and
 $\ones = \lambda x. 1$, and think of $\mu B$ as directly building a
 subset of our semantic domain.  Alternatively, we can think of \ones
 and \zeros as initially uninterpreted ``constructors'', so that
 $\mu B$ is a set of ``abstract syntax trees'' representing chains of
-bits terminating in \zeros or \ones.  In this case we must
-also be careful to quotient by the relations $\zeros = 0 : \zeros$ and
+bits terminating in \zeros or \ones.  In this case we must also be
+careful to quotient by the relations $\zeros = 0 : \zeros$ and
 $\ones = 1 : \ones$, that is, if we cons a zero onto the beginning of
 \zeros we get back \zeros again.  In either case, note that this means
-we are not allowed to ``pattern match'' on \zeros or \ones: when
-processing a bit string there is no way to know when the finite prefix
-has ended and we have reached the infinitely repeating part.
+``pattern matching'' on \zeros or \ones incurs a proof obligation: we
+can only pattern match on \zeros or \ones when we would still get the
+same result if we replaced \zeros or \ones with $0 : \zeros$ or $1 :
+\ones$, respectively.  For example, we can define a valuation
+$\sem - : \mu B \to \Z$ as follows:
+\begin{align*}
+  \sem \zeros &= 0 \\
+  \sem \ones &= -1 \\
+  \sem {b : x} &= [b] + 2 \sem x
+\end{align*}
+where $[b]$ denotes the \emph{Iverson bracket} turning False into $0$
+and True into $1$.  This is well-defined, since
+\[ \sem{0 : \zeros} = [0] + 2\sem \zeros = 2 \sem \zeros = 0 =
+\sem{\zeros} \] and
+\[ \sem{1 : \ones} = 1 + 2\sem \ones = 1 + 2(-1) = -1 = \sem{\ones}. \]
 
-XXX we will just represent by lists in Haskell.
+This construction justifies our use of recursion and induction when
+working with infinite bit sequences.  Practically speaking, we will
+simply use infinite lists of bits in Haskell, but we will stick to the
+finitely supported fragment (even though Haskell is actually quite
+capable of describing more general infinite lists).
 
 \begin{code}
 
@@ -1002,12 +1024,33 @@ type Bits = [Bit]
 showBits :: Bits -> String
 showBits = ("..."++) . reverse . map (("01"!!) . fromEnum) . take 16
 
+zeros, ones :: Bits
 zeros = repeat O
 ones = repeat I
+
+\end{code}
+
+Our first basic operation is incrementing, which can be implemented as
+recursively as follows:
+
+\begin{code}
 
 inc :: Bits -> Bits
 inc (O : bs)  =  I : bs
 inc (I : bs)  =  O : inc bs
+
+\end{code}
+
+% We can prove by induction that for all |x :: Bits|, $\sem{|inc x|} = 1
+% + \sem x$:
+% \begin{itemize}
+% \item $\sem{|inc zeros|} = \sem{|inc (O : zeros)|} = \sem{|I : zeros|}
+%   = 1 + 2\sem |zeros| = 1$
+% \item $\sem{|inc ones|} = \sem{|inc (I : ones)|} = \sem{|O : inc
+%     ones|} = 
+% \end{itemize}
+
+\begin{code}
 
 lsb :: Bits -> Bits
 lsb (O : bs) = O : lsb bs
