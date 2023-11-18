@@ -30,6 +30,10 @@
 
 %format * = "\cdot"
 
+%format .+. = "+"
+%format .&. = "\land"
+%format .&&. = "\owedge"
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Packages
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -44,6 +48,7 @@
 \usepackage{prettyref}
 \usepackage{amsthm}
 \usepackage{bbm}
+\usepackage{stmaryrd}
 % \usepackage{subdepth}   %% Unify positioning of all subscripts
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -176,7 +181,7 @@ Suppose we have a sequence of $n$ integers $a_1, a_2, \dots, a_n$, and
 want to be able to perform two operations, illustrated in \pref{fig:update-rq}:
 
 \begin{itemize}
-\item \emph{Update} the value at index $i$ to a new value $v$.
+\item \emph{Update} the value at any given index $i$ to a new value $v$.
 \item Find the sum of all values in any given range $[i, j]$, that
   is, $a_i + a_{i+1} + \dots + a_j$.  We call this operation a
   \emph{range query}.
@@ -815,7 +820,7 @@ simple binary indexing scheme
 Our goal is to come up with a way to calculate the binary index for a
 given Fenwick index or vice versa.  To this end, consider the sequence
 of binary indices corresponding to the Fenwick indices $1 \dots 2^n$.
-For example, when $n = 4$ (as in XXX fig. whatever), we have the
+For example, when $n = 4$ (as in \todoi{fig. whatever}), we have the
 sequence shown in \pref{tab:indexing}.
 
 \begin{table}[htp]
@@ -843,7 +848,9 @@ binary indices in a tree with $n = 3$.
 
 These observations lead to the recurrence shown in \pref{fig:seqrec}
 for the sequence $b_n$ of binary indices stored in the Fenwick array
-for trees of size $2^n$.
+for trees of size $2^n$: $b_0$ is just the singleton sequence $[1]$,
+and otherwise $b_n$ is the even numbers $2^n, 2^n + 2 \dots 2^{n+1} - 2$
+interleaved with $b_{n-1}$.
 
 \begin{figure}
 
@@ -887,7 +894,8 @@ two easy lemmas about the interaction between indexing and
 interleaving, namely, |(xs `interleave` ys) ! (2*k) = ys ! k|, and
 |(xs `interleave` ys) ! (2*k - 1) = xs!k|.  With these in hand, we can
 define the Fenwick $\to$ binary index conversion function |f2b n k = b
-n ! k|, and then simplify it as follows.
+n ! k|, and then simplify it as follows.  First of all, for even
+indices, we have
 
 \begin{figure}
   \centering
@@ -922,11 +930,9 @@ f2b n k = b n ! k        -- $1 \leq k \leq 2^n$
   \reason{=}{|`interleave`-!| lemma}
   \stmt{b (n-1) ! k}
   \reason{=}{Definition of |f2b|}
-  \stmt{|f2b (n-1) k|}
+  \stmt{|f2b (n-1) k|.}
 \end{sproof}
-
-OTOH
-
+Whereas for odd indices,
 \begin{sproof}
   \stmt{|f2b n (2*k-1)|}
   \reason{=}{Definition of |f2b|}
@@ -934,11 +940,10 @@ OTOH
   \reason{=}{Definition of |b|}
   \stmt{|([pow 2 n, pow 2 n + 2 .. pow 2 (n+1) - 2] `interleave` b (n-1)) ! (2 * k-1)|}
   \reason{=}{|`interleave`-!| lemma}
-  \stmt{|([pow 2 n, pow 2 n + 2 .. pow 2 (n+1) - 2] ! k|}
-  \reason{=}{XXX}
-  \stmt{|pow 2 n + 2*(k-1)|}
+  \stmt{|[pow 2 n, pow 2 n + 2 .. pow 2 (n+1) - 2] ! k|}
+  \reason{=}{algebra}
+  \stmt{|pow 2 n + 2*(k-1)|.}
 \end{sproof}
-
 Thus we have
 \[ |f2b n j| = \begin{cases} |f2b (n-1) (j/2)| & j \text{ even} \\ 2^n
     + j - 1 & j \text{ odd} \end{cases} \] Note that when $n = 0$ we
@@ -953,35 +958,40 @@ representing and working with binary numbers.
 
 \section{Two's Complement Binary}
 
-The bit tricks usually employed to implement Fenwick trees rely on a two's
-complement representation of binary numbers, so we will do the same.
-Rather than fix a specific bit width, it will be much more elegant to
-work with \emph{infinite} bit strings.  For example, the infinite
-string of all 1's represents $-1$.
+The bit tricks usually employed to implement Fenwick trees rely on a
+two's complement representation of binary numbers, so we will do the
+same.  Rather than fix a specific bit width, it will be much more
+elegant to work with \emph{infinite} bit strings, \ie \emph{$2$-adic
+  numbers}. \todoi{citation for 2-adic numbers?}  For example, the infinite string of all 1's
+represents $-1$.
 
 \newcommand{\bits}{\ensuremath{\mathbbm{2}}}
 
 However, defining and working with infinite bit strings would
 typically require \emph{coinduction}.  For example, if we let
-$F(X) = \bits \times X$ be the structure functor representing a ``cons''
-constructor adding a single bit (where $\bits = \{0, 1\}$ denotes the
-type of bits), the least fixed point $\mu F$ is the
-empty set, whereas the greatest fixed point $\nu F$ yields the set of
-all binary sequences $\bits^{\mathbb{N}}$.  But losing the nice tools of
-pattern matching and recursion would be a steep price to pay!
+$F(X) = \bits \times X$ be the structure functor representing a
+``cons'' constructor pairing an existing value of type $X$ with a
+single bit (where $\bits = \{0, 1\}$ denotes the type of bits),
+induction cannot even get off the ground: the least fixed point
+$\mu F$ is the empty set. It is the greatest fixed point $\nu F$, with
+its accompanying notion of coinduction, which actually yields the set
+of all binary sequences $\bits^{\mathbb{N}}$.  But losing the nice
+tools of pattern matching and recursion is a steep price to pay.
 
 \newcommand{\zeros}{\ensuremath{\overline{\mathbf{0}}}\xspace}
 \newcommand{\ones}{\ensuremath{\overline{\mathbf{1}}}\xspace}
 
 Instead, let \zeros denote the infinite sequence of all 0's, and \ones
-denote the infinite sequence of all 1's.  Then consider the functor
-\[ B(X) = \{\zeros, \ones\} \cup \bits \times X. \] Now the least
-fixed point $\mu B$ is the set of all \emph{finitely supported}
-infinite bit sequences, \ie infinite bit sequences which start with
-some arbitrary finite sequence of bits but eventually end with all
-zeros or all ones.  This represents exactly the embedding of the
-integers $\mathbb{Z}$ into the 2-adic numbers, which is precisely what
-we need.
+denote the infinite sequence of all 1's, and consider the functor
+\[ B(X) = \{\zeros, \ones\} + \bits \times X. \] That is, a value of
+type $B(X)$ is either the element \zeros, or the element \ones, or a
+pair consisting of a bit and a value of type $X$.  Now the least fixed
+point $\mu B$ is the type of all \emph{finitely supported} infinite
+bit sequences, \ie infinite bit sequences which start with some
+arbitrary finite sequence of bits but eventually end with all zeros or
+all ones.  This represents exactly the embedding of the integers
+$\mathbb{Z}$ into the 2-adic numbers, which is precisely what we need;
+we have no need for ``exotic'' 2-adics such as $\dots01010101 = -1/3$.
 
 There are two ways we can understand this construction.  If we take
 the set of all infinite binary sequences $\bits^{\mathbb{N}}$ as
@@ -1005,7 +1015,8 @@ $\sem - : \mu B \to \Z$ as follows:
   \sem {b : x} &= [b] + 2 \sem x
 \end{align*}
 where $[b]$ denotes the \emph{Iverson bracket} turning False into $0$
-and True into $1$.  This is well-defined, since
+and True into $1$.  This is well-defined, since \todoi{note we are
+  punning on False/0 and True/1 here}
 \[ \sem{0 : \zeros} = [0] + 2\sem \zeros = 2 \sem \zeros = 0 =
 \sem{\zeros} \] and
 \[ \sem{1 : \ones} = 1 + 2\sem \ones = 1 + 2(-1) = -1 = \sem{\ones}. \]
@@ -1014,12 +1025,17 @@ This construction justifies our use of recursion and induction when
 working with infinite bit sequences.  Practically speaking, we will
 simply use infinite lists of bits in Haskell, but we will stick to the
 finitely supported fragment (even though Haskell is actually quite
-capable of describing more general infinite lists).
+capable of describing more general infinite lists).  First, we define
+a type of bits and some convenience functions.
 
 \begin{code}
 
 data Bit = O | I  deriving (Eq, Ord, Show, Enum)
 type Bits = [Bit]
+
+inv :: Bit -> Bit
+inv O = I
+inv I = O
 
 showBits :: Bits -> String
 showBits = ("..."++) . reverse . map (("01"!!) . fromEnum) . take 16
@@ -1041,6 +1057,8 @@ inc (I : bs)  =  O : inc bs
 
 \end{code}
 
+\todo{show some examples in ghci?}
+
 % We can prove by induction that for all |x :: Bits|, $\sem{|inc x|} = 1
 % + \sem x$:
 % \begin{itemize}
@@ -1050,11 +1068,20 @@ inc (I : bs)  =  O : inc bs
 %     ones|} = 
 % \end{itemize}
 
+The \emph{least significant bit}, or LSB, of a sequence of bits can be
+defined as follows:
+
 \begin{code}
 
 lsb :: Bits -> Bits
 lsb (O : bs) = O : lsb bs
 lsb (I : _)  = I : zeros
+
+\end{code}
+
+We can also define addition, bitwise logical AND, and negation:
+
+\begin{code}
 
 (.+.) :: Bits -> Bits -> Bits
 (O : x)  .+. (O : y)  = O  : (x .+. y)
@@ -1069,7 +1096,56 @@ I .&. b = b
 (.&&.) :: Bits -> Bits -> Bits
 (.&&.) = zipWith (.&.)
 
+neg :: Bits -> Bits
+neg = inc . map inv
+
 \end{code}
+
+This definition of negation is probably familiar to anyone who has
+studied two's complement arithmetic; we leave it as an exercise for
+the interested reader to prove that |x .+. neg x == zeros|.
+
+We can now prove by induction that |lsb x = x .&&. neg x|.
+\begin{itemize}
+\item First, if |x = 0 : xs|, then |lsb x = lsb (0:xs) = 0 : lsb xs|
+  by definition, whereas
+  \begin{sproof}
+    \stmt{|(0:xs) .&&. neg (0:xs)|}
+    \reason{=}{Definition of |neg|}
+    \stmt{|(0:xs) .&&. inc (map inv (0:xs))|}
+    \reason{=}{Definition of |map| and |inv|}
+    \stmt{|(0:xs) .&&. inc (1 : map inv xs)|}
+    \reason{=}{Definition of |inc|}
+    \stmt{|(0:xs) .&&. (0 : inc (map inv xs))|}
+    \reason{=}{Definition of |.&&.| and |neg|}
+    \stmt{|0 : (xs .&&. neg xs)|}
+    \reason{=}{Induction hypothesis}
+    \stmt{|0 : lsb xs|}
+  \end{sproof}
+\item Next, if |x = 1 : xs|, then |lsb (1:xs) = 1 : zeros| by
+  definition, whereas
+  \begin{sproof}
+    \stmt{|(1:xs) .&&. neg (1:xs)|}
+    \reason{=}{Definition of |neg|}
+    \stmt{|(1:xs) .&&. inc (map inv (1:xs))|}
+    \reason{=}{Definition of |map| and |inv|}
+    \stmt{|(1:xs) .&&. inc (0:map inv xs))|}
+    \reason{=}{Definition of |inc|}
+    \stmt{|(1:xs) .&&. (1 : map inv xs)|}
+    \reason{=}{Definition of |.&&.|}
+    \stmt{|1 : (xs .&&. map inv xs)|}
+    \reason{=}{Lemma}
+    \stmt{|1 : zeros|}
+  \end{sproof}
+\end{itemize}
+
+For the last equality we need a lemma that |xs .&&. map inv xs =
+zeros|, which should be intuitively clear and can be easily proved by
+induction as well.
+
+\section{Deriving Fenwick Operations}
+
+We can now \todoi{continue}
 
 \section*{Acknowledgements}
 
