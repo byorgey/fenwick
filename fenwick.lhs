@@ -25,6 +25,8 @@
 
 %format `interleave` = "\interleaveop"
 %format interleave = "(" `interleave` ")"
+%format `find` = "\gnab"
+%format find = "(" `find` ")"
 
 %format pow (a) (b) = a "^ {" b "}"
 
@@ -115,6 +117,18 @@
 \newcommand{\Z}{\mathbb{Z}}
 
 \newcommand{\sem}[1]{\llbracket {#1} \rrbracket}
+
+\DeclareMathSymbol{\mathinvertedexclamationmark}{\mathbin}{operators}{'074}
+\makeatletter
+\newcommand{\raisedmathinvertedexclamationmark}{%
+  \mathord{\mathpalette\raised@@mathinvertedexclamationmark\relax}%
+}
+\newcommand{\raised@@mathinvertedexclamationmark}[2]{%
+  \raisebox{\depth}{$\m@@th#1\mathinvertedexclamationmark$}%
+}
+\makeatother
+
+\newcommand{\gnab}{\mathbin{\raisedmathinvertedexclamationmark}}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -1146,6 +1160,32 @@ induction as well.
 \section{Deriving Fenwick Operations}
 
 We can now \todoi{continue}
+
+Derive |b2f n|, inverse of |f2b n|?  Mention OEIS sequence.  Note that
+since $2^a \cdot b \leq 2^n$, we have $b \leq 2^{n-a}$, so $b-1 <
+2^{n-a}$.  Hence, given $2^{n-a} + b - 1$ the highest bit represents
+$2^{n-a}$ and the rest of the bits represent $b-1$.
+
+Hmm\dots is it easier to invert the original definition of |f2b|?
+
+Let |find :: [a] -> a -> Maybe Int| be the partial left inverse of |!|, that is, |xs `find`
+(xs ! k) == Just k| (XXX as long as list |xs| has no duplicates, which is
+the case here); and |xs `find` j == Nothing| if |j| is not an element
+of |xs|. Then since |f2b n k = b n ! k|, we define |b2f n k = b
+n `find` k|.
+
+Lemma: |(xs `interleave` ys) `find` k = (2*(xs `find` k)-1) <||> 2*(ys `find` k)|
+etc.
+
+|b 0 `find` 1 = 1|
+
+If $j = 2^a \cdot b$ where $b$ is odd, then $2^a = |lsb(b)|$
+
+$b - 1 = -(-b + 1) = |neg (inc (neg b)) = inc (map inv (inc (inc (map
+inv b))))|$
+
+To move up to our parent: |b2f n . rsh . f2b n|
+
 
 \section*{Acknowledgements}
 
