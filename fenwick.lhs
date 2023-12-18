@@ -38,6 +38,14 @@
 %format .&. = "\land"
 %format .&&. = "\owedge"
 
+%if false
+\begin{code}
+
+import Prelude hiding (even, odd)
+
+\end{code}
+%endif
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Packages
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -1159,7 +1167,10 @@ This construction justifies our use of recursion and induction when
 working with infinite bit sequences.  Practically speaking, we will
 simply use infinite lists of bits in Haskell, but we will stick to the
 finitely supported fragment (even though Haskell is actually quite
-capable of describing more general infinite lists).  First, we define
+capable of describing more general infinite lists).  \todoi{But what
+  about decidability?  Computable functions are only those which examine only a
+finite prefix.  That means the valuation is not computable, but we can
+implement it if we assume that e.g. all values are 32 bits.} First, we define
 a type of bits and some convenience functions.
 
 \begin{code}
@@ -1171,23 +1182,44 @@ inv :: Bit -> Bit
 inv O = I
 inv I = O
 
-showBits :: Bits -> String
-showBits = ("..."++) . reverse . map (("01"!!) . fromEnum) . take 16
-
 zeros, ones :: Bits
 zeros = repeat O
 ones = repeat I
 
 \end{code}
 
-Our first basic operation is incrementing, which can be implemented as
-recursively as follows:
+XXX Some utility code for testing: showing finite prefix of bits
+values + converting between integers.
+
+\begin{code}
+
+showBits :: Bits -> String
+showBits = ("..."++) . reverse . map (("01"!!) . fromEnum) . take 16
+
+toBits :: Int -> Bits
+toBits n
+  | n == 0 = zeros
+  | n < 0 = neg (toBits (-n))
+  | otherwise  = toEnum (n `mod` 2) : toBits (n `div` 2)
+
+fromBits :: Int -> Bits -> Int
+fromBits 1 (b : bs) = -fromEnum b
+fromBits n (b : bs) = fromEnum b + 2 * fromBits (n-1) bs
+
+\end{code}
+
+Our first basic operations are incrementing and decrementing, which
+can be implemented recursively as follows:
 
 \begin{code}
 
 inc :: Bits -> Bits
 inc (O : bs)  =  I : bs
 inc (I : bs)  =  O : inc bs
+
+dec :: Bits -> Bits
+dec (I : bs) = O : bs
+dec (O : bs) = I : dec bs
 
 \end{code}
 
@@ -1283,8 +1315,48 @@ induction as well.
 We can now \todoi{continue}
 
 
-To move up to our parent: |b2f n . rsh . f2b n|
+\begin{code}
 
+setTo :: Bit -> Int -> Bits -> Bits
+setTo b' 0 (_ : bs) = b' : bs
+setTo b' k (b : bs) = b : setTo b' (k-1) bs
+
+set, unset :: Int -> Bits -> Bits
+set = setTo I
+unset = setTo O
+
+test :: Int -> Bits -> Bool
+test 0 (b : bs) = b == I
+test n (_ : bs) = test (n-1) bs
+
+shr :: Bits -> Bits
+shr (_ : bs) = bs
+
+shl :: Bits -> Bits
+shl bs = O : bs
+
+even :: Bits -> Bool
+even (b : _) = b == O
+
+odd :: Bits -> Bool
+odd = not . even
+
+while :: (a -> Bool) -> (a -> a) -> a -> a
+while p f = head . dropWhile p . iterate f
+
+f2b' :: Int -> Bits -> Bits
+f2b' n = dec . while even shr . set n
+
+b2f' :: Int -> Bits -> Bits
+b2f' n = unset n . while (not . test n) shl . inc
+
+activeParentBinary :: Bits -> Bits
+activeParentBinary = while odd shr . shr
+
+prevSegmentBinary :: Bits -> Bits
+prevSegmentBinary = dec . while even shr
+
+\end{code}
 
 \section*{Acknowledgements}
 
