@@ -10,12 +10,12 @@
 
 module FenwickDiagrams where
 
-import           Data.Typeable
-
-import           Diagrams.Prelude
-import           Diagrams.TwoD.Text
-
-import           SegTree
+import Control.Monad.State
+import Data.Typeable
+import Diagrams.Prelude hiding (Empty)
+import Diagrams.TwoD.Text
+import Diagrams.TwoD.Layout.Tree
+import SegTree
 
 sampleArray :: [Sum Int]
 sampleArray = map (Sum . negate) [0, -4, -1, -1, -1, 2, -6, 4, 1, -6, 2, -5, 6, -2, -8, -3]
@@ -283,3 +283,30 @@ drawSlidingEdges _ s1 (_, (_, Inactive)) s2 = beneath $ mconcat
     arrowOpts = with & headLength .~ local 0.3
 
 drawSlidingEdges _ s1 _ s2 = beneath (location s1 ~~ location s2)
+
+------------------------------------------------------------
+
+-- bt depth root left?
+bt :: Int -> Int -> Bool -> State Int (BTree (Int, Maybe Int))
+bt 0 _ _ = return Empty
+bt d r left = do
+  lt <- bt (d-1) (2*r) True
+  rt <- bt (d-1) (2*r+1) False
+  l <- get
+  when left (modify (+1))
+  return (BNode (r, if left then Just l else Nothing) lt rt)
+
+dn :: _ => (Int, Maybe Int) -> Diagram b
+dn (i,ml) = mconcat
+  [ text ("$" ++ show i ++ "$") # translateX (-0.7)
+  , vrule 3
+  , circle 1.5
+  , case ml of
+      Nothing -> arc' 1.5 (direction unit_Y) ((1/2) @@ turn)
+                 # closeTrail # strokeT # translateY (-1.5)
+                 # fc (blend 0.4 black white) # lw none
+      Just l  -> text ("$" ++ show l ++ "$") # fc blue # translateX 0.7
+                 # fontSizeL 0.9
+  , circle 1.5 # fc white # lw none
+  ]
+  # fontSizeL 0.7

@@ -2,6 +2,8 @@
 
 \documentclass{jfp}
 
+\usepackage{showkeys}
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% lhs2TeX
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -52,6 +54,8 @@
 \usepackage{bbm}
 \usepackage{stmaryrd}
 % \usepackage{subdepth}   %% Unify positioning of all subscripts
+
+\usepackage{minted}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Prettyref
@@ -192,7 +196,8 @@
 \section{Introduction}
 
 Suppose we have a sequence of $n$ integers $a_1, a_2, \dots, a_n$, and
-want to be able to perform two operations, illustrated in \pref{fig:update-rq}:
+want to be able to perform arbitrary interleavings of the following
+two operations, illustrated in \pref{fig:update-rq}:
 
 \begin{itemize}
 \item \emph{Update} the value at any given index $i$ to a new value $v$.
@@ -461,9 +466,19 @@ are called \emph{groups}.  For convenience, in any group we can also
 define a ``subtraction'' operation $a \ominus b = a \oplus (-b)$.
 Although basic segment trees work with any monoid, the constructions
 we consider in the rest of the paper will generally require a group.
-\todoi{actually, depends on whether your update operation lets you set
-  value arbitrarily (requires group to update cached sums!), or allows
-  you to combine with a given value.}
+
+% Used to have a note here that said: "actually, depends on whether
+% your update operation lets you set value arbitrarily (requires group
+% to update cached sums!), or allows you to combine with a given
+% value."  But that's not true.  To update the cached sums when we
+% only have a monoid, think in terms of *rebuilding* the cached sums
+% instead of *updating* them.  Indeed, if we set a leaf value to a new
+% value, we don't know "by how much it changed"; but we can just throw
+% away any cached sums in the path up to the root and rebuild them by
+% combining values from their children.  Of course this works well for
+% binary trees but not so great for schemes with buckets since we
+% don't want to have to rebuild the sum of an entire bucket from
+% scratch.
 
 \section{Implementing Segment Trees}
 \label{sec:impl-seg-trees}
@@ -573,6 +588,7 @@ time we want to descend to the left or right we simply double the
 current index or double and add one; and so on.
 
 \section{Segment Trees are Redundant}
+\label{sec:redundant}
 
 Of course, segment trees are redundant in the sense that they cache
 range sums which could easily be recomputed from the original
@@ -656,8 +672,8 @@ without peeking at any previous figures?
     \caption{An inactive node whose parent is: (L) active (R) inactive} \label{fig:inactive-child}
     \end{figure}
     In this case $p = l \oplus r$ by definition, so $r$ can be
-    computed as $(-l) \oplus p$. (Not $p \ominus l$, since the
-    group may not be commutative!)
+    computed as $(-l) \oplus p$. (It is tempting to say $r = p \ominus
+    l$, but note that is only correct if the group is commutative.)
   \item Otherwise, the situation looks like the right side of
     \pref{fig:inactive-child}.  Again $r = (-l) \oplus p$, but we do
     not know the value of $p$.  However, since $p$ is closer to its
@@ -674,8 +690,8 @@ without peeking at any previous figures?
 
 This proof is, in fact, an algorithm, although this algorithm isn't
 typically used, because it is too specialized. Simply being able to
-\emph{recover} all the discarded information isn't good enough; we
-need to be able to perform range queries and updates.
+\emph{recover} all the discarded information isn't useful; we really
+want to perform range queries and updates.
 
 Updates are easy: as before, we only need to update nodes along the
 path from the modified leaf to the root, simply skipping any inactive
@@ -766,51 +782,99 @@ during the traversal. \todoi{Explain in more detail---this is crucial!}
 \caption{Sliding active values down a thinned segment tree} \label{fig:sliding-right}
 \end{figure}
 
+\todoi{include right-leaning drawing}
+
 This method of storing the active nodes from a thinned segment tree in
 an array is precisely what is commonly known as a \emph{Fenwick tree},
-or \emph{bit-indexed tree}. \todoi{XXX cite} Although this is a clever use of
-space, the big question is how to implement the update and range query
-operations.  Our implementations of these operations for segment trees
-worked by recursively descending through the tree. When storing the
-active nodes of a thinned tree in an array, it is not obvious what
-operations on array indices will correspond to moving around the tree.
+or \emph{bit-indexed tree}. \todoi{XXX cite} Although this is a clever
+use of space, the big question is how to implement the update and
+range query operations.  Our implementations of these operations for
+segment trees worked by recursively descending through the tree,
+either directly if the tree is stored as a recursive data structure,
+or using simple operations on indices if the tree is stored in an
+array. When storing the active nodes of a thinned tree in an array, it
+is not obvious what operations on array indices will correspond to
+moving around the tree.
 
-\begin{diagram}[width=300]
+In fact, moving around a Fenwick tree can indeed be done using simple
+index operations; \pref{fig:fenwick-java} shows a typical
+implementation of (specialized to integer values) in the imperative
+language Java. This implementation is incredibly concise, but not at
+all perspicuous!  We can see that both the \mintinline{java}{prefix}
+and \mintinline{java}{update} functions call another function
+\mintinline{java}{LSB}, which for some reason performs a bitwise
+logical AND of an integer and its negation.  In fact,
+\mintinline{java}{LSB(x)} computes the \emph{least significant bit} of
+$x$, that is, it returns the smallest $2^k$ such that the $2^k$ bit of
+$x$ is a one.  However, it is not obvious how the implementation of
+\mintinline{java}{LSB} works, nor how and why least significant bits
+are being used to compute updates and prefix sums.
+
+\begin{figure}
+  \inputminted[fontsize=\footnotesize]{java}{FenwickTree.java}
+  \caption{Implementing Fenwick trees with bit tricks}
+  \label{fig:fenwick-java}
+\end{figure}
+
+% \begin{diagram}[width=300]
+% import FenwickDiagrams
+% import SegTree
+
+% dia :: Diagram B
+% dia = sampleArray
+%   # mkSegTree
+%   # deactivate
+%   # drawSegTree stOpts
+
+% stOpts = (mkSTOpts nOpts)
+%   { leanRight = True }
+
+% nOpts = (showInactiveOpts False)
+%   { leanRightN = True }
+% \end{diagram}
+
+Our goal is to \emph{derive} this concise, fast, but nonobvious
+implementation from first principles.  We will first derive functions
+for converting back and forth between Fenwick tree numbering and full
+binary tree numbering (section XXX).  Then we can compute motion
+within a Fenwick-indexed tree by converting to binary tree numbering,
+doing the obvious operations to effect the desired motion within the
+tree, and then converting back.  Fusing away the conversions via
+equational reasoning will finally yield concise implementations
+operations directly on Fenwick trees (section XXX).
+
+\section{Index Conversion}
+
+Figure \pref{fig:bt-both} shows a binary tree where nodes have been
+numbered in two different ways: the left side of each node shows the
+node's index in the simple binary indexing scheme explained in
+\pref{sec:impl-seg-trees}.  The right side of each node shows its
+Fenwick index, if it has one (inactive nodes simply have their right
+half greyed out).
+
+\todoi{make this drawing right-leaning}
+\begin{figure}
+  \centering
+  \begin{diagram}[width=300]
 import FenwickDiagrams
-import SegTree
+import Diagrams.TwoD.Layout.Tree
+import Data.Maybe (fromJust)
+import Control.Monad.State (evalState)
 
-dia :: Diagram B
-dia = sampleArray
-  # mkSegTree
-  # deactivate
-  # drawSegTree stOpts
+dia = evalState (bt 4 1 True) 1
+  # symmLayoutBin' (with & slHSep .~ 4 & slVSep .~ 4)
+  # fromJust
+  # renderTree dn (~~)
+  \end{diagram}
 
-stOpts = (mkSTOpts nOpts)
-  { leanRight = True }
+  \vspace{0.25in}
 
-nOpts = (showInactiveOpts False)
-  { leanRightN = True }
-\end{diagram}
-
-\todoi{This is a
-  Fenwick tree, or bit-indexed tree.  Question: how to carry out the
-  operations?  Code is clever, concise, fast in practice, and
-  extremely nonobvious.  Our goal: derive it!}
-
-Our goal will be to first derive functions for converting back and
-forth between Fenwick numbering and full binary tree numbering.  Then
-we can derive operations on Fenwick trees from operations on segment
-trees by converting to binary tree numbering, doing the operation, and
-converting back.  Fusing away the conversions via equational reasoning
-will yield concise implementations of operations directly on Fenwick
-trees.
-
-\section{Converting XXX}
-
-Figure \todoi{figure: binary tree labelled with both binary and
-  thinned in-order labels} shows a binary tree where nodes have been
-numbered in two different ways: all nodes have been labelled with the
-simple binary indexing scheme
+  \begin{tabular}{cccccccc}
+    \textcolor{blue}{1} & \textcolor{blue}{2} & \textcolor{blue}{3}  & \textcolor{blue}{4} & \textcolor{blue}{5} & \textcolor{blue}{6} & \textcolor{blue}{7} & \textcolor{blue}{8} \\
+    8 & 4 & 10 & 2 & 12 & 6 & 14 & 1
+  \end{tabular}
+  \caption{Binary tree labelled with both binary and Fenwick indexing} \label{fig:bt-both}
+\end{figure}
 
 % \begin{verbatim}
 % data BT a where
@@ -834,31 +898,57 @@ simple binary indexing scheme
 Our goal is to come up with a way to calculate the binary index for a
 given Fenwick index or vice versa.  To this end, consider the sequence
 of binary indices corresponding to the Fenwick indices $1 \dots 2^n$.
-For example, when $n = 4$ (as in \todoi{fig. whatever}), we have the
-sequence shown in \pref{tab:indexing}.
+\pref{fig:bt-both} shows one example, when $n = 3$.  As a slightly
+larger example, and to facilitate comparison, \pref{fig:bt-both-big}
+also shows the $n = 4$ case.
 
-\begin{table}[htp]
+\begin{figure}
   \centering
+  \begin{diagram}[width=350]
+import FenwickDiagrams
+import Diagrams.TwoD.Layout.Tree
+import Data.Maybe (fromJust)
+import Control.Monad.State (evalState)
+
+dia = evalState (bt 5 1 True) 1
+  # symmLayoutBin' (with & slHSep .~ 4 & slVSep .~ 4)
+  # fromJust
+  # renderTree dn (~~)
+  \end{diagram}
+
+  \vspace{0.25in}
+
   \begin{tabular}{cccccccccccccccc}
   1 & 2 & 3 & 4 & 5 & 6 & 7 & 8 & 9 & 10 & 11 & 12 & 13 & 14 & 15 & 16
   \\
   16 & 8 & 18 & 4 & 20 & 10 & 22 & 2 & 24 & 12 & 26 & 6 & 28 & 14 & 30 & 1
   \end{tabular}
-  \caption{Fenwick $\leftrightarrow$ binary indexing for $n = 4$}
-  \label{tab:indexing}
-\end{table}
+  \caption{XXX} \label{fig:bt-both-big}
+\end{figure}
 
-Staring at this table, a few patterns stand out.  First, all the
-numbers on the bottom row are even except for the final $1$---which
-makes sense, since other than the root only left children are
-included, which have a binary index twice that of their parent.
-Second, we can see the even numbers $16 \dots 30$, in order, in all
-the odd positions.  These are exactly the leaves of the tree, and
-indeed, we can see that every other node in the Fenwick array will be
-a leaf from the original tree.  Alternating with these, in the even
+% \begin{table}[htp]
+%   \centering
+%   \begin{tabular}{cccccccccccccccc}
+%   1 & 2 & 3 & 4 & 5 & 6 & 7 & 8 & 9 & 10 & 11 & 12 & 13 & 14 & 15 & 16
+%   \\
+%   16 & 8 & 18 & 4 & 20 & 10 & 22 & 2 & 24 & 12 & 26 & 6 & 28 & 14 & 30 & 1
+%   \end{tabular}
+%   \caption{Fenwick $\leftrightarrow$ binary indexing for $n = 4$}
+%   \label{tab:indexing}
+% \end{table}
+
+Staring at the table in \pref{fig:bt-both-big}, a few patterns stand
+out.  First, all the numbers on the bottom row are even except for the
+final $1$---which makes sense, since other than the root only left
+children are included, which have a binary index twice that of their
+parent.  Second, we can see the even numbers $16 \dots 30$, in order,
+in all the odd positions.  These are exactly the leaves of the tree,
+and indeed, we can see that every other node in the Fenwick array will
+be a leaf from the original tree.  Alternating with these, in the even
 positions, are the numbers $8\; 4\; 10\; 2 \dots$, which correspond to
-all the non-leaf nodes; but these would be exactly the sequence of
-binary indices in a tree with $n = 3$.
+all the non-leaf nodes; but these are exactly the sequence of binary
+indices from the bottom row of the table in \pref{fig:bt-both}.
+\todoi{explain this better?}
 
 These observations lead to the recurrence shown in \pref{fig:seqrec}
 for the sequence $b_n$ of binary indices stored in the Fenwick array
@@ -867,6 +957,7 @@ and otherwise $b_n$ is the even numbers $2^n, 2^n + 2 \dots 2^{n+1} - 2$
 interleaved with $b_{n-1}$.
 
 \begin{figure}
+\centering
 
 %if false
 \begin{code}
@@ -908,7 +999,8 @@ two easy lemmas about the interaction between indexing and
 interleaving, namely, |(xs `interleave` ys) ! (2*k) = ys ! k|, and
 |(xs `interleave` ys) ! (2*k - 1) = xs!k|.  With these in hand, we can
 define the Fenwick $\to$ binary index conversion function |f2b n k = b
-n ! k|, and then simplify it as follows.  First of all, for even
+n ! k|, and then simplify it as follows.  \todoi{Mention that it is
+  only defined for $k < 2^n$ or something} First of all, for even
 indices, we have
 
 \begin{figure}
@@ -967,8 +1059,36 @@ $j$ uniquely as $2^a \cdot b$ where $b$ is odd.  Then by induction it
 is easy to see that
 \[ |f2b n (pow 2 a * b) = f2b (n - a) b| = 2^{n-a} + b - 1. \]
 
-Before we go further, we must take a short detour to discuss
-representing and working with binary numbers.
+We can now easily derive an inverse function |b2f n|, which converts
+back from binary to Fenwick indices. Note that since
+$2^a \cdot b \leq 2^n$, we have $b \leq 2^{n-a}$, so $b-1 < 2^{n-a}$.
+Hence, given $2^{n-a} + b - 1$ the highest bit represents $2^{n-a}$
+and the rest of the bits represent $b-1$.  So, given an input $k$, we
+can write $k$ uniquely as $2^c + d$ where $d < 2^c$; then \[ |b2f n (pow
+2 c + d) = pow 2 (n-c) * (d+1)|. \]
+
+% Let |find :: [a] -> a -> Maybe Int| be the partial left inverse of |!|, that is, |xs `find`
+% (xs ! k) == Just k| (XXX as long as list |xs| has no duplicates, which is
+% the case here); and |xs `find` j == Nothing| if |j| is not an element
+% of |xs|. Then since |f2b n k = b n ! k|, we define |b2f n k = b
+% n `find` k|.
+
+% Lemma: |(xs `interleave` ys) `find` k = (2*(xs `find` k)-1) <||> 2*(ys `find` k)|
+% etc.
+
+% |b 0 `find` 1 = 1|
+
+% If $j = 2^a \cdot b$ where $b$ is odd, then $2^a = |lsb(b)|$
+
+% $b - 1 = -(-b + 1) = |neg (inc (neg b)) = inc (map inv (inc (inc (map
+% inv b))))|$
+
+\todo{example}
+
+In order to be able to properly fuse |f2b| and |b2f| with binary tree
+motion functions, we must first take a short detour to re-express them
+out of more fundamental building blocks, using a suitable DSL for
+working with binary numbers.
 
 \section{Two's Complement Binary}
 
@@ -1119,7 +1239,8 @@ This definition of negation is probably familiar to anyone who has
 studied two's complement arithmetic; we leave it as an exercise for
 the interested reader to prove that |x .+. neg x == zeros|.
 
-We can now prove by induction that |lsb x = x .&&. neg x|.
+We can now prove by induction that |lsb x = x .&&. neg x|, thus
+unravelling the first mystery
 \begin{itemize}
 \item First, if |x = 0 : xs|, then |lsb x = lsb (0:xs) = 0 : lsb xs|
   by definition, whereas
@@ -1161,28 +1282,6 @@ induction as well.
 
 We can now \todoi{continue}
 
-Derive |b2f n|, inverse of |f2b n|?  Mention OEIS sequence.  Note that
-since $2^a \cdot b \leq 2^n$, we have $b \leq 2^{n-a}$, so $b-1 <
-2^{n-a}$.  Hence, given $2^{n-a} + b - 1$ the highest bit represents
-$2^{n-a}$ and the rest of the bits represent $b-1$.
-
-Hmm\dots is it easier to invert the original definition of |f2b|?
-
-Let |find :: [a] -> a -> Maybe Int| be the partial left inverse of |!|, that is, |xs `find`
-(xs ! k) == Just k| (XXX as long as list |xs| has no duplicates, which is
-the case here); and |xs `find` j == Nothing| if |j| is not an element
-of |xs|. Then since |f2b n k = b n ! k|, we define |b2f n k = b
-n `find` k|.
-
-Lemma: |(xs `interleave` ys) `find` k = (2*(xs `find` k)-1) <||> 2*(ys `find` k)|
-etc.
-
-|b 0 `find` 1 = 1|
-
-If $j = 2^a \cdot b$ where $b$ is odd, then $2^a = |lsb(b)|$
-
-$b - 1 = -(-b + 1) = |neg (inc (neg b)) = inc (map inv (inc (inc (map
-inv b))))|$
 
 To move up to our parent: |b2f n . rsh . f2b n|
 
