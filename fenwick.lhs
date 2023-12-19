@@ -38,6 +38,8 @@
 %format .&. = "\land"
 %format .&&. = "\owedge"
 
+%format not = "not"
+
 %if false
 \begin{code}
 
@@ -114,6 +116,23 @@ import Prelude hiding (even, odd)
 \newcommand{\suppart}[1]{\ulcorner #1 \urcorner}
 
 %%% Other math stuff
+
+\newtheorem{thm}{Theorem}[section]
+\newtheorem{prop}[thm]{Proposition}
+\newtheorem{lem}[thm]{Lemma}
+\newtheorem{claim}[thm]{Claim}
+
+\theoremstyle{definition}
+\newtheorem{defn}[thm]{Definition}
+\newtheorem{obs}{Observation}
+\newtheorem{prob}{Problem}
+
+\theoremstyle{remark}
+\newtheorem*{rem}{Remark}
+\newtheorem*{ex}{Example}
+\newtheorem*{nota}{Notation}
+
+
 \newcommand{\mempty}{0}
 
 \newcommand{\Up}{\textbf{U}\xspace}
@@ -792,6 +811,7 @@ during the traversal. \todoi{Explain in more detail---this is crucial!}
 
 \todoi{include right-leaning drawing}
 
+\todoi{Carefully define term ``Fenwick array''.}
 This method of storing the active nodes from a thinned segment tree in
 an array is precisely what is commonly known as a \emph{Fenwick tree},
 or \emph{bit-indexed tree}. \todoi{XXX cite} Although this is a clever
@@ -970,8 +990,15 @@ interleaved with $b_{n-1}$.
 %if false
 \begin{code}
 
-pow :: Int -> Int -> Int
-pow = (^)
+class Exponentiable a where
+  pow :: a -> Int -> a
+
+instance Exponentiable Int where
+  pow = (^)
+
+instance Exponentiable (a -> a) where
+  pow _ 0 = id
+  pow f k = pow f (k-1) . f
 
 \end{code}
 %endif
@@ -1312,8 +1339,10 @@ induction as well.
 
 \section{Deriving Fenwick Operations}
 
-We can now \todoi{continue}
-
+In order to reexpress the index conversion functions, |f2b| and |b2f|,
+to operate on the |Bits| type, we need a few more things in our DSL.
+First, some functions to set and clear individual bits, and to test
+whether particular bits are set.
 
 \begin{code}
 
@@ -1321,13 +1350,25 @@ setTo :: Bit -> Int -> Bits -> Bits
 setTo b' 0 (_ : bs) = b' : bs
 setTo b' k (b : bs) = b : setTo b' (k-1) bs
 
-set, unset :: Int -> Bits -> Bits
+set, clear :: Int -> Bits -> Bits
 set = setTo I
-unset = setTo O
+clear = setTo O
 
 test :: Int -> Bits -> Bool
 test 0 (b : bs) = b == I
 test n (_ : bs) = test (n-1) bs
+
+even, odd :: Bits -> Bool
+odd = test 0
+even = not . odd
+
+\end{code}
+
+Next, we need left and right shift, and a generic |while| combinator
+that iterates a given function, returning the first iterate for which
+a predicate is false.
+
+\begin{code}
 
 shr :: Bits -> Bits
 shr (_ : bs) = bs
@@ -1335,23 +1376,193 @@ shr (_ : bs) = bs
 shl :: Bits -> Bits
 shl bs = O : bs
 
-even :: Bits -> Bool
-even (b : _) = b == O
-
-odd :: Bits -> Bool
-odd = not . even
-
 while :: (a -> Bool) -> (a -> a) -> a -> a
 while p f = head . dropWhile p . iterate f
+
+\end{code}
+
+Now, recall that
+\[ |f2b n j| = \begin{cases} |f2b (n-1) (j/2)| & j \text{ even} \\ 2^n
+    + j - 1 & j \text{ odd} \end{cases} \] which consists of
+repeatedly dividing by 2 (\ie shifting right) as long as the input is
+even, and then finally decrementing and adding a power of $2$.
+However, knowing what power of $2$ to add at the end depends on
+knowing how many times we shifted.  A better way to think of it is to
+add $2^n$ at the \emph{beginning} and then let it be shifted along
+with everything else (this will not work in the special case $j =
+2^n$, but we don't really care about that case XXX).  Thus, we have
+the following definition of |f2b'|:
+
+\begin{code}
 
 f2b' :: Int -> Bits -> Bits
 f2b' n = dec . while even shr . set n
 
+\end{code}
+
+We can verify that this produces identical results to |f2b| on the
+range $[1, 2^n)$:
+\begin{verbatim}
+ghci> all (\k -> f2b 4 k == (fromBits 8 . f2b' 4 . toBits) k) [1 .. 2^4 - 1]
+True
+\end{verbatim}
+(|fromBits 6| would be sufficient---in this case we just need to
+ensure we use enough bits to represent values up to $2^5$---but it
+doesn't hurt to use extra bits).
+
+As for the inverse |b2f'|,
+\begin{code}
+
 b2f' :: Int -> Bits -> Bits
-b2f' n = unset n . while (not . test n) shl . inc
+b2f' n = clear n . while (not . test n) shl . inc
+
+\end{code}
+
+\todoi{draw picture with example of |f2b| and |b2f| transformations}
+
+We first need a few lemmas.
+
+\begin{lem} \label{lem:incshr}
+  For all |bs :: Bits| such that |odd bs|,
+  \begin{itemize}
+  \item |(shr . dec) bs = shr bs|
+  \item |(inc . shr) bs = inc bs|
+  \end{itemize}
+\end{lem}
+\begin{proof}
+  The first is immediate by definition; the second is an easy
+  induction.
+\end{proof}
+
+\begin{lem} \label{lem:incwhile}
+  The following both hold for all |Bits| values:
+  \begin{itemize}
+  \item |inc . while odd shr = while even shr . inc|
+  \item |dec . while even shr = while odd shr . dec|
+  \end{itemize}
+\end{lem}
+\begin{proof}
+  Easy proof by induction on |Bits|.  For example, for the |inc| case,
+  the functions on both sides discard consecutive 1 bits and then flip
+  the first 0 bit to a 1.
+\end{proof}
+
+\begin{lem} \label{lem:shlshr}
+  For all positive |Bits| values less than $2^n$,
+  \[ |while (not . test n) shl . while even shr = while (not . test n)
+    shl|. \]
+\end{lem}
+\begin{proof}
+  The left-hand side shifts out some zeros before shifting them
+  all back in, whereas the right-hand side avoids the redundant
+  shifts; but both stop when the $2^n$ bit becomes $1$.
+\end{proof}
+
+XXX signposting
+
+When implementing the |update| operation, we need to start at a leaf
+and follow the path up to the root, updating all the active nodes
+along the way.  Thus, given an index in the Fenwick array, we would
+like to know how to compute the index of its closest active parent; we
+can iterate this function to move up the tree.
+
+To find the closest active parent of a node under a binary indexing
+scheme, we first move up to the immediate parent (by dividing the
+index by two, \ie performing a right bit shift); then continue moving
+up to the next immediate parent as long as the current node is a right
+child (\ie has an odd index).  This yields the definition:
+
+\begin{code}
 
 activeParentBinary :: Bits -> Bits
 activeParentBinary = while odd shr . shr
+
+\end{code}
+
+Now, to derive the corresponding operation on Fenwick indices, we
+conjugate by conversion to and from Fenwick indices, and compute as
+follows:
+
+\begin{sproof}
+  \stmt{|b2f' n . activeParentBinary . f2b' n|}
+  \reason{=}{expand definitions}
+  \stmt{|clear n . while (not . test n) shl . inc . while odd shr . shr . dec . while even shr . set n|}
+  \reason{=}{\pref{lem:incwhile}}
+  \stmt{|clear n . while (not . test n) shl . while even shr . inc . shr . dec . while even shr . set n|}
+  \reason{=}{\pref{lem:shlshr}}
+  \stmt{|clear n . while (not . test n) shl . inc . shr . dec . while even shr . set n|}
+  \reason{=}{\pref{lem:incshr}; the output of |while even shr|
+    will be odd}
+  \stmt{|clear n . while (not . test n) shl . inc . shr . while even shr . set n|}
+  \reason{=}{\pref{lem:incshr}}
+  \stmt{|clear n . while (not . test n) shl . inc . while even shr . set n|}
+\end{sproof}
+
+We can see that this works as follows: set bit $n$ to 1; shift out all
+the zeros to find the least significant $1$ bit; increment; then shift
+a bunch of zeros back in to bring the 1 bit back to position $n$, and
+clear it again.  Intuitively, this looks a lot like
+adding the LSB, where we set and clear bit $n$ just as a
+``placeholder'' so we can keep track of how much we have shifted and
+then ``unshift'' later.
+
+To formally prove this, we need a lemma about the ``shifting with a
+placeholder'' scheme we see above.
+
+XXX Let $f^k$ denote $k$-fold composition of $f$, that is, $f^0 =
+|id|$ and $f^{k+1} = |pow f k . f|$.
+
+\begin{defn}
+Say a function on |Bits| is \emph{$n$-smooth} if it only examines
+up to the first $n$ bits of its input, and also leaves the input ``the
+same length''.  That is, formally, |g :: Bits -> Bits| is $n$-smooth
+if \[ |g . set m = set m . g| \] for all $m \geq n$.  Note this also
+means that if the input to $g$ is less than $2^n$, then its output
+will be as well.
+\end{defn}
+
+\begin{code}
+
+over :: Int -> (Bits -> Bits) -> Bits -> Bits
+over k f = pow shl k . f . pow shr k
+
+\end{code}
+
+\begin{thm}
+  Let |f :: Bits -> Bits| and $n \in \N$, and suppose there exists
+  some $k < n$ and $(n-k)$-smooth |g :: Bits -> Bits| such that
+  \[ |f = g . pow shr k|. \] Then for all inputs $< 2^n$, \[ |clear n . while (not . test n)
+    shl . f . set n = over k g|. \]
+\end{thm}
+
+\begin{proof}
+  \begin{sproof}
+    \stmt{|clear n . while (not . test n) shl . f . set n|}
+    \reason{=}{assumption}
+    \stmt{|clear n . while (not . test n) shl . g . pow shr k . set n|}
+    \reason{=}{XXX lemma}
+    \stmt{|clear n . while (not . test n) shl . g . set (n-k) . pow shr k|}
+    \reason{=}{$g$ is $(n-k)$-smooth}
+    \stmt{|clear n . while (not . test n) shl . set (n-k) . g . pow shr k|}
+    \reason{=}{Input $< 2^n$; after |shr| it is $< 2^{n-k}$; $g$
+      preserves; hence $2^{n-k}$ is biggest bit set}
+    \stmt{|clear n . pow shl k . set (n-k) . g . pow shr k|}
+    \reason{=}{XXX lemma}
+    \stmt{|clear n . set n . pow shl k . g . pow shr k|}
+    \reason{=}{XXX inverses (assuming that bit was not set in the
+      first place)}
+    \stmt{|pow shl k . g . pow shr k|}
+    \reason{=}{definition}
+    \stmt{|over k g|}
+  \end{sproof}
+\end{proof}
+
+XXX note |inc| is not actually $n$-smooth for any $n$ according to the
+above definition!  This is the wrong definition.  We really just need
+something about bounding the size of the output of $g$ relative to the
+size of the input.
+
+\begin{code}
 
 prevSegmentBinary :: Bits -> Bits
 prevSegmentBinary = dec . while even shr
