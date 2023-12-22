@@ -11,13 +11,13 @@
 \let\Bbbk\undefined  % https://github.com/kosmikus/lhs2tex/issues/82
 %include polycode.fmt
 
-%format :--:   = "\mathrel{:\!\!\text{---}\!\!:}"
+%format :--:   = "\mathrel{:\!\text{---}\!:}"
 %format `inR`  = "\in"
 %format inR    = "(" `inR` ")"
 %format `subR` = "\subseteq"
 %format subR   = "(" `subR` ")"
 
-%format <>     = "+ "
+%format <>     = "\oplus "
 %format mempty = "0 "
 
 %format lo1
@@ -25,6 +25,7 @@
 %format hi1
 %format hi2
 
+%format ++ = "+\!+"
 %format `interleave` = "\interleaveop"
 %format interleave = "(" `interleave` ")"
 %format `find` = "\gnab"
@@ -36,6 +37,7 @@
 
 %format .+. = "+"
 %format .&. = "\land"
+%format .|. = "\lor"
 %format .&&. = "\owedge"
 
 %format not = "not"
@@ -71,7 +73,7 @@ import Prelude hiding (even, odd)
 %% Prettyref
 
 \newrefformat{fig}{Figure~\ref{#1}}
-\newrefformat{sec}{section~\ref{#1}}
+\newrefformat{sec}{Section~\ref{#1}}
 \newrefformat{eq}{equation~\eqref{#1}}
 \newrefformat{prob}{Problem~\ref{#1}}
 \newrefformat{tab}{Table~\ref{#1}}
@@ -132,6 +134,7 @@ import Prelude hiding (even, odd)
 \newtheorem*{ex}{Example}
 \newtheorem*{nota}{Notation}
 
+\newcommand{\bits}{\ensuremath{\mathbbm{2}}}
 
 \newcommand{\mempty}{0}
 
@@ -184,11 +187,10 @@ import Prelude hiding (even, odd)
   while allowing both updates and range queries in sublinear time.
   Their implementation is concise and efficient---but also somewhat
   baffling, consisting largely of nonobvious bitwise operations on
-  indices.  In this functional pearl, we begin with \emph{segment
-    trees}, a much more straightforward, easy-to-verify, purely
-  functional solution to the problem, and use equational reasoning to
-  derive the implementation of Fenwick trees as an optimized variant
-  of segment trees.
+  indices.  We begin with \emph{segment trees}, a much more
+  straightforward, easy-to-verify, purely functional solution to the
+  problem, and use equational reasoning to derive the implementation
+  of Fenwick trees as an optimized variant.
 \end{abstract}
 
 
@@ -221,6 +223,7 @@ import Prelude hiding (even, odd)
 \maketitle[F]
 
 \section{Introduction}
+\label{sec:intro}
 
 Suppose we have a sequence of $n$ integers $a_1, a_2, \dots, a_n$, and
 want to be able to perform arbitrary interleavings of the following
@@ -269,34 +272,41 @@ dia = vsep 0.5
 \caption{Update and range query operations} \label{fig:update-rq}
 \end{figure}
 
-In order to improve the running time of a range query, one obvious
-idea is to somehow cache (at least some of) the range sums.  However,
-this must be done with care, since the cached sums must be kept up to
-date when updating the value at an index.  For example, a
-straightforward approach would be to use an array $P$ where $P_i$
-stores the prefix sum $a_1 + \dots + a_i$; $P$ can be precomputed in
-linear time via a scan.  Now range queries are fast: we can obtain
-$a_i + \dots + a_j$ in constant time by computing $P_j - P_{i-1}$ (for
-convenience we set $P_0 = 0$ so this works even when $i=1$).
-Unfortunately, it is update that now takes linear time, since changing
-$a_i$ requires updating $P_j$ for every $j \geq i$.
+In order to improve the running time of range queries, we could try to
+cache (at least some of) the range sums.  However, this must be done
+with care, since the cached sums must be kept up to date when updating
+the value at an index.  For example, a straightforward approach would
+be to use an array $P$ where $P_i$ stores the prefix sum
+$a_1 + \dots + a_i$; $P$ can be precomputed in linear time via a scan.
+Now range queries are fast: we can obtain $a_i + \dots + a_j$ in
+constant time by computing $P_j - P_{i-1}$ (for convenience we set
+$P_0 = 0$ so this works even when $i=1$).  Unfortunately, it is update
+that now takes linear time, since changing $a_i$ requires updating
+$P_j$ for every $j \geq i$.
 
-Is it possible to get \emph{both} operations to run in sublinear time?
-This is more than just academic: the problem was originally considered
-in the context of \emph{arithmetic coding} \todoi{cite original
-  arithmetic coding paper, Jeremy paper}, a family of techniques for
-turning messages into sequences of bits for storage or transmission.
-In order to minimize the bits required, one generally wants to assign
-shorter bit sequences to more frequent characters, and vice versa;
-this leads to the need to maintain a dynamic table of character
-frequencies.  We \emph{update} the table every time a new character is
-processed, and query the table for \emph{cumulative frequencies} in
-order to subdivide a unit interval into consecutive segments
-proportional to the frequency of each character. \todoi{cite Fenwick,
-  original Russian paper.  not a tutorial on arithmetic coding.}
+Is it possible to design a data structure that allows \emph{both}
+operations to run in sublinear time?  (You may wish to pause and think
+about it before reading the next paragraph!)  This is not just
+academic: the problem was originally considered in the context of
+\emph{arithmetic coding} \citep{rissanen1979arithmetic,
+  bird2002arithmetic}, a family of techniques for turning messages
+into sequences of bits for storage or transmission.  In order to
+minimize the bits required, one generally wants to assign shorter bit
+sequences to more frequent characters, and vice versa; this leads to
+the need to maintain a dynamic table of character frequencies.  We
+\emph{update} the table every time a new character is processed, and
+\emph{query} the table for cumulative frequencies in order to
+subdivide a unit interval into consecutive segments proportional to
+the frequency of each character \citep{fenwick1994new, ryabko1989fast}.
 
-The answer, of course, is yes.  One simple technique is to divide the
-sequence into $\sqrt n$ buckets, each of size $\sqrt n$, and create an
+Incidentally, before revealing the answer, note that this is a
+literate Haskell document, which can be found (along with other
+accompanying source code) at
+\url{https://github.com/byorgey/fenwick/}.
+
+So, can we get both operations to run in sublinear time?  The answer,
+of course, is yes.  One simple technique is to divide the sequence
+into $\sqrt n$ buckets, each of size $\sqrt n$, and create an
 additional array of size $\sqrt n$ to cache the sum of each bucket.
 Updates still run in $O(1)$, since we simply have to update the value
 at the given index along with the sum of the corresponding bucket.
@@ -304,7 +314,6 @@ Range queries now run in $O(\sqrt n)$ time: to find the sum
 $a_i + \dots + a_j$, we manually add the values from $a_i$ to the end
 of its bucket, and from $a_j$ to the beginning of its bucket; for all
 the buckets in between we can just look up their sum.
-\todoi{picture?}
 
 We can make range queries even faster, at the cost of making updates
 slightly slower, by introducing additional levels of caching.  For
@@ -320,7 +329,7 @@ time.  In particular, we can make a balanced binary tree where the
 leaves store the sequence itself, and every internal node stores the
 sum of its children.  (This will be a familiar idea to many functional
 programmers; for example, finger trees
-\citep{Hinze-Paterson:FingerTree} use a similar sort of scheme.)  The
+\citep{Hinze-Paterson:FingerTree} use a similar sort of caching scheme.)  The
 resulting data structure is popularly known as a \emph{segment
   tree}\footnote{There is some confusion of terminology here.  As of
   this writing, the Wikipedia article on \emph{segment trees}
@@ -328,14 +337,14 @@ resulting data structure is popularly known as a \emph{segment
   computational geometry.  However, most of the Google search results
   for ``segment tree'' are from the world of competitive programming,
   where it refers to the data structure considered in this paper (see,
-  for example, \citet[\S 2.4.3] {CP3}). \todoi{update to CP4}  The two are largely
+  for example, \citet[\S 2.8] {CP4}). The two data structures are largely
   unrelated.}, presumably because each internal node ultimately caches
 the sum of a (contiguous) \emph{segment} of the underlying sequence.
 \pref{fig:segment-tree} shows a segment tree built on a sample array
 of length $n=16$ (for simplicity, we will assume that $n$ is a power
 of two, although it is easy to generalize to situations where it is
 not). Each leaf of the tree corresponds to an array entry; each
-internal node is drawn with a grey bar showing the range of the
+internal node is drawn with a grey bar showing the segment of the
 underlying array of which it is the sum.
 
 \begin{figure}
@@ -391,7 +400,7 @@ operations so that they run in logarithmic time.
   keeping track of the range covered by the current node.
   \begin{itemize}
   \item If the range of the current node is wholly contained within
-    the query range $[i, j]$, return the value of the current
+    the query range, return the value of the current
     node.
   \item If the range of the current node is disjoint from the query
     range, return $0$.
@@ -433,7 +442,7 @@ nodes are disjoint from the query range and return zero.
 
 On this small example tree, it may seem that we visit a significant
 fraction of the total nodes, but in general, we visit no more than
-about $4 \lg n$ nodes.  \pref{fig:big-range-query} makes this more
+about $4 \lg n$.  \pref{fig:big-range-query} makes this more
 clear.  Only one blue node in the entire tree can have two blue
 children, and hence each level of the tree can contain at most two
 blue nodes and two non-blue nodes. We essentially perform two binary
@@ -471,7 +480,7 @@ searches, one to find each endpoint of the query range.
 
 Although most reference material on segment trees (or Fenwick trees)
 talks about sums of \emph{integers}, this is needlessly specific.  In
-general, all we need is a sequence of elements $a_1, \dots, a_n$ from
+general, all we need is a sequence of elements from
 some \emph{monoid}.  Recall that a monoid is a set $M$ together with
 an associative binary operation $\oplus : M \times M \to M$ and an
 identity element $\mempty \in M$ such that
@@ -520,8 +529,7 @@ the previous section.
 \begin{figure}
 \begin{code}
 
--- ($a$ :--: $b$) represents the closed interval $[a,b]$
-data Range = Int :--: Int
+data Range = Int :--: Int    -- ($a$ |:--:| $b$) represents the closed interval $[a,b]$
   deriving (Eq, Show)
 
 subR :: Range -> Range -> Bool
@@ -612,17 +620,21 @@ we have discussed can be straightforwardly transformed into imperative
 code that works with a mutable array: for example, instead of storing
 a reference to the current subtree, we store an integer index; every
 time we want to descend to the left or right we simply double the
-current index or double and add one; and so on.
+current index or double and add one; and so on.  Working with tree
+nodes stored in an array presents an additional opportunity: rather
+than being forced to start at the root and recur downwards, we can
+start at a particular index of interest and move \emph{up} the tree
+instead.
 
 \section{Segment Trees are Redundant}
 \label{sec:redundant}
 
-Of course, segment trees are redundant in the sense that they cache
-range sums which could easily be recomputed from the original
-sequence.  That's the whole point: caching these ``redundant'' sums
-trades off space for time, allowing us to perform arbitrary range
-queries more quickly at the cost of doubling the required storage
-space.
+What do I mean by saying ``segment trees are redundant''?  Of course,
+segment trees are redundant in the sense that they cache range sums
+which could easily be recomputed from the original sequence.  That's
+the whole point: caching these ``redundant'' sums trades off space for
+time, allowing us to perform arbitrary updates and range queries
+quickly, at the cost of doubling the required storage space.
 
 However, if the values come from a group, segment trees are redundant
 in a stronger sense: we can throw out almost \emph{half} of the data
@@ -665,8 +677,9 @@ values must go in the greyed-out nodes in \pref{fig:deactivate-right},
 without peeking at any previous figures?
 
 \begin{theorem}
-  The value of any inactive node in a thinned segment tree can be
-  recovered, in $O(\lg n)$ time, using only the values of active nodes.
+  The value of any inactive node in a thinned segment tree over a
+  group can be recovered, in $O(\lg n)$ time, using only the values of
+  active nodes.
 \end{theorem}
 \begin{proof}
   The proof is by induction on the depth of an inactive node from its
@@ -717,16 +730,18 @@ without peeking at any previous figures?
 
 This proof is, in fact, an algorithm, although this algorithm isn't
 typically used, because it is too specialized. Simply being able to
-\emph{recover} all the discarded information isn't useful; we really
-want to perform range queries and updates.
+\emph{recover} all the discarded information isn't particularly
+useful; what we really want is to perform range queries and updates.
 
 Updates are easy: as before, we only need to update nodes along the
 path from the modified leaf to the root, simply skipping any inactive
 nodes along the way.  However, it is less clear that we can still do
 range queries in $O(\lg n)$ time.  Naively, we would need to do
 $O(\lg n)$ work (using the above algorithm) to reconstruct each of the
-$O(\lg n)$ nodes needed to compute a range sum, leading to
-$O((\lg n)^2)$ time.  This isn't bad, but we can do better.
+$O(\lg n)$ nodes needed to compute a range sum, resulting in
+$O((\lg n)^2)$ time.  This isn't bad, but we can do better.  The key
+is to focus on \emph{prefix} sums, that is, range queries of the form
+$[1,j]$.
 
 \begin{theorem}
   Given a thinned segment tree, the sum of \emph{any prefix} of the
@@ -734,27 +749,62 @@ $O((\lg n)^2)$ time.  This isn't bad, but we can do better.
   values of active nodes.
 \end{theorem}
 \begin{proof}
-  By induction on the size $m$ of the required prefix.  In the base
-  case, when $m=0$, the sum of an empty prefix is obviously easy to
-  compute given the existence of an identity value $\mempty$.
-  Otherwise, consider whether $m$ is even or odd.
-  \begin{itemize}
-  \item If $m=2k$ is even, then \todoi{picture!} the prefix sum of the
-    first $2k$ array elements is the same as the prefix sum of the
-    first $k$ elements one level up, which we can find by induction.
-    \todoi{Say something more general, either here or previously,
-      about the fact that removing the last level of a segment tree
-      leaves us with another valid segment tree.}
-  \item On the other hand, if $m = 2k+1$ is odd, then \todoi{picture!}
-    the last element in the desired range is a left child (or the root
-    itself, if $m = 1$) and therefore active.  We can thus find
-    the sum of the first $2k+1$ elements by combining the sum of the
-    first $2k$ elements with the value of the single active element at
-    the end.
-  \end{itemize}
-  \todoi{Explain why this takes $O(\lg n)$ time.}
-  \todoi{Turn this into working code??}
+  Surprisingly, in the special case of prefix queries, the original
+  range query algorithm described in \pref{sec:intro} and implemented
+  in \pref{fig:haskell-segtree} works unchanged!  That is to say, the
+  base case in which the range of the current node is wholly contained
+  within the query range---and we thus return the value of the current
+  node---will only ever happen at active nodes.
+
+  First, the root itself is active, and hence querying the full range
+  will work.  Next, consider the case where we are at a node and
+  recurse on both children.  The left child is always active, so we
+  only need to consider the case where we recurse to the right.  It is
+  impossible that the range of the right child will be wholly
+  contained in the query range: since the query range is always a
+  prefix of the form $[1,j]$, if the right child's range is wholly
+  contained in $[1,j]$ then the left child's range must be as
+  well---which means that the parent node's range (which is the union
+  of its children's ranges) would also be wholly contained in the
+  query range.  But in that case we would simply return the parent's
+  value without recursing into the right child.  Thus, when we do
+  recurse into a right child, we might end up returning $0$, or we
+  might recurse further into both grandchildren, but in any case we
+  will never try to look at the value of a right child.
 \end{proof}
+
+\pref{fig:segment-tree-prefix-query} illustrates performing a prefix
+query on a segment tree.  Notice that visited right children are only ever
+blue or grey; the only green nodes are left children.
+\begin{figure}
+\begin{center}
+\begin{diagram}[width=300]
+  import FenwickDiagrams
+  import SegTree
+  import Data.Monoid
+  import Control.Arrow ((***), second)
+
+  dia :: Diagram B
+  dia = vsep 0.7
+    [ sampleArray
+      # mkSegTree
+      # rq' i j
+      # fst
+      # drawSegTree (mkSTOpts (showRangeOpts' False False))
+    , (fst (leafX i n) ^& 0) ~~ (snd (leafX j n) ^& 0)
+      # lc green
+      # applyStyle defRangeStyle
+    ]
+    where
+      i = 1
+      j = 11
+      n = length sampleArray
+\end{diagram}
+\end{center}
+\caption{Performing a prefix query on a segment tree} \label{fig:segment-tree-prefix-query}
+\end{figure}
+
+\todoi{Discuss starting at leaf and moving UP the tree?}
 
 \begin{corollary}
   Range queries on thinned segment trees can be performed in $O(\lg n)$ time.
@@ -762,24 +812,26 @@ $O((\lg n)^2)$ time.  This isn't bad, but we can do better.
 \begin{proof}
   We can compute any range sum by subtracting prefix sums:
   $RQ(i,j) = -P(i-1) \oplus P(j)$ (or just $P(j) \ominus P(i-1)$ for
-  commutative groups). \todoi{picture}
+  commutative groups).
 \end{proof}
 
-Note that computing $RQ(i,i)$ gives us another way to recover the
-value of an individual inactive element.
+Note that computing $RQ(i,i)$ gives us an alternative way to
+efficiently recover the value of an individual inactive element.
 
 \section{Fenwick trees}
 
 How should we actually store a thinned segment tree in memory?  If we
-stare at \pref{fig:deactivate-right} again, an obvious strategy
-suggests itself: simply take every active node and ``slide'' it down
-and to the right until it lands in an empty spot in the underlying
-array, as illustrated in \pref{fig:sliding-right}.  This sets up a
-one-to-one correspondence between active nodes and indices in the
-range $1 \dots n$.  Another way to understand this indexing scheme is
-to use a postorder traversal of the tree, skipping over inactive
-nodes and giving consecutive indices to active nodes encountered
-during the traversal. \todoi{Explain in more detail---this is crucial!}
+stare at \pref{fig:deactivate-right} again, one strategy suggests
+itself: simply take every active node and ``slide'' it down and to the
+right until it lands in an empty slot in the underlying array, as
+illustrated in \pref{fig:sliding-right}.  This sets up a one-to-one
+correspondence between active nodes and indices in the range
+$1 \dots n$.  Another way to understand this indexing scheme is to use
+a postorder traversal of the tree, skipping over inactive nodes and
+giving consecutive indices to active nodes encountered during the
+traversal.  We can also visualize the result by drawing the tree in a
+``right-leaning'' style (\pref{fig:right-leaning}), vertically
+aligning each active node with the array slot where it is stored.
 
 \begin{figure}
 \begin{center}
@@ -809,34 +861,61 @@ during the traversal. \todoi{Explain in more detail---this is crucial!}
 \caption{Sliding active values down a thinned segment tree} \label{fig:sliding-right}
 \end{figure}
 
-\todoi{include right-leaning drawing}
+\begin{figure}
+\begin{center}
+\begin{diagram}[width=300]
+import FenwickDiagrams
+import SegTree
 
-\todoi{Carefully define term ``Fenwick array''.}
+dia :: Diagram B
+dia = sampleArray
+  # mkSegTree
+  # deactivate
+  # drawSegTree stOpts
+
+stOpts = (mkSTOpts nOpts)
+  { leanRight = True }
+
+nOpts = (showInactiveOpts False)
+  { leanRightN = True }
+\end{diagram}
+\end{center}
+\caption{Right-leaning drawing of a thinned segment tree, vertically
+  aligning nodes with their storage
+  location} \label{fig:right-leaning}
+\end{figure}
+\todoi{If time, improve the right-leaning drawing: shade nodes based
+  on their height, fill in array with corresponding shaded values}
+
 This method of storing the active nodes from a thinned segment tree in
 an array is precisely what is commonly known as a \emph{Fenwick tree},
-or \emph{bit-indexed tree}. \todoi{XXX cite} Although this is a clever
-use of space, the big question is how to implement the update and
-range query operations.  Our implementations of these operations for
-segment trees worked by recursively descending through the tree,
-either directly if the tree is stored as a recursive data structure,
-or using simple operations on indices if the tree is stored in an
-array. When storing the active nodes of a thinned tree in an array, it
-is not obvious what operations on array indices will correspond to
-moving around the tree.
+or \emph{bit-indexed tree} \citep{fenwick1994new}. I will also
+sometimes refer to it as a \emph{Fenwick array}, when I want to
+particularly emphasize the underlying array data structure.  Although
+it is certainly a clever use of space, the big question is how to
+implement the update and range query operations.  Our implementations
+of these operations for segment trees worked by recursively descending
+through the tree, either directly if the tree is stored as a recursive
+data structure, or using simple operations on indices if the tree is
+stored in an array. When storing the active nodes of a thinned tree in
+a Fenwick array, it is not \emph{a priori} obvious what operations on
+array indices will correspond to moving around the tree.
 
 In fact, moving around a Fenwick tree can indeed be done using simple
 index operations; \pref{fig:fenwick-java} shows a typical
-implementation of (specialized to integer values) in the imperative
+implementation (specialized to integer values) in the imperative
 language Java. This implementation is incredibly concise, but not at
-all perspicuous!  We can see that both the \mintinline{java}{prefix}
-and \mintinline{java}{update} functions call another function
-\mintinline{java}{LSB}, which for some reason performs a bitwise
-logical AND of an integer and its negation.  In fact,
-\mintinline{java}{LSB(x)} computes the \emph{least significant bit} of
-$x$, that is, it returns the smallest $2^k$ such that the $2^k$ bit of
-$x$ is a one.  However, it is not obvious how the implementation of
-\mintinline{java}{LSB} works, nor how and why least significant bits
-are being used to compute updates and prefix sums.
+all perspicuous!  The \mintinline{java}{range} and
+\mintinline{java}{get} functions are straightforward, but the other
+functions are a puzzle. We can see that both the
+\mintinline{java}{prefix} and \mintinline{java}{update} functions call
+another function \mintinline{java}{LSB}, which for some reason
+performs a bitwise logical AND of an integer and its negation.  In
+fact, \mintinline{java}{LSB(x)} computes the \emph{least significant
+  bit} of $x$, that is, it returns the smallest $2^k$ such that the
+$2^k$ bit of $x$ is a one.  However, it is not obvious how the
+implementation of \mintinline{java}{LSB} works, nor how and why least
+significant bits are being used to compute updates and prefix sums.
 
 \begin{figure}
   \inputminted[fontsize=\footnotesize]{java}{FenwickTree.java}
@@ -844,308 +923,40 @@ are being used to compute updates and prefix sums.
   \label{fig:fenwick-java}
 \end{figure}
 
-% \begin{diagram}[width=300]
-% import FenwickDiagrams
-% import SegTree
-
-% dia :: Diagram B
-% dia = sampleArray
-%   # mkSegTree
-%   # deactivate
-%   # drawSegTree stOpts
-
-% stOpts = (mkSTOpts nOpts)
-%   { leanRight = True }
-
-% nOpts = (showInactiveOpts False)
-%   { leanRightN = True }
-% \end{diagram}
-
-Our goal is to \emph{derive} this concise, fast, but nonobvious
-implementation from first principles.  We will first derive functions
-for converting back and forth between Fenwick tree numbering and full
-binary tree numbering (section XXX).  Then we can compute motion
-within a Fenwick-indexed tree by converting to binary tree numbering,
+Our goal will be to \emph{derive} this concise, fast, but nonobvious
+implementation from first principles.  We will first take a detour
+into two's complement binary encoding, develop a suitable DSL for bit
+manipuations, and explain the implementation of the
+\mintinline{java}{LSB} function (\pref{sec:twos-complement}).  Armed
+with the DSL, we will then derive functions for converting back and
+forth between Fenwick array indices and standard binary tree indices
+(\pref{sec:convert}).  Finally, we will be able to compute motion
+within a Fenwick-indexed tree by converting to binary tree indices,
 doing the obvious operations to effect the desired motion within the
-tree, and then converting back.  Fusing away the conversions via
-equational reasoning will finally yield concise implementations
-operations directly on Fenwick trees (section XXX).
+binary tree, and then converting back.  Fusing away the conversions
+via equational reasoning will finally yield concise direct
+implementations (\pref{sec:fenwick-ops}).
 
-\section{Index Conversion}
-
-Figure \pref{fig:bt-both} shows a binary tree where nodes have been
-numbered in two different ways: the left side of each node shows the
-node's index in the simple binary indexing scheme explained in
-\pref{sec:impl-seg-trees}.  The right side of each node shows its
-Fenwick index, if it has one (inactive nodes simply have their right
-half greyed out).
-
-\todoi{make this drawing right-leaning}
-\begin{figure}
-  \centering
-  \begin{diagram}[width=300]
-import FenwickDiagrams
-import Diagrams.TwoD.Layout.Tree
-import Data.Maybe (fromJust)
-import Control.Monad.State (evalState)
-
-dia = evalState (bt 4 1 True) 1
-  # symmLayoutBin' (with & slHSep .~ 4 & slVSep .~ 4)
-  # fromJust
-  # renderTree dn (~~)
-  \end{diagram}
-
-  \vspace{0.25in}
-
-  \begin{tabular}{cccccccc}
-    \textcolor{blue}{1} & \textcolor{blue}{2} & \textcolor{blue}{3}  & \textcolor{blue}{4} & \textcolor{blue}{5} & \textcolor{blue}{6} & \textcolor{blue}{7} & \textcolor{blue}{8} \\
-    8 & 4 & 10 & 2 & 12 & 6 & 14 & 1
-  \end{tabular}
-  \caption{Binary tree labelled with both binary and Fenwick indexing} \label{fig:bt-both}
-\end{figure}
-
-% \begin{verbatim}
-% data BT a where
-%   Leaf   :: a -> BT a
-%   Branch :: a -> BT a -> BT a -> BT a
-
-% data Nat where
-%   Z :: Nat
-%   S :: Nat -> Nat
-
-% data Bin where
-%   One :: Bin
-%   O :: Bin -> Bin
-%   I :: Bin -> Bin
-
-% bt :: Nat -> Bin -> BT Bin
-% bt Z     i = Leaf i
-% bt (S n) i = Branch i (bt n (O i)) (bt n (I i))
-% \end{verbatim}
-
-Our goal is to come up with a way to calculate the binary index for a
-given Fenwick index or vice versa.  To this end, consider the sequence
-of binary indices corresponding to the Fenwick indices $1 \dots 2^n$.
-\pref{fig:bt-both} shows one example, when $n = 3$.  As a slightly
-larger example, and to facilitate comparison, \pref{fig:bt-both-big}
-also shows the $n = 4$ case.
-
-\begin{figure}
-  \centering
-  \begin{diagram}[width=350]
-import FenwickDiagrams
-import Diagrams.TwoD.Layout.Tree
-import Data.Maybe (fromJust)
-import Control.Monad.State (evalState)
-
-dia = evalState (bt 5 1 True) 1
-  # symmLayoutBin' (with & slHSep .~ 4 & slVSep .~ 4)
-  # fromJust
-  # renderTree dn (~~)
-  \end{diagram}
-
-  \vspace{0.25in}
-
-  \begin{tabular}{cccccccccccccccc}
-  1 & 2 & 3 & 4 & 5 & 6 & 7 & 8 & 9 & 10 & 11 & 12 & 13 & 14 & 15 & 16
-  \\
-  16 & 8 & 18 & 4 & 20 & 10 & 22 & 2 & 24 & 12 & 26 & 6 & 28 & 14 & 30 & 1
-  \end{tabular}
-  \caption{XXX} \label{fig:bt-both-big}
-\end{figure}
-
-% \begin{table}[htp]
-%   \centering
-%   \begin{tabular}{cccccccccccccccc}
-%   1 & 2 & 3 & 4 & 5 & 6 & 7 & 8 & 9 & 10 & 11 & 12 & 13 & 14 & 15 & 16
-%   \\
-%   16 & 8 & 18 & 4 & 20 & 10 & 22 & 2 & 24 & 12 & 26 & 6 & 28 & 14 & 30 & 1
-%   \end{tabular}
-%   \caption{Fenwick $\leftrightarrow$ binary indexing for $n = 4$}
-%   \label{tab:indexing}
-% \end{table}
-
-Staring at the table in \pref{fig:bt-both-big}, a few patterns stand
-out.  First, all the numbers on the bottom row are even except for the
-final $1$---which makes sense, since other than the root only left
-children are included, which have a binary index twice that of their
-parent.  Second, we can see the even numbers $16 \dots 30$, in order,
-in all the odd positions.  These are exactly the leaves of the tree,
-and indeed, we can see that every other node in the Fenwick array will
-be a leaf from the original tree.  Alternating with these, in the even
-positions, are the numbers $8\; 4\; 10\; 2 \dots$, which correspond to
-all the non-leaf nodes; but these are exactly the sequence of binary
-indices from the bottom row of the table in \pref{fig:bt-both}.
-\todoi{explain this better?}
-
-These observations lead to the recurrence shown in \pref{fig:seqrec}
-for the sequence $b_n$ of binary indices stored in the Fenwick array
-for trees of size $2^n$: $b_0$ is just the singleton sequence $[1]$,
-and otherwise $b_n$ is the even numbers $2^n, 2^n + 2 \dots 2^{n+1} - 2$
-interleaved with $b_{n-1}$.
-
-\begin{figure}
-\centering
-
-%if false
-\begin{code}
-
-class Exponentiable a where
-  pow :: a -> Int -> a
-
-instance Exponentiable Int where
-  pow = (^)
-
-instance Exponentiable (a -> a) where
-  pow _ 0 = id
-  pow f k = pow f (k-1) . f
-
-\end{code}
-%endif
-
-\begin{code}
-
-interleave :: [a] -> [a] -> [a]
-[] `interleave` _ = []
-(x : xs) `interleave` ys = x : (ys `interleave` xs)
-
-b :: Int -> [Int]
-b 0 = [1]
-b n = [pow 2 n, pow 2 n + 2 .. pow 2 (n+1) - 2] `interleave` b (n-1)
-
-\end{code}
-
-\caption{Recurrence for sequence of binary indices in a Fenwick
-    array}
-  \label{fig:seqrec}
-\end{figure}
-
-We can check that this does in fact reproduce the observed sequence
-for $n = 4$:
-
-\begin{verbatim}
-ghci> b 4
-[16,8,18,4,20,10,22,2,24,12,26,6,28,14,30,1]
-\end{verbatim}
-
-Let |s ! k| denote the $k$th item in the list $s$ (counting from 1),
-as defined in \pref{fig:index-interleave}.  The same figure also lists
-two easy lemmas about the interaction between indexing and
-interleaving, namely, |(xs `interleave` ys) ! (2*k) = ys ! k|, and
-|(xs `interleave` ys) ! (2*k - 1) = xs!k|.  With these in hand, we can
-define the Fenwick $\to$ binary index conversion function |f2b n k = b
-n ! k|, and then simplify it as follows.  \todoi{Mention that it is
-  only defined for $k < 2^n$ or something} First of all, for even
-indices, we have
-
-\begin{figure}
-  \centering
-\begin{code}
-
-(a : _) ! 1 = a
-(_ : as) ! k = as ! (k-1)
-
-\end{code}
-
-\begin{spec}
-(xs `interleave` ys) ! (2*k)      = ys ! k
-(xs `interleave` ys) ! (2*k - 1)  = xs ! k
-\end{spec}
-
-\begin{code}
-
-f2b n k = b n ! k        -- $1 \leq k \leq 2^n$
-
-\end{code}
-
-  \caption{Indexing and interleaving}
-  \label{fig:index-interleave}
-\end{figure}
-
-\begin{sproof}
-  \stmt{|f2b n (2*k)|}
-  \reason{=}{Definition of |f2b|}
-  \stmt{|b n ! (2 * k)|}
-  \reason{=}{Definition of |b|}
-  \stmt{|([pow 2 n, pow 2 n + 2 .. pow 2 (n+1) - 2] `interleave` b (n-1)) ! (2 * k)|}
-  \reason{=}{|`interleave`-!| lemma}
-  \stmt{b (n-1) ! k}
-  \reason{=}{Definition of |f2b|}
-  \stmt{|f2b (n-1) k|.}
-\end{sproof}
-Whereas for odd indices,
-\begin{sproof}
-  \stmt{|f2b n (2*k-1)|}
-  \reason{=}{Definition of |f2b|}
-  \stmt{|b n ! (2 * k-1)|}
-  \reason{=}{Definition of |b|}
-  \stmt{|([pow 2 n, pow 2 n + 2 .. pow 2 (n+1) - 2] `interleave` b (n-1)) ! (2 * k-1)|}
-  \reason{=}{|`interleave`-!| lemma}
-  \stmt{|[pow 2 n, pow 2 n + 2 .. pow 2 (n+1) - 2] ! k|}
-  \reason{=}{algebra}
-  \stmt{|pow 2 n + 2*(k-1)|.}
-\end{sproof}
-Thus we have
-\[ |f2b n j| = \begin{cases} |f2b (n-1) (j/2)| & j \text{ even} \\ 2^n
-    + j - 1 & j \text{ odd} \end{cases} \] Note that when $n = 0$ we
-must have $j = 1$, and hence $|f2b 0 1| = 2^0 + 1 - 1 = 1$, as
-required, so this definition is valid for all $n \geq 0$.  Now factor
-$j$ uniquely as $2^a \cdot b$ where $b$ is odd.  Then by induction it
-is easy to see that
-\[ |f2b n (pow 2 a * b) = f2b (n - a) b| = 2^{n-a} + b - 1. \]
-
-We can now easily derive an inverse function |b2f n|, which converts
-back from binary to Fenwick indices. Note that since
-$2^a \cdot b \leq 2^n$, we have $b \leq 2^{n-a}$, so $b-1 < 2^{n-a}$.
-Hence, given $2^{n-a} + b - 1$ the highest bit represents $2^{n-a}$
-and the rest of the bits represent $b-1$.  So, given an input $k$, we
-can write $k$ uniquely as $2^c + d$ where $d < 2^c$; then \[ |b2f n (pow
-2 c + d) = pow 2 (n-c) * (d+1)|. \]
-
-% Let |find :: [a] -> a -> Maybe Int| be the partial left inverse of |!|, that is, |xs `find`
-% (xs ! k) == Just k| (XXX as long as list |xs| has no duplicates, which is
-% the case here); and |xs `find` j == Nothing| if |j| is not an element
-% of |xs|. Then since |f2b n k = b n ! k|, we define |b2f n k = b
-% n `find` k|.
-
-% Lemma: |(xs `interleave` ys) `find` k = (2*(xs `find` k)-1) <||> 2*(ys `find` k)|
-% etc.
-
-% |b 0 `find` 1 = 1|
-
-% If $j = 2^a \cdot b$ where $b$ is odd, then $2^a = |lsb(b)|$
-
-% $b - 1 = -(-b + 1) = |neg (inc (neg b)) = inc (map inv (inc (inc (map
-% inv b))))|$
-
-\todo{example}
-
-In order to be able to properly fuse |f2b| and |b2f| with binary tree
-motion functions, we must first take a short detour to re-express them
-out of more fundamental building blocks, using a suitable DSL for
-working with binary numbers.
-
-\section{Two's Complement Binary}
+\section{Two's Complement Binary} \label{sec:twos-complement}
 
 The bit tricks usually employed to implement Fenwick trees rely on a
-two's complement representation of binary numbers, so we will do the
-same.  Rather than fix a specific bit width, it will be much more
-elegant to work with \emph{infinite} bit strings, \ie \emph{$2$-adic
-  numbers}. \todoi{citation for 2-adic numbers?}  For example, the infinite string of all 1's
-represents $-1$.
-
-\newcommand{\bits}{\ensuremath{\mathbbm{2}}}
+\emph{two's complement} representation of binary numbers, which allow
+positive and negative numbers to be represented in a uniform way; for
+example, a value consisting of all 1 bits represents $-1$.  Rather
+than fix a specific bit width, it will be much more elegant to work
+with \emph{infinite} bit strings, \ie \emph{$2$-adic
+  numbers}.
 
 However, defining and working with infinite bit strings would
 typically require \emph{coinduction}.  For example, if we let
-$F(X) = \bits \times X$ be the structure functor representing a
-``cons'' constructor pairing an existing value of type $X$ with a
-single bit (where $\bits = \{0, 1\}$ denotes the type of bits),
-induction cannot even get off the ground: the least fixed point
-$\mu F$ is the empty set. It is the greatest fixed point $\nu F$, with
-its accompanying notion of coinduction, which actually yields the set
-of all binary sequences $\bits^{\mathbb{N}}$.  But losing the nice
-tools of pattern matching and recursion is a steep price to pay.
+$F(X) = \bits \times X$ be the structure functor that pairs a single
+bit (where $\bits = \{0, 1\}$ denotes the type of bits) with an
+existing value of type $X$, induction cannot even get off the ground:
+the least fixed point $\mu F$ is the empty set. It is the greatest
+fixed point $\nu F$, with its accompanying notion of coinduction,
+which actually yields the set of all infinite binary sequences
+$\bits^{\mathbb{N}}$.  But losing the nice tools of pattern matching
+and recursion would be a steep price to pay.
 
 \newcommand{\zeros}{\ensuremath{\overline{\mathbf{0}}}\xspace}
 \newcommand{\ones}{\ensuremath{\overline{\mathbf{1}}}\xspace}
@@ -1172,56 +983,68 @@ $\mu B$ is a set of ``abstract syntax trees'' representing chains of
 bits terminating in \zeros or \ones.  In this case we must also be
 careful to quotient by the relations $\zeros = 0 : \zeros$ and
 $\ones = 1 : \ones$, that is, if we cons a zero onto the beginning of
-\zeros we get back \zeros again.  In either case, note that this means
-``pattern matching'' on \zeros or \ones incurs a proof obligation: we
-can only pattern match on \zeros or \ones when we would still get the
-same result if we replaced \zeros or \ones with $0 : \zeros$ or $1 :
-\ones$, respectively.  For example, we can define a valuation
-$\sem - : \mu B \to \Z$ as follows:
+\zeros we get back \zeros again, and similarly for $\ones$.  In either
+case, note that this means ``pattern matching'' on \zeros or \ones
+incurs a proof obligation: we can only pattern match on \zeros or
+\ones when we would still get the same result if we replaced \zeros or
+\ones with $0 : \zeros$ or $1 : \ones$, respectively.  For example, we
+can define a valuation $\sem - : \mu B \to \Z$ as follows:
 \begin{align*}
   \sem \zeros &= 0 \\
   \sem \ones &= -1 \\
   \sem {b : x} &= [b] + 2 \sem x
 \end{align*}
-where $[b]$ denotes the \emph{Iverson bracket} turning False into $0$
-and True into $1$.  This is well-defined, since \todoi{note we are
-  punning on False/0 and True/1 here}
+where $[b] : \bits \to \Z$ denotes the \emph{Iverson bracket}
+injecting the bits $0, 1$ into the integers.  For example,
+$\sem{1 : 0 : 1 : \zeros} = 1 + 2 \cdot \sem{0 : 1 : \zeros} = 1 + 2 \cdot 2
+\cdot \sem{1 : \zeros} = 1 + 2 \cdot 2 \cdot (1 + 0) = 5$, as
+expected.  As another example,
+$\sem{1 : 0 : \ones} = 1 + 2 \cdot \sem{0 : \ones} = 1 + 2 \cdot 2 \cdot
+\sem{\ones} = 1 - 4 = -3$. This is well-defined, since
 \[ \sem{0 : \zeros} = [0] + 2\sem \zeros = 2 \sem \zeros = 0 =
 \sem{\zeros} \] and
 \[ \sem{1 : \ones} = 1 + 2\sem \ones = 1 + 2(-1) = -1 = \sem{\ones}. \]
 
 This construction justifies our use of recursion and induction when
-working with infinite bit sequences.  Practically speaking, we will
-simply use infinite lists of bits in Haskell, but we will stick to the
-finitely supported fragment (even though Haskell is actually quite
-capable of describing more general infinite lists).  \todoi{But what
-  about decidability?  Computable functions are only those which examine only a
-finite prefix.  That means the valuation is not computable, but we can
-implement it if we assume that e.g. all values are 32 bits.} First, we define
-a type of bits and some convenience functions.
+working with infinite bit sequences.  In theory, we could encode this
+formally in a language with quotient types, such as Cubical Agda,
+though I have not yet done so. Practically speaking, we will simply
+use infinite lists of bits in Haskell, but we will stick to the
+finitely supported fragment (even though Haskell is actually capable
+of describing more general infinite lists).
+
+First, we define a type of bits, with functions for negation,
+logical conjunction, and logical disjunction:
 
 \begin{code}
 
 data Bit = O | I  deriving (Eq, Ord, Show, Enum)
-type Bits = [Bit]
 
 inv :: Bit -> Bit
 inv O = I
 inv I = O
 
-zeros, ones :: Bits
-zeros = repeat O
-ones = repeat I
+(.&.) :: Bit -> Bit -> Bit
+O .&. _ = O
+I .&. b = b
+
+(.|.) :: Bit -> Bit -> Bit
+I .|. _ = I
+O .|. b = b
 
 \end{code}
 
-XXX Some utility code for testing: showing finite prefix of bits
-values + converting between integers.
+Next, we define the type of infinite bit sequences, along with some
+convenient functions for constructing them (note that the |neg|
+function used in the definition of |toBits| will be defined later).
 
 \begin{code}
 
-showBits :: Bits -> String
-showBits = ("..."++) . reverse . map (("01"!!) . fromEnum) . take 16
+type Bits = [Bit]
+
+zeros, ones :: Bits
+zeros = repeat O
+ones = repeat I
 
 toBits :: Int -> Bits
 toBits n
@@ -1229,14 +1052,32 @@ toBits n
   | n < 0 = neg (toBits (-n))
   | otherwise  = toEnum (n `mod` 2) : toBits (n `div` 2)
 
+\end{code}
+
+For testing purposes, we include a couple functions for converting
+from |Bits| to other formats: |showBits| shows the first 16 bits, and
+|fromBits| represents the valuation $\sem -$.  With |fromBits|,
+however, we run into a problem: the valuation $\sem -$ is not actually
+computable, since we can never know if we have reached $\zeros$ or
+$\ones$.  In practice, then, we pass an extra parameter to |fromBits|
+representing a specific bit width; we assume that all bits past that
+point are identical to the last bit encountered (which thus functions
+as a sign bit).
+
+\begin{code}
+
+showBits :: Bits -> String
+showBits = ("..."++) . reverse . map (("01"!!) . fromEnum) . take 16
+
 fromBits :: Int -> Bits -> Int
 fromBits 1 (b : bs) = -fromEnum b
 fromBits n (b : bs) = fromEnum b + 2 * fromBits (n-1) bs
 
 \end{code}
 
-Our first basic operations are incrementing and decrementing, which
-can be implemented recursively as follows:
+We can now begin implementing some basic operations on |Bits|.  First,
+incrementing and decrementing can be implemented recursively as
+follows:
 
 \begin{code}
 
@@ -1250,15 +1091,13 @@ dec (O : bs) = I : dec bs
 
 \end{code}
 
-\todo{show some examples in ghci?}
-
 % We can prove by induction that for all |x :: Bits|, $\sem{|inc x|} = 1
 % + \sem x$:
 % \begin{itemize}
 % \item $\sem{|inc zeros|} = \sem{|inc (O : zeros)|} = \sem{|I : zeros|}
 %   = 1 + 2\sem |zeros| = 1$
 % \item $\sem{|inc ones|} = \sem{|inc (I : ones)|} = \sem{|O : inc
-%     ones|} = 
+%     ones|} =
 % \end{itemize}
 
 The \emph{least significant bit}, or LSB, of a sequence of bits can be
@@ -1272,19 +1111,26 @@ lsb (I : _)  = I : zeros
 
 \end{code}
 
-We can also define addition, bitwise logical AND, and negation:
+For example,
+\begin{verbatim}
+ghci> showBits (toBits 26)
+"...0000000000011010"
+ghci> showBits (lsb $ toBits 26)
+"...0000000000000010"
+ghci> showBits (toBits 24)
+"...0000000000011000"
+ghci> showBits (lsb $ toBits 24)
+"...0000000000001000"
+\end{verbatim}
+
+We can also define addition, bitwise logical conjunction, and negation
+as follows:
 
 \begin{code}
 
 (.+.) :: Bits -> Bits -> Bits
-(O : x)  .+. (O : y)  = O  : (x .+. y)
-(O : x)  .+. (I : y)  = I  : (x .+. y)
-(I : x)  .+. (O : y)  = I  : (x .+. y)
-(I : x)  .+. (I : y)  = O  : inc (x .+. y)
-
-(.&.) :: Bit -> Bit -> Bit
-O .&. _ = O
-I .&. b = b
+(I : xs)  .+. (I : ys)  = O  : inc (xs .+. ys)
+(x : xs)  .+. (y : ys)  = (x .|. y)  : (xs .+. ys)
 
 (.&&.) :: Bits -> Bits -> Bits
 (.&&.) = zipWith (.&.)
@@ -1295,11 +1141,16 @@ neg = inc . map inv
 \end{code}
 
 This definition of negation is probably familiar to anyone who has
-studied two's complement arithmetic; we leave it as an exercise for
+studied two's complement arithmetic; I leave it as an exercise for
 the interested reader to prove that |x .+. neg x == zeros|.
 
-We can now prove by induction that |lsb x = x .&&. neg x|, thus
-unravelling the first mystery
+We now have the tools to resolve the first mystery of the Fenwick tree
+implementation.
+\begin{thm}
+  For all |x :: Bits|, \[ |lsb x = x .&&. neg x|. \]
+\end{thm}
+\begin{proof}
+By induction on |x|.
 \begin{itemize}
 \item First, if |x = 0 : xs|, then |lsb x = lsb (0:xs) = 0 : lsb xs|
   by definition, whereas
@@ -1328,21 +1179,20 @@ unravelling the first mystery
     \stmt{|(1:xs) .&&. (1 : map inv xs)|}
     \reason{=}{Definition of |.&&.|}
     \stmt{|1 : (xs .&&. map inv xs)|}
-    \reason{=}{Lemma}
+    \reason{=}{Bitwise AND of $xs$ and its inverse is |zeros|}
     \stmt{|1 : zeros|}
   \end{sproof}
 \end{itemize}
+\end{proof}
 
 For the last equality we need a lemma that |xs .&&. map inv xs =
 zeros|, which should be intuitively clear and can be easily proved by
 induction as well.
 
-\section{Deriving Fenwick Operations}
-
-In order to reexpress the index conversion functions, |f2b| and |b2f|,
-to operate on the |Bits| type, we need a few more things in our DSL.
+Finally, in order to express the index conversion functions we will
+develop in the next section, we need a few more things in our DSL.
 First, some functions to set and clear individual bits, and to test
-whether particular bits are set.
+whether particular bits are set:
 
 \begin{code}
 
@@ -1364,9 +1214,12 @@ even = not . odd
 
 \end{code}
 
-Next, we need left and right shift, and a generic |while| combinator
-that iterates a given function, returning the first iterate for which
-a predicate is false.
+The only other things we will need are left and right shift, and a
+generic |while| combinator that iterates a given function, returning
+the first iterate for which a predicate is false.  Note the use of
+|head| in the definition of |while| is safe, since |iterate| in fact
+generates an infinite list, and |dropWhile p| preserves the finiteness
+(or not) of its argument.
 
 \begin{code}
 
@@ -1381,57 +1234,333 @@ while p f = head . dropWhile p . iterate f
 
 \end{code}
 
-Now, recall that
-\[ |f2b n j| = \begin{cases} |f2b (n-1) (j/2)| & j \text{ even} \\ 2^n
-    + j - 1 & j \text{ odd} \end{cases} \] which consists of
-repeatedly dividing by 2 (\ie shifting right) as long as the input is
-even, and then finally decrementing and adding a power of $2$.
-However, knowing what power of $2$ to add at the end depends on
-knowing how many times we shifted.  A better way to think of it is to
-add $2^n$ at the \emph{beginning} and then let it be shifted along
-with everything else (this will not work in the special case $j =
-2^n$, but we don't really care about that case XXX).  Thus, we have
-the following definition of |f2b'|:
+\section{Index Conversion} \label{sec:convert}
+
+Before deriving our index conversion functions we must deal with one
+slightly awkward fact.  In a traditional binary tree indexing scheme,
+as shown in \pref{fig:bt-indexing}, the root has index $1$, every left
+child is twice its parent, and every right child is one more than
+twice its parent.  Recall that in a thinned segment tree, the root
+node and every left child are active, with all right children being
+inactive.  This makes the root an awkward special case---all active
+nodes have an even index, \emph{except} the root, which has index $1$.
+This makes it more difficult to check whether we are at an active
+node---we cannot simply look at the least significant bit; we also
+have to look at the entire value (up to some chosen, fixed bit width)
+to see whether it is equal to 1.
+
+One easy way to fix this is simply to give the root index $2$, and
+then proceed to label the rest of the nodes using the same
+scheme---every left child is twice its parent, and every right child
+is one more than twice its parent.  This results in the indexing shown
+in \pref{fig:bt-indexing-two}, as if we had just taken the left
+subtree of the tree rooted at $1$, and ignored the right subtree.  Of
+course, this means about half the possible indices are omitted---but
+that's not a problem, since we will only use these indices as an
+intermediate step which will eventually get fused away.
+
+\begin{figure}
+  \centering
+  \begin{diagram}[width=250]
+import Diagrams.Prelude hiding (Empty)
+import Diagrams.TwoD.Layout.Tree
+import Data.Maybe (fromJust)
+
+-- bt depth root
+bt :: Int -> Int -> BTree Int
+bt 0 _ = Empty
+bt d r = BNode r (bt (d-1) (2*r)) (bt (d-1) (2*r+1))
+
+dia = bt 4 2
+  # symmLayoutBin' (with & slHSep .~ 4 & slVSep .~ 4)
+  # fromJust
+  # renderTree dn (~~)
+
+dn i = text ("$" ++ show i ++ "$") <> circle 1 # fc white
+  \end{diagram}
+  \caption{Indexing a binary tree with $2$ at the root}
+  \label{fig:bt-indexing-two}
+\end{figure}
+
+\pref{fig:bt-both} shows a binary tree where nodes have been numbered
+in two different ways: the left side of each node shows the node's
+binary tree index (with the root having index $2$).  The right side of
+each node shows its index in the Fenwick array, if it has one (inactive
+nodes simply have their right half greyed out).  The table underneath
+shows the mapping from Fenwick array indices (top row) to binary tree
+indices (bottom row).  As a larger example, \pref{fig:bt-both-big}
+shows the same thing on a binary tree one level deeper.
+
+\begin{figure}
+  \centering
+  \begin{diagram}[width=300]
+import FenwickDiagrams
+import Control.Monad.State (evalState)
+
+dia :: Diagram B
+dia = evalState (bt 4 2 True) 1 # drawRightLeaning dn
+  \end{diagram}
+
+  \vspace{0.25in}
+
+  \begin{tabular}{cccccccc}
+    \textcolor{blue}{1} & \textcolor{blue}{2} & \textcolor{blue}{3}  & \textcolor{blue}{4} & \textcolor{blue}{5} & \textcolor{blue}{6} & \textcolor{blue}{7} & \textcolor{blue}{8} \\
+    16 & 8 & 18 & 4 & 20 & 10 & 22 & 2
+  \end{tabular}
+  \caption{Binary tree labelled with both binary and Fenwick indexing} \label{fig:bt-both}
+\end{figure}
+
+\begin{figure}
+  \centering
+  \begin{diagram}[width=350]
+import FenwickDiagrams
+import Control.Monad.State (evalState)
+
+dia :: Diagram B
+dia = evalState (bt 5 2 True) 1 # drawRightLeaning dn
+  \end{diagram}
+
+  \vspace{0.25in}
+
+  \begin{tabular}{cccccccccccccccc}
+  \textcolor{blue}{1} & \textcolor{blue}{2} & \textcolor{blue}{3} & \textcolor{blue}{4} & \textcolor{blue}{5} & \textcolor{blue}{6} & \textcolor{blue}{7} & \textcolor{blue}{8} & \textcolor{blue}{9} & \textcolor{blue}{10} & \textcolor{blue}{11} & \textcolor{blue}{12} & \textcolor{blue}{13} & \textcolor{blue}{14} & \textcolor{blue}{15} & \textcolor{blue}{16}
+  \\
+  32 & 16 & 34 & 8 & 36 & 18 & 38 & 4 & 40 & 20 & 42 & 10 & 44 & 22 & 46 & 2
+  \end{tabular}
+  \caption{Binary tree labelled with both binary and Fenwick indexing} \label{fig:bt-both-big}
+\end{figure}
+
+Our goal is to come up with a way to calculate the binary index for a
+given Fenwick index or vice versa. Staring at the table in
+\pref{fig:bt-both-big}, a few patterns stand out.  Of course, all the
+numbers in the bottom row are even, which is precisely because the
+binary tree is numbered in such a way that all active nodes have an
+even inex.  Second, we can see the even numbers $32, 34 \dots 46$, in
+order, in all the odd positions.  These are exactly the leaves of the
+tree, and indeed, every other node in the Fenwick array will be a leaf
+from the original tree.  Alternating with these, in the even
+positions, are the numbers $16\;\; 8\;\; 18\;\; 4 \dots$, which
+correspond to all the non-leaf nodes; but these are exactly the
+sequence of binary indices from the bottom row of the table in
+\pref{fig:bt-both}---since the internal nodes in a tree of height 4
+themselves constitute a tree of height 3, with the nodes occurring in
+the same order.
+
+These observations lead to the recurrence shown in \pref{fig:seqrec}
+for the sequence $b_n$ of binary indices for the nodes stored in a
+Fenwick array of length $2^n$: $b_0$ is just the singleton sequence
+$[2]$, and otherwise $b_n$ is the even numbers
+$2^{n+1}, 2^{n+1} + 2, \dots, 2^{n+1} + 2^n - 2$ interleaved with $b_{n-1}$.
+
+\begin{figure}
+\centering
+
+%if false
+\begin{code}
+
+class Exponentiable a where
+  pow :: a -> Int -> a
+
+instance Exponentiable Int where
+  pow = (^)
+
+instance Exponentiable (a -> a) where
+  pow _ 0 = id
+  pow f k = pow f (k-1) . f
+
+\end{code}
+%endif
+
+\begin{code}
+
+interleave :: [a] -> [a] -> [a]
+[] `interleave` _ = []
+(x : xs) `interleave` ys = x : (ys `interleave` xs)
+
+b :: Int -> [Int]
+b 0 = [2]
+b n = map (2*) [pow 2 n .. pow 2 n + pow 2 (n-1) - 1] `interleave` b (n-1)
+
+\end{code}
+
+\caption{Recurrence for sequence of binary tree indices in a Fenwick
+  array}
+  \label{fig:seqrec}
+\end{figure}
+
+We can check that this does in fact reproduce the observed sequence
+for $n = 4$:
+
+\begin{verbatim}
+ghci> b 4
+[32,16,34,8,36,18,38,4,40,20,42,10,44,22,46,2]
+\end{verbatim}
+
+Let |s ! k| denote the $k$th item in the list $s$ (counting from 1),
+as defined in \pref{fig:index-interleave}.  The same figure also lists
+two easy lemmas about the interaction between indexing and
+interleaving, namely, |(xs `interleave` ys) ! (2*k) = ys ! k|, and
+|(xs `interleave` ys) ! (2*k - 1) = xs!k|.  With these in hand, we can
+define the Fenwick $\to$ binary index conversion function as
+\[ |f2b n k = b n ! k|. \]
+%if false
+\begin{code}
+
+f2b n k = b n ! k
+
+\end{code}
+%endif
+Of course, since $b_n$ is of length $2^n$, this function is only
+defined on the range $[1, 2^n]$.
+% We can also see
+% that the output of |f2b| will be contained in the range
+% $[1, 2^{n+1} - 2]$.
+\begin{figure}
+  \centering
+\begin{code}
+
+(a : _) ! 1 = a
+(_ : as) ! k = as ! (k-1)
+
+\end{code}
+
+\begin{spec}
+(xs `interleave` ys) ! (2*j)      = ys ! j
+(xs `interleave` ys) ! (2*j - 1)  = xs ! j
+\end{spec}
+
+  \caption{Indexing and interleaving}
+  \label{fig:index-interleave}
+\end{figure}
+
+We can now simplify the  definition of |f2b| as follows. First of all, for even
+inputs, we have
+
+\begin{sproof}
+  \stmt{|f2b n (2*j)|}
+  \reason{=}{Definition of |f2b|}
+  \stmt{|b n ! (2 * j)|}
+  \reason{=}{Definition of |b|}
+  \stmt{|(map (2*) [pow 2 n .. pow 2 n + pow 2 (n-1) - 1] `interleave` b (n-1)) ! (2 * j)|}
+  \reason{=}{|`interleave`-!| lemma}
+  \stmt{b (n-1) ! j}
+  \reason{=}{Definition of |f2b|}
+  \stmt{|f2b (n-1) j|.}
+\end{sproof}
+Whereas for odd inputs,
+\begin{sproof}
+  \stmt{|f2b n (2*j-1)|}
+  \reason{=}{Definition of |f2b|}
+  \stmt{|b n ! (2 * j-1)|}
+  \reason{=}{Definition of |b|}
+  \stmt{|(map (2*) [pow 2 n .. pow 2 n + pow 2 (n-1) - 1] `interleave` b (n-1)) ! (2 * j)|}
+  \reason{=}{|`interleave`-!| lemma}
+  \stmt{|map (2*) [pow 2 n .. pow 2 n + pow 2 (n-1) - 1] ! j|}
+  \reason{=}{Definition of |map|, algebra}
+  \stmt{|2 * (pow 2 n + j - 1)|}
+  \reason{=}{algebra}
+  \stmt{|pow 2 (n+1) + 2j-2|}
+\end{sproof}
+Thus we have
+\[ |f2b n k| = \begin{cases} |f2b (n-1) (k/2)| & k \text{ even} \\ 2^{n+1}
+    + k - 1 & k \text{ odd} \end{cases} \] Note that when $n = 0$ we
+must have $k = 1$, and hence $|f2b 0 1| = 2^0 + 1 - 1 = 1$, as
+required, so this definition is valid for all $n \geq 0$.  Now factor
+$k$ uniquely as $2^a \cdot b$ where $b$ is odd.  Then by induction it
+is easy to see that
+\[ |f2b n (pow 2 a * b) = f2b (n - a) b| = 2^{n-a+1} + b - 1. \] So,
+in other words, computing |f2b| consists of repeatedly dividing by 2
+(\ie right bit shifts) as long as the input is even, and then finally
+decrementing and adding a power of $2$.  However, knowing what power
+of $2$ to add at the end depends on knowing how many times we shifted.
+A better way to think of it is to add $2^{n+1}$ at the
+\emph{beginning}, and then let it be shifted along with everything
+else.  Thus, we have the following definition of |f2b'| using our
+|Bits| DSL:
 
 \begin{code}
 
 f2b' :: Int -> Bits -> Bits
-f2b' n = dec . while even shr . set n
+f2b' n = dec . while even shr . set (n+1)
 
 \end{code}
 
-We can verify that this produces identical results to |f2b| on the
-range $[1, 2^n)$:
+For example, we can verify that this produces identical results to
+|f2b 4| on the range $[1, 2^4]$:
 \begin{verbatim}
-ghci> all (\k -> f2b 4 k == (fromBits 8 . f2b' 4 . toBits) k) [1 .. 2^4 - 1]
+ghci> all (\k -> f2b 4 k == (fromBits 16 . f2b' 4 . toBits) k)
+        [1 .. 2^4]
 True
 \end{verbatim}
-(|fromBits 6| would be sufficient---in this case we just need to
-ensure we use enough bits to represent values up to $2^5$---but it
+(|fromBits 7| would be sufficient---in this case we just need to
+ensure we use enough bits to represent values up to $2^6$---but it
 doesn't hurt to use extra bits).
 
-As for the inverse |b2f'|,
+We now turn to deriving |b2f n|, which converts back from binary to
+Fenwick indices. |b2f n| should be a left inverse to |f2b n|, that is,
+for any $k \in [1, 2^n]$ we should have |b2f n (f2b n k) == k|. If $k$
+is an input to |f2b|, we have $k = 2^a \cdot b \leq 2^n$, and so
+$b-1 < 2^{n-a}$.  Hence, given the output
+$|f2b n k| = m = 2^{n-a+1} + b - 1$, the highest bit of $m$ is
+$2^{n-a+1}$, and the rest of the bits represent $b-1$.  So, in
+general, given some $m$ which is the output of |f2b n|, we can write
+it uniquely as $m = 2^c + d$ where $d < 2^{c-1}$; then
+\[ |b2f n (pow 2 c + d) = pow 2 (n-c+1) * (d+1)|. \] In other words,
+given the input $2^c + d$, we subtract off the highest bit $2^c$,
+increment then left shift $n-c+1$ times.  Again, though, there is a
+simpler way: we can increment first (note since $d < 2^{c-1}$, this
+cannot disturb the bit at $2^c$), then left shift enough times to
+bring the leftmost bit into position $n+1$, and finally remove it.
+That is:
 \begin{code}
 
 b2f' :: Int -> Bits -> Bits
-b2f' n = clear n . while (not . test n) shl . inc
+b2f' n = clear (n+1) . while (not . test (n+1)) shl . inc
 
 \end{code}
+Verifying:
+\begin{verbatim}
+ghci> all (\k -> (fromBits 16 . b2f' 4 . f2b' 4 . toBits) k == k)
+        [1 .. 2^4]
+True
+\end{verbatim}
 
-\todoi{draw picture with example of |f2b| and |b2f| transformations}
 
-We first need a few lemmas.
+
+% Let |find :: [a] -> a -> Maybe Int| be the partial left inverse of |!|, that is, |xs `find`
+% (xs ! k) == Just k| (XXX as long as list |xs| has no duplicates, which is
+% the case here); and |xs `find` j == Nothing| if |j| is not an element
+% of |xs|. Then since |f2b n k = b n ! k|, we define |b2f n k = b
+% n `find` k|.
+
+% Lemma: |(xs `interleave` ys) `find` k = (2*(xs `find` k)-1) <||> 2*(ys `find` k)|
+% etc.
+
+% |b 0 `find` 1 = 1|
+
+% If $j = 2^a \cdot b$ where $b$ is odd, then $2^a = |lsb(b)|$
+
+% $b - 1 = -(-b + 1) = |neg (inc (neg b)) = inc (map inv (inc (inc (map
+% inv b))))|$
+
+
+\section{Deriving Fenwick Operations} \label{sec:fenwick-ops}
+
+We can now finally derive the required operations on Fenwick array
+indices for moving through the tree, by starting with operations on a
+binary indexed tree and conjugating by conversion to and from Fenwick
+indices.  First, in order to fuse away the resulting conversion, we
+will need a few lemmas.
 
 \begin{lem} \label{lem:incshr}
   For all |bs :: Bits| such that |odd bs|,
   \begin{itemize}
   \item |(shr . dec) bs = shr bs|
-  \item |(inc . shr) bs = inc bs|
+  \item |(shr . inc) bs = (inc . shr) bs|
   \end{itemize}
 \end{lem}
 \begin{proof}
-  The first is immediate by definition; the second is an easy
-  induction.
+  Both are immediate by definition.
 \end{proof}
 
 \begin{lem} \label{lem:incwhile}
@@ -1448,23 +1577,26 @@ We first need a few lemmas.
 \end{proof}
 
 \begin{lem} \label{lem:shlshr}
-  For all positive |Bits| values less than $2^n$,
-  \[ |while (not . test n) shl . while even shr = while (not . test n)
+  For all positive |Bits| values less than $2^{n+2}$,
+  \[ |while (not . test (n+1)) shl . while even shr = while (not . test (n+1))
     shl|. \]
 \end{lem}
 \begin{proof}
   The left-hand side shifts out some zeros before shifting them
   all back in, whereas the right-hand side avoids the redundant
-  shifts; but both stop when the $2^n$ bit becomes $1$.
+  shifts; but both stop when the $2^{n+1}$ bit becomes $1$.
 \end{proof}
 
-XXX signposting
+Now, let' see how to move around a Fenwick array in order to implement
+|update| and |query|; we'll begin with |update|.
 
 When implementing the |update| operation, we need to start at a leaf
 and follow the path up to the root, updating all the active nodes
-along the way.  Thus, given an index in the Fenwick array, we would
-like to know how to compute the index of its closest active parent; we
-can iterate this function to move up the tree.
+along the way.  In fact, for any given leaf, its closest active parent
+is precisely the node stored in the slot that used to correspond to
+that leaf (see \pref{fig:right-leaning}).  So to update index $i$, we
+just need to start at index $i$ in the Fenwick array, and then
+repeatedly find the closest active parent, updating as we go.
 
 To find the closest active parent of a node under a binary indexing
 scheme, we first move up to the immediate parent (by dividing the
@@ -1479,6 +1611,10 @@ activeParentBinary = while odd shr . shr
 
 \end{code}
 
+This is why we used the slightly strange indexing scheme with the root
+having index $2$---otherwise this definition would not work for any
+node whose active parent is the root!
+
 Now, to derive the corresponding operation on Fenwick indices, we
 conjugate by conversion to and from Fenwick indices, and compute as
 follows:
@@ -1489,79 +1625,87 @@ follows:
   \stmt{|clear n . while (not . test n) shl . inc . while odd shr . shr . dec . while even shr . set n|}
   \reason{=}{\pref{lem:incwhile}}
   \stmt{|clear n . while (not . test n) shl . while even shr . inc . shr . dec . while even shr . set n|}
-  \reason{=}{\pref{lem:shlshr}}
-  \stmt{|clear n . while (not . test n) shl . inc . shr . dec . while even shr . set n|}
   \reason{=}{\pref{lem:incshr}; the output of |while even shr|
     will be odd}
-  \stmt{|clear n . while (not . test n) shl . inc . shr . while even shr . set n|}
+  \stmt{|clear n . while (not . test n) shl . while even shr . inc . shr . while even shr . set n|}
   \reason{=}{\pref{lem:incshr}}
+  \stmt{|clear n . while (not . test n) shl . while even shr . shr . inc . while even shr . set n|}
+  \reason{=}{|while even shr . shr = while even shr| on an even input}
+  \stmt{|clear n . while (not . test n) shl . while even shr . inc . while even shr . set n|}
+  \reason{=}{\pref{lem:shlshr}}
   \stmt{|clear n . while (not . test n) shl . inc . while even shr . set n|}
 \end{sproof}
 
-We can see that this works as follows: set bit $n$ to 1; shift out all
-the zeros to find the least significant $1$ bit; increment; then shift
-a bunch of zeros back in to bring the 1 bit back to position $n$, and
-clear it again.  Intuitively, this looks a lot like
-adding the LSB, where we set and clear bit $n$ just as a
-``placeholder'' so we can keep track of how much we have shifted and
-then ``unshift'' later.
+Reading from right to left, this performs the following steps:
+\begin{enumerate}
+\item Set bit $n+1$ to 1
+\item Shift out all the zeros to find the least significant $1$ bit
+\item Increment
+\item Shift zeros back in to bring the $1$ bit back to position $n+1$,
+  then clear it.
+\end{enumerate}
+Intuitively, this looks a lot like adding the LSB, where we set and
+clear bit $n+1$ just as a ``placeholder'' so we can keep track of how
+much we have shifted and then ``unshift'' later.
 
-To formally prove this, we need a lemma about the ``shifting with a
-placeholder'' scheme we see above.
+To formally prove this XXX
 
-XXX Let $f^k$ denote $k$-fold composition of $f$, that is, $f^0 =
-|id|$ and $f^{k+1} = |pow f k . f|$.
+% , we need a lemma about the ``shifting with a
+% placeholder'' scheme we see above.
 
-\begin{defn}
-Say a function on |Bits| is \emph{$n$-smooth} if it only examines
-up to the first $n$ bits of its input, and also leaves the input ``the
-same length''.  That is, formally, |g :: Bits -> Bits| is $n$-smooth
-if \[ |g . set m = set m . g| \] for all $m \geq n$.  Note this also
-means that if the input to $g$ is less than $2^n$, then its output
-will be as well.
-\end{defn}
+% XXX Let $f^k$ denote $k$-fold composition of $f$, that is, $f^0 =
+% |id|$ and $f^{k+1} = |pow f k . f|$.
 
-\begin{code}
+% \begin{defn}
+% Say a function on |Bits| is \emph{$n$-smooth} if it only examines
+% up to the first $n$ bits of its input, and also leaves the input ``the
+% same length''.  That is, formally, |g :: Bits -> Bits| is $n$-smooth
+% if \[ |g . set m = set m . g| \] for all $m \geq n$.  Note this also
+% means that if the input to $g$ is less than $2^n$, then its output
+% will be as well.
+% \end{defn}
 
-over :: Int -> (Bits -> Bits) -> Bits -> Bits
-over k f = pow shl k . f . pow shr k
+% \begin{code}
 
-\end{code}
+% over :: Int -> (Bits -> Bits) -> Bits -> Bits
+% over k f = pow shl k . f . pow shr k
 
-\begin{thm}
-  Let |f :: Bits -> Bits| and $n \in \N$, and suppose there exists
-  some $k < n$ and $(n-k)$-smooth |g :: Bits -> Bits| such that
-  \[ |f = g . pow shr k|. \] Then for all inputs $< 2^n$, \[ |clear n . while (not . test n)
-    shl . f . set n = over k g|. \]
-\end{thm}
+% \end{code}
 
-\begin{proof}
-  \begin{sproof}
-    \stmt{|clear n . while (not . test n) shl . f . set n|}
-    \reason{=}{assumption}
-    \stmt{|clear n . while (not . test n) shl . g . pow shr k . set n|}
-    \reason{=}{XXX lemma}
-    \stmt{|clear n . while (not . test n) shl . g . set (n-k) . pow shr k|}
-    \reason{=}{$g$ is $(n-k)$-smooth}
-    \stmt{|clear n . while (not . test n) shl . set (n-k) . g . pow shr k|}
-    \reason{=}{Input $< 2^n$; after |shr| it is $< 2^{n-k}$; $g$
-      preserves; hence $2^{n-k}$ is biggest bit set}
-    \stmt{|clear n . pow shl k . set (n-k) . g . pow shr k|}
-    \reason{=}{XXX lemma}
-    \stmt{|clear n . set n . pow shl k . g . pow shr k|}
-    \reason{=}{XXX inverses (assuming that bit was not set in the
-      first place)}
-    \stmt{|pow shl k . g . pow shr k|}
-    \reason{=}{definition}
-    \stmt{|over k g|}
-  \end{sproof}
-\end{proof}
+% \begin{thm}
+%   Let |f :: Bits -> Bits| and $n \in \N$, and suppose there exists
+%   some $k < n$ and $(n-k)$-smooth |g :: Bits -> Bits| such that
+%   \[ |f = g . pow shr k|. \] Then for all inputs $< 2^n$, \[ |clear n . while (not . test n)
+%     shl . f . set n = over k g|. \]
+% \end{thm}
 
-XXX note |inc| is not actually $n$-smooth for any $n$ according to the
-above definition!  This is the wrong definition.  We really just need
-something about bounding the size of the output of $g$ relative to the
-size of the input.
+% \begin{proof}
+%   \begin{sproof}
+%     \stmt{|clear n . while (not . test n) shl . f . set n|}
+%     \reason{=}{assumption}
+%     \stmt{|clear n . while (not . test n) shl . g . pow shr k . set n|}
+%     \reason{=}{XXX lemma}
+%     \stmt{|clear n . while (not . test n) shl . g . set (n-k) . pow shr k|}
+%     \reason{=}{$g$ is $(n-k)$-smooth}
+%     \stmt{|clear n . while (not . test n) shl . set (n-k) . g . pow shr k|}
+%     \reason{=}{Input $< 2^n$; after |shr| it is $< 2^{n-k}$; $g$
+%       preserves; hence $2^{n-k}$ is biggest bit set}
+%     \stmt{|clear n . pow shl k . set (n-k) . g . pow shr k|}
+%     \reason{=}{XXX lemma}
+%     \stmt{|clear n . set n . pow shl k . g . pow shr k|}
+%     \reason{=}{XXX inverses (assuming that bit was not set in the
+%       first place)}
+%     \stmt{|pow shl k . g . pow shr k|}
+%     \reason{=}{definition}
+%     \stmt{|over k g|}
+%   \end{sproof}
+% \end{proof}
 
+% XXX note |inc| is not actually $n$-smooth for any $n$ according to the
+% above definition!  This is the wrong definition.  We really just need
+% something about bounding the size of the output of $g$ relative to the
+% size of the input.
+............................................................................................................................................................
 \begin{code}
 
 prevSegmentBinary :: Bits -> Bits
@@ -1573,6 +1717,7 @@ prevSegmentBinary = dec . while even shr
 
 
 % Bibliography
+\bibliographystyle{JFPlike}
 \bibliography{fenwick}
 
 

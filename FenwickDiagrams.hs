@@ -107,9 +107,6 @@ leafX l n =
 
 fi = fromIntegral
 
--- XXX need to generalize the below node-drawing code.
--- Want to be able to draw
-
 data DrawNodeOpts a b = DNOpts
   { drawNodeData :: a -> Diagram b
   , nodeStyle    :: a -> Style V2 Double
@@ -309,4 +306,17 @@ dn (i,ml) = mconcat
                  # fontSizeL 0.9
   , circle 1.5 # fc white # lw none
   ]
-  # fontSizeL 0.7
+  # fontSizeL 0.8
+
+drawRightLeaning :: _ => (a -> Diagram b) -> BTree a -> Diagram b
+drawRightLeaning node (BNode x Empty Empty) = node x
+drawRightLeaning node (BNode x l r) = localize $ vsep 2
+  [ node x # named "root"
+  , (drawRightLeaning node l # named "left" ||| strutX 2 ||| drawRightLeaning node r # named "right")
+    # alignTo "right"
+  ]
+  # withNames ["root", "left", "right"]
+  ( \[al, ll, rl] ->
+     applyAll
+     [ beneath (location al ~~ location ll), beneath (location al ~~ location rl) ]
+  )

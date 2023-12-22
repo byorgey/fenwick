@@ -12,5 +12,6 @@ class FenwickTree {
         return prefix(j) - prefix(i-1);
     }
     public long get(int i) { return range(i,i); }
+    public void set(int i, long v) { update(i, v - get(i)); }
     private int LSB(int i) { return i & (-i); }
 }
