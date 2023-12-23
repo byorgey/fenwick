@@ -2,7 +2,7 @@
 
 \documentclass{jfp}
 
-\usepackage{showkeys}
+% \usepackage{showkeys}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% lhs2TeX
@@ -804,7 +804,7 @@ blue or grey; the only green nodes are left children.
 \caption{Performing a prefix query on a segment tree} \label{fig:segment-tree-prefix-query}
 \end{figure}
 
-\todoi{Discuss starting at leaf and moving UP the tree?}
+% \todoi{Discuss starting at leaf and moving UP the tree?}
 
 \begin{corollary}
   Range queries on thinned segment trees can be performed in $O(\lg n)$ time.
@@ -884,8 +884,8 @@ nOpts = (showInactiveOpts False)
   aligning nodes with their storage
   location} \label{fig:right-leaning}
 \end{figure}
-\todoi{If time, improve the right-leaning drawing: shade nodes based
-  on their height, fill in array with corresponding shaded values}
+% \todoi{If time, improve the right-leaning drawing: shade nodes based
+%   on their height, fill in array with corresponding shaded values}
 
 This method of storing the active nodes from a thinned segment tree in
 an array is precisely what is commonly known as a \emph{Fenwick tree},
@@ -1507,7 +1507,7 @@ general, given some $m$ which is the output of |f2b n|, we can write
 it uniquely as $m = 2^c + d$ where $d < 2^{c-1}$; then
 \[ |b2f n (pow 2 c + d) = pow 2 (n-c+1) * (d+1)|. \] In other words,
 given the input $2^c + d$, we subtract off the highest bit $2^c$,
-increment then left shift $n-c+1$ times.  Again, though, there is a
+increment, then left shift $n-c+1$ times.  Again, though, there is a
 simpler way: we can increment first (note since $d < 2^{c-1}$, this
 cannot disturb the bit at $2^c$), then left shift enough times to
 bring the leftmost bit into position $n+1$, and finally remove it.
@@ -1617,44 +1617,134 @@ node whose active parent is the root!
 
 Now, to derive the corresponding operation on Fenwick indices, we
 conjugate by conversion to and from Fenwick indices, and compute as
-follows:
+follows.  For convenience, define |unshift n = clear n . while (not
+. test n) shl|, so |b2f' n = unshift (n+1) . inc|.
 
 \begin{sproof}
   \stmt{|b2f' n . activeParentBinary . f2b' n|}
   \reason{=}{expand definitions}
-  \stmt{|clear n . while (not . test n) shl . inc . while odd shr . shr . dec . while even shr . set n|}
+  \stmt{|unshift (n+1) . inc . while odd shr . shr . dec . while even shr . set (n+1)|}
   \reason{=}{\pref{lem:incwhile}}
-  \stmt{|clear n . while (not . test n) shl . while even shr . inc . shr . dec . while even shr . set n|}
+  \stmt{|unshift (n+1) . while even shr . inc . shr . dec . while even shr . set (n+1)|}
   \reason{=}{\pref{lem:incshr}; the output of |while even shr|
     will be odd}
-  \stmt{|clear n . while (not . test n) shl . while even shr . inc . shr . while even shr . set n|}
+  \stmt{|unshift (n+1) . while even shr . inc . shr . while even shr . set (n+1)|}
   \reason{=}{\pref{lem:incshr}}
-  \stmt{|clear n . while (not . test n) shl . while even shr . shr . inc . while even shr . set n|}
+  \stmt{|unshift (n+1) . while even shr . shr . inc . while even shr . set (n+1)|}
   \reason{=}{|while even shr . shr = while even shr| on an even input}
-  \stmt{|clear n . while (not . test n) shl . while even shr . inc . while even shr . set n|}
+  \stmt{|unshift (n+1) . while even shr . inc . while even shr . set (n+1)|}
+  \reason{=}{Definition of |unshift|}
+  \stmt{|clear (n+1) . while (not . test (n+1)) shl . while even shr . inc . while even shr . set (n+1)|}
   \reason{=}{\pref{lem:shlshr}}
-  \stmt{|clear n . while (not . test n) shl . inc . while even shr . set n|}
+  \stmt{|clear (n+1) . while (not . test (n+1)) shl . inc . while even shr . set (n+1)|}
 \end{sproof}
 
 Reading from right to left, this performs the following steps:
 \begin{enumerate}
 \item Set bit $n+1$ to 1
-\item Shift out all the zeros to find the least significant $1$ bit
+\item Shift out consecutive zeros to find the least significant $1$ bit
 \item Increment
 \item Shift zeros back in to bring the $1$ bit back to position $n+1$,
   then clear it.
 \end{enumerate}
-Intuitively, this looks a lot like adding the LSB, where we set and
-clear bit $n+1$ just as a ``placeholder'' so we can keep track of how
-much we have shifted and then ``unshift'' later.
+Intuitively, this looks a lot like $\lambda x. |x + lsb x|$!  To find
+the LSB, one must shift through consecutive $0$ bits until finding the
+first $1$; the question is how to keep track of how many $0$ bits we
+shifted through on the way.  The |lsb| function itself keeps track via
+the recursion stack; after finding the first $1$ bit, the recursion
+stack unwides and re-conses all the $0$ bits we recursed through on
+the way.  The above pipeline represents an alternative approach: set
+bit $n+1$ as a ``placeholder'' so we can keep track of how much we
+have shifted; right shift until the first $1$ is literally in the ones
+place; and then shift all the $0$ bits back in by doing left shifts
+until the placeholder bit gets back to the $n+1$ place.  However, this
+only works for values that are sufficiently small that the placeholder
+bit will not be disturbed throughout the operation.
 
-To formally prove this XXX
+To prove this formally, we begin by defining a helper function |onOdd|:
+
+\begin{code}
+
+onOdd :: (Bits -> Bits) -> Bits -> Bits
+onOdd f (0 : bs) = 0 : onOdd f bs
+onOdd f bs = f bs
+
+\end{code}
+
+\begin{lem}
+  For all |x :: Bits|, |x + lsb x = onOdd inc x|.
+\end{lem}
+
+\begin{proof}
+  Straightforward induction on $x$.
+\end{proof}
+
+Now we can formally relate the ``shifting with a placeholder'' scheme
+to the use of the |onOdd| function, as follows:
+
+\begin{lem} \label{lem:placeholder-scheme}
+  Let $n \geq 1$ and let $0 < x \leq 2^n$, and suppose that, when
+  given inputs $\leq 2^n$, $f$ commutes with $set (n+1)$, that is, \[
+    |(f . set (n+1)) x = (set (n+1) . f) x|. \] Then
+  \[ |(clear (n+1) . while (not . test (n+1)) shl . f . while even shr
+    . set (n+1)) x = onOdd f x|. \]
+\end{lem}
+\begin{proof}
+  % % Let $g^k$ denote $k$-fold composition of $g$, that is, $g^0 = |id|$
+  % % and $g^{k+1} = |pow g k . g|$. Since $x > 0$, it has some bit set to
+  % % $1$, and hence there exists some $k \geq 0$ such that |while even
+  % % shr x = pow shr k x|.  Since $x < 2^{n+1}$, then $k < n+1$ as
+  % % well.
+  By induction on $x$.  First, suppose $x = 1 : xs$.  In that case,
+  |onOdd f (1 : xs) = f (1 : xs)|, and
+  \begin{sproof}
+    \stmt{|(clear (n+1) . while (not . test (n+1)) shl . f . while even shr . set (n+1)) (1 : xs)|}
+    \reason{=}{Definition of |set|}
+    \stmt{|(clear (n+1) . while (not . test (n+1)) shl . f . while even shr) (1 : set n xs)|}
+    \reason{=}{Definition of |while|}
+    \stmt{|(clear (n+1) . while (not . test (n+1)) shl . f) (1 : set n xs)|}
+    \reason{=}{Definition of |while|}
+    \stmt{|(clear (n+1) . while (not . test (n+1)) shl . f . set (n+1)) (1 : xs)|}
+    \reason{=}{|f| commutes with |set (n+1)|}
+    \stmt{|(clear (n+1) . while (not . test (n+1)) shl . set (n+1) . f) (1 : xs)|}
+    \reason{=}{Definition of |while|}
+    \stmt{|(clear (n+1) . set (n+1) . f) (1 : xs)|}
+    \reason{=}{|clear (n+1)| and |set (n+1)| are inverse, since the
+      input is $< 2^{n+1}$}
+    \stmt{f (1 : xs)}
+  \end{sproof}
+  Next, if $x = 0 : xs$, then |onOdd f (0 : xs) = 0 : onOdd f xs|, and we
+  can proceed by a nested induction on $n$.  First, if $n = 1$, then
+  $0 < x \leq 2^n$ must be either 1 or 2, and an easy calculation
+  shows that if $x = 1$, both sides are equal to |f 1|, whereas if $x
+  = 2$, both sides are equal to $0 : onOdd f 1$.
+  \begin{sproof}
+    \stmt{|(clear (n+1) . while (not . test (n+1)) shl . f . while even shr . set (n+1)) (0 : xs)|}
+    \reason{=}{Definition of |set|}
+    \stmt{|(clear (n+1) . while (not . test (n+1)) shl . f . while even shr) (0 : set n xs)|}
+    \reason{=}{Definition of |while| and |even|}
+    \stmt{|(clear (n+1) . while (not . test (n+1)) shl . f . while even shr . set n) xs|}
+    \reason{=}{Factor out a single |shl|}
+    \stmt{|(shl . clear n . while (not . test n) shl . f . while even shr . set n) xs|}
+    \reason{=}{Induction hypothesis}
+    \stmt{|shl (onOdd f xs)|}
+    \reason{=}{Definition of |shl|}
+    \stmt{|0 : onOdd f xs|}
+  \end{sproof}
+
+  % \begin{sproof}
+  %   \stmt{|(clear (n+1) . while (not . test (n+1)) shl . f . while even shr
+  %   . set (n+1)) (0:x)|}
+  %   \stmt{|(clear (n+1) . while (not . test (n+1)) shl . f . while even shr) (0:set n x)|}
+  %   \stmt{|(clear (n+1) . while (not . test (n+1)) shl . f . while even shr) (set n x)|}
+  %   \stmt{|(shl . clear n . while (not . test n) shl . f . while even shr . set n) x|}
+  % \end{sproof}
+
+\end{proof}
+
 
 % , we need a lemma about the ``shifting with a
 % placeholder'' scheme we see above.
-
-% XXX Let $f^k$ denote $k$-fold composition of $f$, that is, $f^0 =
-% |id|$ and $f^{k+1} = |pow f k . f|$.
 
 % \begin{defn}
 % Say a function on |Bits| is \emph{$n$-smooth} if it only examines
@@ -1705,7 +1795,19 @@ To formally prove this XXX
 % above definition!  This is the wrong definition.  We really just need
 % something about bounding the size of the output of $g$ relative to the
 % size of the input.
-............................................................................................................................................................
+
+Now, let's see how to implement prefix query operations.  Again, if we
+want to compute the sum of $[1, j]$, we can start at index $j$ in the
+Fenwick array, which stores the sum of the unique segment ending at
+$j$.  If the node at index $j$ stores the segment $[i,j]$, we next
+need to find the unique node storing a segment that ends at $i-1$.  We
+can do this repeatedly, adding up segments as we go.
+
+Staring at \pref{fig:right-leaning} for inspiration, we can see that
+what we want to do is find the \emph{left sibling} of our
+\emph{closest inactive parent}.  Under a binary indexing scheme, this
+can be implemented simply as:
+
 \begin{code}
 
 prevSegmentBinary :: Bits -> Bits
@@ -1713,10 +1815,38 @@ prevSegmentBinary = dec . while even shr
 
 \end{code}
 
-\section*{Acknowledgements}
+We can then compute:
+\begin{sproof}
+  \stmt{|b2f' n . prevSegmentBinary . f2b' n|}
+  \reason{=}{expand definitions}
+  \stmt{|unshift (n+1) . inc . dec . while even shr . dec . while even shr . set (n+1)|}
+  \reason{=}{|inc . dec = id|}
+  \stmt{|unshift (n+1) . while even shr . dec . while even shr . set (n+1)|}
+  \reason{=}{Definition of |unshift|}
+  \stmt{|clear (n+1) . while (not . test (n+1)) shl . while even shr . dec . while even shr . set (n+1)|}
+  \reason{=}{\pref{lem:shlshr}}
+  \stmt{|clear (n+1) . while (not . test (n+1)) shl . dec . while even shr . set (n+1)|}
+  \reason{=}{\pref{lem:placeholder-scheme}}
+  \stmt{|onOdd dec|}
+\end{sproof}
+
+Just as |onOdd inc x = x + lsb x|, we have dually that |onOdd dec x =
+x - lsb x|, which is also easy to prove via induction.
+
+The implementations of |prefix| and |update| are reproduced in
+\pref{fig:prefix-update}, and we can now see that they make perfect
+sense: both start at index |i|, and repeatedly either subtract or add
+the LSB, respectively. As we have seen, these correspond precisely to
+moving up the Fenwick tree to the next active parent, in the case of
+|update|, or to the previous segment, in the case of |prefix|.
+
+\begin{figure}
+  \inputminted[fontsize=\footnotesize,firstline=4,lastline=10]{java}{FenwickTree.java}
+  \caption{|prefix| and |update| implementations}
+  \label{fig:prefix-update}
+\end{figure}
 
 
-% Bibliography
 \bibliographystyle{JFPlike}
 \bibliography{fenwick}
 
