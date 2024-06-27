@@ -1335,7 +1335,7 @@ given Fenwick index or vice versa. Staring at the table in
 \pref{fig:bt-both-big}, a few patterns stand out.  Of course, all the
 numbers in the bottom row are even, which is precisely because the
 binary tree is numbered in such a way that all active nodes have an
-even inex.  Second, we can see the even numbers $32, 34 \dots 46$, in
+even index.  Second, we can see the even numbers $32, 34 \dots 46$, in
 order, in all the odd positions.  These are exactly the leaves of the
 tree, and indeed, every other node in the Fenwick array will be a leaf
 from the original tree.  Alternating with these, in the even
@@ -1666,7 +1666,7 @@ To prove this formally, we begin by defining a helper function |onOdd|:
 \begin{code}
 
 onOdd :: (Bits -> Bits) -> Bits -> Bits
-onOdd f (0 : bs) = 0 : onOdd f bs
+onOdd f (O : bs) = O : onOdd f bs
 onOdd f bs = f bs
 
 \end{code}
