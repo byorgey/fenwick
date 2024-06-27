@@ -39,6 +39,7 @@
 %format .&. = "\land"
 %format .|. = "\lor"
 %format .&&. = "\owedge"
+%format ::: = ":\;:\;:"
 
 %format not = "not"
 
@@ -1082,8 +1083,9 @@ follows:
 \begin{code}
 
 inc :: Bits -> Bits
-inc (O : bs)  =  I : bs
-inc (I : bs)  =  O : inc bs
+inc Ones = Zeros
+inc (bs ::: O) = bs ::: I
+inc (bs ::: I) = inc bs ::: O
 
 dec :: Bits -> Bits
 dec (I : bs) = O : bs
