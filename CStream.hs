@@ -3,6 +3,9 @@
 
 module CStream where
 
+-- XXX can we generalize so the repeating part has more than one element?
+-- https://stackoverflow.com/questions/50144990/how-to-implement-an-eventually-repeating-list-in-haskell
+
 import Prelude hiding (repeat, take, drop, (!!), zipWith, foldMap, and, or, all, any, maximum, minimum)
 import Data.Monoid (All(..), Any(..))
 import Data.Semigroup (Max(..), Min(..))

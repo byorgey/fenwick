@@ -11,6 +11,8 @@
 \let\Bbbk\undefined  % https://github.com/kosmikus/lhs2tex/issues/82
 %include polycode.fmt
 
+%subst pragma a = "\texttt{\string{-\#" a "\#-\string}}"
+
 %format :--:   = "\mathrel{:\!\text{---}\!:}"
 %format `inR`  = "\in"
 %format inR    = "(" `inR` ")"
@@ -35,16 +37,22 @@
 
 %format * = "\cdot"
 
-%format .+. = "+"
+%format invBit = "\neg"
+%format .+. = "\oplus"
 %format .&. = "\land"
 %format .|. = "\lor"
 %format .&&. = "\owedge"
-%format ::: = ":\;:\;:"
+%format :. = "\mathrel{:\!.}"
 
 %format not = "not"
 
 %if false
 \begin{code}
+
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE ViewPatterns #-}
+{-# OPTIONS_GHC -fno-warn-missing-methods #-}
 
 import Prelude hiding (even, odd)
 
@@ -191,7 +199,8 @@ import Prelude hiding (even, odd)
   indices.  We begin with \emph{segment trees}, a much more
   straightforward, easy-to-verify, purely functional solution to the
   problem, and use equational reasoning to derive the implementation
-  of Fenwick trees as an optimized variant.
+  of Fenwick trees as an optimized variant. XXX mention DSL for
+  arbitrary-size two's complement.
 \end{abstract}
 
 
@@ -926,7 +935,7 @@ another function \mintinline{java}{LSB}, which for some reason
 performs a bitwise logical AND of an integer and its negation.  In
 fact, \mintinline{java}{LSB(x)} computes the \emph{least significant
   bit} of $x$, that is, it returns the smallest $2^k$ such that the
-$2^k$ bit of $x$ is a one.  However, it is not obvious how the
+$k$th bit of $x$ is a one.  However, it is not obvious how the
 implementation of \mintinline{java}{LSB} works, nor how and why least
 significant bits are being used to compute updates and prefix sums.
 
@@ -955,138 +964,153 @@ implementations (\pref{sec:fenwick-ops}).
 The bit tricks usually employed to implement Fenwick trees rely on a
 \emph{two's complement} representation of binary numbers, which allow
 positive and negative numbers to be represented in a uniform way; for
-example, a value consisting of all 1 bits represents $-1$.  Rather
-than fix a specific bit width, it will be much more elegant to work
-with \emph{infinite} bit strings, \ie \emph{$2$-adic
-  numbers}.
+example, a value consisting of all 1 bits represents $-1$.  We
+therefore turn now to developing a domain-specific language, embedded
+in Haskell, for manipulating two's complement binary representations.
 
-However, defining and working with infinite bit strings would
-typically require \emph{coinduction}.  For example, if we let
-$F(X) = \bits \times X$ be the structure functor that pairs a single
-bit (where $\bits = \{0, 1\}$ denotes the type of bits) with an
-existing value of type $X$, induction cannot even get off the ground:
-the least fixed point $\mu F$ is the empty set. It is the greatest
-fixed point $\nu F$, with its accompanying notion of coinduction,
-which actually yields the set of all infinite binary sequences
-$\bits^{\mathbb{N}}$.  But losing the nice tools of pattern matching
-and recursion would be a steep price to pay.
-
-\newcommand{\zeros}{\ensuremath{\overline{\mathbf{0}}}\xspace}
-\newcommand{\ones}{\ensuremath{\overline{\mathbf{1}}}\xspace}
-
-Instead, let \zeros denote the infinite sequence of all 0's, and \ones
-denote the infinite sequence of all 1's, and consider the functor
-\[ B(X) = \{\zeros, \ones\} + \bits \times X. \] That is, a value of
-type $B(X)$ is either the element \zeros, or the element \ones, or a
-pair consisting of a bit and a value of type $X$.  Now the least fixed
-point $\mu B$ is the type of all \emph{finitely supported} infinite
-bit sequences, \ie infinite bit sequences which start with some
-arbitrary finite sequence of bits but eventually end with all zeros or
-all ones.  This represents exactly the embedding of the integers
-$\mathbb{Z}$ into the 2-adic numbers, which is precisely what we need;
-we have no need for ``exotic'' 2-adics such as $\dots01010101 = -1/3$.
-
-There are two ways we can understand this construction.  If we take
-the set of all infinite binary sequences $\bits^{\mathbb{N}}$ as
-given, we can simply define $\zeros = \lambda x. 0$ and
-$\ones = \lambda x. 1$, and think of $\mu B$ as directly building a
-subset of our semantic domain.  Alternatively, we can think of \ones
-and \zeros as initially uninterpreted ``constructors'', so that
-$\mu B$ is a set of ``abstract syntax trees'' representing chains of
-bits terminating in \zeros or \ones.  In this case we must also be
-careful to quotient by the relations $\zeros = 0 : \zeros$ and
-$\ones = 1 : \ones$, that is, if we cons a zero onto the beginning of
-\zeros we get back \zeros again, and similarly for $\ones$.  In either
-case, note that this means ``pattern matching'' on \zeros or \ones
-incurs a proof obligation: we can only pattern match on \zeros or
-\ones when we would still get the same result if we replaced \zeros or
-\ones with $0 : \zeros$ or $1 : \ones$, respectively.  For example, we
-can define a valuation $\sem - : \mu B \to \Z$ as follows:
-\begin{align*}
-  \sem \zeros &= 0 \\
-  \sem \ones &= -1 \\
-  \sem {b : x} &= [b] + 2 \sem x
-\end{align*}
-where $[b] : \bits \to \Z$ denotes the \emph{Iverson bracket}
-injecting the bits $0, 1$ into the integers.  For example,
-$\sem{1 : 0 : 1 : \zeros} = 1 + 2 \cdot \sem{0 : 1 : \zeros} = 1 + 2 \cdot 2
-\cdot \sem{1 : \zeros} = 1 + 2 \cdot 2 \cdot (1 + 0) = 5$, as
-expected.  As another example,
-$\sem{1 : 0 : \ones} = 1 + 2 \cdot \sem{0 : \ones} = 1 + 2 \cdot 2 \cdot
-\sem{\ones} = 1 - 4 = -3$. This is well-defined, since
-\[ \sem{0 : \zeros} = [0] + 2\sem \zeros = 2 \sem \zeros = 0 =
-\sem{\zeros} \] and
-\[ \sem{1 : \ones} = 1 + 2\sem \ones = 1 + 2(-1) = -1 = \sem{\ones}. \]
-
-This construction justifies our use of recursion and induction when
-working with infinite bit sequences.  In theory, we could encode this
-formally in a language with quotient types, such as Cubical Agda,
-though I have not yet done so. Practically speaking, we will simply
-use infinite lists of bits in Haskell, but we will stick to the
-finitely supported fragment (even though Haskell is actually capable
-of describing more general infinite lists).
-
-First, we define a type of bits, with functions for negation,
+First, we define a type of bits, with functions for inversion,
 logical conjunction, and logical disjunction:
 
 \begin{code}
 
 data Bit = O | I  deriving (Eq, Ord, Show, Enum)
 
-inv :: Bit -> Bit
-inv O = I
-inv I = O
+invBit :: Bit -> Bit
+invBit = \case {O -> I; I -> O}
 
-(.&.) :: Bit -> Bit -> Bit
-O .&. _ = O
-I .&. b = b
+(.&.), (.|.) :: Bit -> Bit -> Bit
+O  .&. _  = O
+I  .&. b  = b
 
-(.|.) :: Bit -> Bit -> Bit
-I .|. _ = I
-O .|. b = b
+I  .|. _  = I
+O  .|. b  = b
 
 \end{code}
 
-Next, we define the type of infinite bit sequences, along with some
-convenient functions for constructing them (note that the |neg|
-function used in the definition of |toBits| will be defined later).
+Next, we must define bit strings, \ie sequences of bits.  Rather than
+fix a specific bit width, it will be much more elegant to work with
+\emph{infinite} bit strings.\footnote{Some readers may recognize
+  infinite two's complement bit strings as \term{dyadic} numbers, but
+  nothing in our story depends on understanding the connection.} It is
+tempting to use standard Haskell lists to represent potentially
+infinite bit strings, but this leads to a number of problems. For example,
+equality of infinite lists is not decidable, and there is no way in
+general to convert from an infinite list of bits back to an
+|Integer|---how would we know when to stop?  In fact, these practical
+problems stem from a more fundamental one: infinite lists of bits are
+actually a bad representation for two's complement bit strings,
+because of ``junk'', that is, infinite lists of bits which do not
+correspond to values in our intended semantic domain. For example,
+|cycle [I,O]| is an infinite list which alternates between |I| and |O|
+forever, but it does not represent a valid two's complement encoding
+of an integer.  Even worse are non-periodic lists, such as the one with
+|I| at every prime index and |O| everywhere else.
+
+In fact, the bit strings we want are the \emph{eventually constant}
+ones, that is, strings which eventually settle down to an infinite
+tail of all zeros (which represent nonnegative integers) or all ones
+(negative integers).  Every such string has a finite representation,
+so directly encoding eventually constant bit strings in Haskell not
+only gets rid of the junk but also leads to elegant, terminating
+algorithms for working with them.
 
 \begin{code}
 
-type Bits = [Bit]
+data Bits where
+  Rep   :: Bit -> Bits
+  Snoc  :: !Bits -> Bit -> Bits
 
-zeros, ones :: Bits
-zeros = repeat O
-ones = repeat I
+\end{code}
+
+|Rep b| represents an infinite sequence of bit |b|, whereas |Snoc bs
+b| represents the bit string |bs| followed by a final bit |b|. We use
+|Snoc|, rather than |Cons|, to match the way we usually write bit
+strings, with the least significant bit last.  Note also the use of a
+\term{strictness annotation} on the |Bits| field of |Snoc|; this is to
+rule out infinite lists of bits using only |Snoc|, such as
+|bs = Snoc (Snoc bs O) I|.  In other words, the only way to make a
+non-bottom value of type |Bits| is to have a finite sequence of |Snoc|
+finally terminated by |Rep|.
+
+Although we have eliminated junk values, one remaining problem is that
+there can be multiple distinct representations of the same value.  For
+example, |Snoc (Rep O) O| and |Rep O| both represent the infinite bit
+string containing all zeros. However, we can solve this with a
+carefully constructed \emph{bidirectional pattern synonym} \citep{pickering2016pattern}.
+
+\begin{code}
+
+expand :: Bits -> Bits
+expand (Rep a) = Snoc (Rep a) a
+expand as = as
+
+pattern (:.) :: Bits -> Bit -> Bits
+pattern (:.) bs b <- (expand -> Snoc bs b)
+  where
+    Rep b :. b' | b == b' = Rep b
+    bs :. b = Snoc bs b
+
+{-# COMPLETE (:.) #-}
+\end{code}
+
+Matching with the pattern |(bs :. b)| uses a \term{view pattern}
+\citep{erwig2001pattern} to potentially expand a |Rep| one step into a
+|Snoc|, so that we can pretend |Bits| values are always constructed
+with |(:.)|.  Conversely, constructing a |Bits| with |(:.)| will do
+nothing if we happen to snoc an identical bit |b| onto an existing
+|Rep b|.  This ensures that as long as we stick to using |(:.)| and
+never directly use |Snoc|, |Bits| values will always be
+\emph{normalized} so that the terminal |Rep b| is immediately followed
+by a different bit.  Finally, we mark the pattern |(:.)| as
+\verb|COMPLETE| on its own, since matching on |(:.)| is indeed
+sufficient to handle every possible input of type |Bits|.  However, in
+order to obtain terminating algorithms we will often include one or
+more special cases for |Rep|.
+
+Let's begin with some functions for converting |Bits| to and from
+|Integer|, and for displaying |Bits| (intended only for testing).
+
+\begin{code}
 
 toBits :: Int -> Bits
 toBits n
-  | n == 0 = zeros
-  | n < 0 = neg (toBits (-n))
-  | otherwise  = toEnum (n `mod` 2) : toBits (n `div` 2)
+  | n == 0 = Rep O
+  | n == -1 = Rep I
+  | otherwise  = toBits (n `div` 2) :. toEnum (n `mod` 2)
+
+fromBits :: Bits -> Int
+fromBits (Rep O) = 0
+fromBits (Rep I) = -1
+fromBits (bs :. b) = 2 * fromBits bs + fromEnum b
+
+instance Show Bits where
+  show = reverse . go
+   where
+    go (Rep b) = replicate 3 (showBit b) ++ "..."
+    go (bs :. b) = showBit b : go bs
+
+    showBit = ("01"!!) . fromEnum
 
 \end{code}
+%$
 
-For testing purposes, we include a couple functions for converting
-from |Bits| to other formats: |showBits| shows the first 16 bits, and
-|fromBits| represents the valuation $\sem -$.  With |fromBits|,
-however, we run into a problem: the valuation $\sem -$ is not actually
-computable, since we can never know if we have reached $\zeros$ or
-$\ones$.  In practice, then, we pass an extra parameter to |fromBits|
-representing a specific bit width; we assume that all bits past that
-point are identical to the last bit encountered (which thus functions
-as a sign bit).
+Let's try it out, using QuickCheck \citep{claessen2000quickcheck} to
+verify our conversion functions:
 
-\begin{code}
-
-showBits :: Bits -> String
-showBits = ("..."++) . reverse . map (("01"!!) . fromEnum) . take 16
-
-fromBits :: Int -> Bits -> Int
-fromBits 1 (b : bs) = -fromEnum b
-fromBits n (b : bs) = fromEnum b + 2 * fromBits (n-1) bs
-
-\end{code}
+\begin{verbatim}
+ghci> Rep O :. O :. I :. O :. I
+...000101
+ghci> Rep I :. O :. I
+...11101
+ghci> toBits 26
+...00011010
+ghci> toBits (-30)
+...11100010
+ghci> fromBits (toBits (-30))
+-30
+ghci> quickCheck $ \x -> fromBits (toBits x) == x
++++ OK, passed 100 tests.
+\end{verbatim}
 
 We can now begin implementing some basic operations on |Bits|.  First,
 incrementing and decrementing can be implemented recursively as
@@ -1095,24 +1119,25 @@ follows:
 \begin{code}
 
 inc :: Bits -> Bits
-inc Ones = Zeros
-inc (bs ::: O) = bs ::: I
-inc (bs ::: I) = inc bs ::: O
+inc (Rep I)    = Rep O
+inc (bs :. O)  = bs :. I
+inc (bs :. I)  = inc bs :. O
 
 dec :: Bits -> Bits
-dec (I : bs) = O : bs
-dec (O : bs) = I : dec bs
+dec (Rep O)    = Rep I
+dec (bs :. I)  = bs :. O
+dec (bs :. O)  = dec bs :. I
 
 \end{code}
 
-% We can prove by induction that for all |x :: Bits|, $\sem{|inc x|} = 1
-% + \sem x$:
-% \begin{itemize}
-% \item $\sem{|inc zeros|} = \sem{|inc (O : zeros)|} = \sem{|I : zeros|}
-%   = 1 + 2\sem |zeros| = 1$
-% \item $\sem{|inc ones|} = \sem{|inc (I : ones)|} = \sem{|O : inc
-%     ones|} =
-% \end{itemize}
+% % We can prove by induction that for all |x :: Bits|, $\sem{|inc x|} = 1
+% % + \sem x$:
+% % \begin{itemize}
+% % \item $\sem{|inc zeros|} = \sem{|inc (O : zeros)|} = \sem{|I : zeros|}
+% %   = 1 + 2\sem |zeros| = 1$
+% % \item $\sem{|inc ones|} = \sem{|inc (I : ones)|} = \sem{|O : inc
+% %     ones|} =
+% % \end{itemize}
 
 The \emph{least significant bit}, or LSB, of a sequence of bits can be
 defined as follows:
@@ -1120,43 +1145,78 @@ defined as follows:
 \begin{code}
 
 lsb :: Bits -> Bits
-lsb (O : bs) = O : lsb bs
-lsb (I : _)  = I : zeros
+lsb (bs :. O) = lsb bs :. O
+lsb (_ :. I)  = Rep O :. I
 
 \end{code}
 
 For example,
 \begin{verbatim}
-ghci> showBits (toBits 26)
-"...0000000000011010"
-ghci> showBits (lsb $ toBits 26)
-"...0000000000000010"
-ghci> showBits (toBits 24)
-"...0000000000011000"
-ghci> showBits (lsb $ toBits 24)
-"...0000000000001000"
+ghci> toBits 26
+"...00011010"
+ghci> lsb $ toBits 26
+"...00010"
+ghci> toBits 24
+"...00011000"
+ghci> lsb $ toBits 24
+"...0001000"
 \end{verbatim}
 
-We can also define addition, bitwise logical conjunction, and negation
-as follows:
+Bitwise logical conjunction can be defined straightforwardly.  Note
+that we only need two cases; if the finite parts of the inputs have
+different lengths, matching with |(:.)| will automatically expand the
+shorter one to match the longer one.
+\begin{code}
 
+(.&&.) :: Bits -> Bits -> Bits
+Rep x .&&. Rep y = Rep (x .&. y)
+(xs :. x) .&& (ys :. y) = (xs .&&. ys) :. (x .&. y)
+
+\end{code}
+Bitwise inversion is likewise straightforward.
+\begin{code}
+
+inv :: Bits -> Bits
+inv (Rep b) = Rep (invBit b)
+inv (bs :. b) = inv bs :. invBit b
+
+\end{code}
+The above functions follow familiar patterns.  We could easily
+generalize to eventually constant streams over an arbitrary element
+type, and then implement |(.&&.)| in terms of a generic |zipWith| and |inv|
+in terms of |map|.  However, for the present purpose we do not need
+the extra generality.
+
+We implement addition with the usual carry-propagation algorithm,
+along with some special cases for |Rep|.
 \begin{code}
 
 (.+.) :: Bits -> Bits -> Bits
-(I : xs)  .+. (I : ys)  = O  : inc (xs .+. ys)
-(x : xs)  .+. (y : ys)  = (x .|. y)  : (xs .+. ys)
-
-(.&&.) :: Bits -> Bits -> Bits
-(.&&.) = zipWith (.&.)
-
-neg :: Bits -> Bits
-neg = inc . map inv
+xs         .+. Rep O      = xs
+Rep O      .+. ys         = ys
+Rep I      .+. Rep I      = Rep I :. O
+(xs :. I)  .+. (ys :. I)  = inc (xs .+. ys) :. O
+(xs :. x)  .+. (ys :. y)  = (xs .+. ys) :. (x .|. y)
 
 \end{code}
+It is a bit tricky to convince ourselves that this definition of
+addition is terminating and yields correct results; fortunately, we
+can be fairly confident by just trying it with QuickCheck:
 
-This definition of negation is probably familiar to anyone who has
-studied two's complement arithmetic; I leave it as an exercise for
-the interested reader to prove that |x .+. neg x == zeros|.
+\begin{verbatim}
+ghci> quickCheck $ \x y -> fromBits (toBits x .+. toBits y) == x + y
++++ OK, passed 100 tests.
+\end{verbatim}
+
+Finally, the following definition of negation is probably familiar to
+anyone who has studied two's complement arithmetic; I leave it as an
+exercise for the interested reader to prove that |x .+. neg x == 0|.
+\begin{code}
+
+neg :: Bits -> Bits
+neg = inc . inv
+
+\end{code}
 
 We now have the tools to resolve the first mystery of the Fenwick tree
 implementation.
@@ -1166,42 +1226,43 @@ implementation.
 \begin{proof}
 By induction on |x|.
 \begin{itemize}
-\item First, if |x = 0 : xs|, then |lsb x = lsb (0:xs) = 0 : lsb xs|
+\item First, if |x = xs :. O|, then |lsb x = lsb (xs :. O) = lsb xs
+  :. O|
   by definition, whereas
   \begin{sproof}
-    \stmt{|(0:xs) .&&. neg (0:xs)|}
+    \stmt{|(xs :. O) .&&. neg (xs :. O)|}
     \reason{=}{Definition of |neg|}
-    \stmt{|(0:xs) .&&. inc (map inv (0:xs))|}
-    \reason{=}{Definition of |map| and |inv|}
-    \stmt{|(0:xs) .&&. inc (1 : map inv xs)|}
+    \stmt{|(xs :. O) .&&. inc (inv (xs :. O))|}
+    \reason{=}{Definition of |inv| and |invBit|}
+    \stmt{|(xs :. O) .&&. inc (inv xs :. I)|}
     \reason{=}{Definition of |inc|}
-    \stmt{|(0:xs) .&&. (0 : inc (map inv xs))|}
+    \stmt{|(xs :. O) .&&. (inc (inv xs) :. O)|}
     \reason{=}{Definition of |.&&.| and |neg|}
-    \stmt{|0 : (xs .&&. neg xs)|}
+    \stmt{|(xs .&&. neg xs) :. O|}
     \reason{=}{Induction hypothesis}
-    \stmt{|0 : lsb xs|}
+    \stmt{|lsb xs :. O|}
   \end{sproof}
-\item Next, if |x = 1 : xs|, then |lsb (1:xs) = 1 : zeros| by
+\item Next, if |x = xs :. I|, then |lsb (xs :. I) = Rep O :. 1| by
   definition, whereas
   \begin{sproof}
-    \stmt{|(1:xs) .&&. neg (1:xs)|}
+    \stmt{|(xs :. I) .&&. neg (xs :. I)|}
     \reason{=}{Definition of |neg|}
-    \stmt{|(1:xs) .&&. inc (map inv (1:xs))|}
-    \reason{=}{Definition of |map| and |inv|}
-    \stmt{|(1:xs) .&&. inc (0:map inv xs))|}
+    \stmt{|(xs :. I) .&&. inc (inv (xs :. I))|}
+    \reason{=}{Definition of |inv| and |invBit|}
+    \stmt{|(xs :. I) .&&. inc (inv xs :. O))|}
     \reason{=}{Definition of |inc|}
-    \stmt{|(1:xs) .&&. (1 : map inv xs)|}
+    \stmt{|(xs :. I) .&&. (inv xs :. I)|}
     \reason{=}{Definition of |.&&.|}
-    \stmt{|1 : (xs .&&. map inv xs)|}
-    \reason{=}{Bitwise AND of $xs$ and its inverse is |zeros|}
+    \stmt{|(xs .&&. inv xs) :. I|}
+    \reason{=}{Bitwise AND of $xs$ and its inverse is |Rep O|}
     \stmt{|1 : zeros|}
   \end{sproof}
 \end{itemize}
 \end{proof}
 
-For the last equality we need a lemma that |xs .&&. map inv xs =
-zeros|, which should be intuitively clear and can be easily proved by
-induction as well.
+For the last equality we need a lemma that |xs .&&. inv xs = Rep O|, which
+should be intuitively clear and can be easily proved by induction as
+well.
 
 Finally, in order to express the index conversion functions we will
 develop in the next section, we need a few more things in our DSL.
@@ -1211,16 +1272,16 @@ whether particular bits are set:
 \begin{code}
 
 setTo :: Bit -> Int -> Bits -> Bits
-setTo b' 0 (_ : bs) = b' : bs
-setTo b' k (b : bs) = b : setTo b' (k-1) bs
+setTo b' 0 (bs :. _) = bs :. b'
+setTo b' k (bs :. b) = setTo b' (k-1) bs :. b
 
 set, clear :: Int -> Bits -> Bits
 set = setTo I
 clear = setTo O
 
 test :: Int -> Bits -> Bool
-test 0 (b : bs) = b == I
-test n (_ : bs) = test (n-1) bs
+test 0 (bs :. b) = b == I
+test n (bs :. _) = test (n-1) bs
 
 even, odd :: Bits -> Bool
 odd = test 0
@@ -1238,10 +1299,10 @@ generates an infinite list, and |dropWhile p| preserves the finiteness
 \begin{code}
 
 shr :: Bits -> Bits
-shr (_ : bs) = bs
+shr (bs :. _) = bs
 
 shl :: Bits -> Bits
-shl bs = O : bs
+shl = (:. O)
 
 while :: (a -> Bool) -> (a -> a) -> a -> a
 while p f = head . dropWhile p . iterate f
@@ -1502,13 +1563,9 @@ f2b' n = dec . while even shr . set (n+1)
 For example, we can verify that this produces identical results to
 |f2b 4| on the range $[1, 2^4]$:
 \begin{verbatim}
-ghci> all (\k -> f2b 4 k == (fromBits 16 . f2b' 4 . toBits) k)
-        [1 .. 2^4]
+ghci> all (\k -> f2b 4 k == (fromBits . f2b' 4 . toBits) k) [1 .. 2^4]
 True
 \end{verbatim}
-(|fromBits 7| would be sufficient---in this case we just need to
-ensure we use enough bits to represent values up to $2^6$---but it
-doesn't hurt to use extra bits).
 
 We now turn to deriving |b2f n|, which converts back from binary to
 Fenwick indices. |b2f n| should be a left inverse to |f2b n|, that is,
@@ -1526,20 +1583,19 @@ simpler way: we can increment first (note since $d < 2^{c-1}$, this
 cannot disturb the bit at $2^c$), then left shift enough times to
 bring the leftmost bit into position $n+1$, and finally remove it.
 That is:
+
 \begin{code}
 
 b2f' :: Int -> Bits -> Bits
 b2f' n = clear (n+1) . while (not . test (n+1)) shl . inc
 
 \end{code}
+
 Verifying:
 \begin{verbatim}
-ghci> all (\k -> (fromBits 16 . b2f' 4 . f2b' 4 . toBits) k == k)
-        [1 .. 2^4]
+ghci> all (\k -> (fromBits . b2f' 4 . f2b' 4 . toBits) k == k) [1 .. 2^4]
 True
 \end{verbatim}
-
-
 
 % Let |find :: [a] -> a -> Maybe Int| be the partial left inverse of |!|, that is, |xs `find`
 % (xs ! k) == Just k| (XXX as long as list |xs| has no duplicates, which is
@@ -1681,7 +1737,7 @@ To prove this formally, we begin by defining a helper function |onOdd|:
 \begin{code}
 
 onOdd :: (Bits -> Bits) -> Bits -> Bits
-onOdd f (O : bs) = O : onOdd f bs
+onOdd f (bs :. O) = onOdd f bs :. O
 onOdd f bs = f bs
 
 \end{code}
@@ -1710,33 +1766,33 @@ to the use of the |onOdd| function, as follows:
   % % $1$, and hence there exists some $k \geq 0$ such that |while even
   % % shr x = pow shr k x|.  Since $x < 2^{n+1}$, then $k < n+1$ as
   % % well.
-  By induction on $x$.  First, suppose $x = 1 : xs$.  In that case,
-  |onOdd f (1 : xs) = f (1 : xs)|, and
+  By induction on $x$.  First, suppose $x = xs :. I$.  In that case,
+  |onOdd f (xs :. I) = f (xs :. I)|, and
   \begin{sproof}
-    \stmt{|(clear (n+1) . while (not . test (n+1)) shl . f . while even shr . set (n+1)) (1 : xs)|}
+    \stmt{|(clear (n+1) . while (not . test (n+1)) shl . f . while even shr . set (n+1)) (xs :. I)|}
     \reason{=}{Definition of |set|}
-    \stmt{|(clear (n+1) . while (not . test (n+1)) shl . f . while even shr) (1 : set n xs)|}
+    \stmt{|(clear (n+1) . while (not . test (n+1)) shl . f . while even shr) (set n xs :. I)|}
     \reason{=}{Definition of |while|}
-    \stmt{|(clear (n+1) . while (not . test (n+1)) shl . f) (1 : set n xs)|}
+    \stmt{|(clear (n+1) . while (not . test (n+1)) shl . f) (set n xs :. I)|}
     \reason{=}{Definition of |set|}
-    \stmt{|(clear (n+1) . while (not . test (n+1)) shl . f . set (n+1)) (1 : xs)|}
+    \stmt{|(clear (n+1) . while (not . test (n+1)) shl . f . set (n+1)) (xs :. I)|}
     \reason{=}{|f| commutes with |set (n+1)|}
-    \stmt{|(clear (n+1) . while (not . test (n+1)) shl . set (n+1) . f) (1 : xs)|}
+    \stmt{|(clear (n+1) . while (not . test (n+1)) shl . set (n+1) . f) (xs :. I)|}
     \reason{=}{Definition of |while|}
-    \stmt{|(clear (n+1) . set (n+1) . f) (1 : xs)|}
+    \stmt{|(clear (n+1) . set (n+1) . f) (xs :. I)|}
     \reason{=}{|clear (n+1)| and |set (n+1)| are inverse, since the
       input is $< 2^{n+1}$}
-    \stmt{f (1 : xs)}
+    \stmt{f (xs :. I)}
   \end{sproof}
-  Next, if $x = 0 : xs$, then |onOdd f (0 : xs) = 0 : onOdd f xs|, and we
+  Next, if $x = xs :. O$, then |onOdd f (xs :. O) = onOdd f xs :. O|, and we
   can proceed by a nested induction on $n$.  First, if $n = 1$, then
   $0 < x \leq 2^n$ must be either 1 or 2, and an easy calculation
   shows that if $x = 1$, both sides are equal to |f 1|, whereas if $x
-  = 2$, both sides are equal to |0 : onOdd f 1|.
+  = 2$, both sides are equal to |onOdd f 1 :. O|.
   \begin{sproof}
-    \stmt{|(clear (n+1) . while (not . test (n+1)) shl . f . while even shr . set (n+1)) (0 : xs)|}
+    \stmt{|(clear (n+1) . while (not . test (n+1)) shl . f . while even shr . set (n+1)) (xs :. O)|}
     \reason{=}{Definition of |set|}
-    \stmt{|(clear (n+1) . while (not . test (n+1)) shl . f . while even shr) (0 : set n xs)|}
+    \stmt{|(clear (n+1) . while (not . test (n+1)) shl . f . while even shr) (set n xs :. O)|}
     \reason{=}{Definition of |while| and |even|}
     \stmt{|(clear (n+1) . while (not . test (n+1)) shl . f . while even shr . set n) xs|}
     \reason{=}{Factor out a single |shl|}
@@ -1744,7 +1800,7 @@ to the use of the |onOdd| function, as follows:
     \reason{=}{Induction hypothesis}
     \stmt{|shl (onOdd f xs)|}
     \reason{=}{Definition of |shl|}
-    \stmt{|0 : onOdd f xs|}
+    \stmt{|onOdd f xs :. O|}
   \end{sproof}
 
   % \begin{sproof}
