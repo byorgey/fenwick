@@ -231,7 +231,10 @@ want to be able to perform arbitrary interleavings of the following
 two operations, illustrated in \pref{fig:update-rq}:
 
 \begin{itemize}
-\item \emph{Update} the value at any given index $i$ to a new value $v$.
+\item \emph{Update} the value at any given index\footnote{Note that we
+    use $1$-based indexing here and throughout the paper, that is, the
+    first item in the sequence has index $1$.  The reasons for this
+    choice will become clear later.} $i$ to a new value $v$.
 \item Find the sum of all values in any given range $[i, j]$, that
   is, $a_i + a_{i+1} + \dots + a_j$.  We call this operation a
   \emph{range query}.
@@ -435,11 +438,14 @@ operations so that they run in logarithmic time.
 \end{center}
 \caption{Performing a range query on a segment tree} \label{fig:segment-tree-range-query}
 \end{figure}
-\pref{fig:segment-tree-range-query} illustrates the process of computing
-the sum of the range $[4 \dots 11]$.  Blue nodes are the ones we
-recurse through; green nodes are those whose range is wholly contained
-in the query range, and are returned without recursing further; grey
-nodes are disjoint from the query range and return zero.
+\pref{fig:segment-tree-range-query} illustrates the process of
+computing the sum of the range $[4 \dots 11]$.  Blue nodes are the
+ones we recurse through; green nodes are those whose range is wholly
+contained in the query range, and are returned without recursing
+further; grey nodes are disjoint from the query range and return zero.
+The final result in this example is the sum of values at the green
+nodes, $1 + 1 + 5 + -2 = 5$ (it is easily verified that this is in
+fact the sum of values in the range $[4 \dots 11]$).
 
 On this small example tree, it may seem that we visit a significant
 fraction of the total nodes, but in general, we visit no more than
@@ -476,6 +482,12 @@ searches, one to find each endpoint of the query range.
 \caption{Performing a range query on a larger segment tree} \label{fig:big-range-query}
 \end{figure}
 \end{itemize}
+
+XXX something here to motivate Fenwick trees.  What is better about
+them?  What problem are we trying to solve?
+- Segment trees lend themselves to cool generalizations (lazy updates
+  of entire ranges, sharing between old + updated trees)
+- But they have overhead of pointers, recursion, etc.  Better for applications where speed + small memory footprint is critical
 
 \section{Segment Trees, Generally}
 
@@ -623,7 +635,7 @@ a reference to the current subtree, we store an integer index; every
 time we want to descend to the left or right we simply double the
 current index or double and add one; and so on.  Working with tree
 nodes stored in an array presents an additional opportunity: rather
-than being forced to start at the root and recur downwards, we can
+than being forced to start at the root and recurse downwards, we can
 start at a particular index of interest and move \emph{up} the tree
 instead.
 
@@ -1403,7 +1415,7 @@ as defined in \pref{fig:index-interleave}.  The same figure also lists
 two easy lemmas about the interaction between indexing and
 interleaving, namely, |(xs `interleave` ys) ! (2*k) = ys ! k|, and
 |(xs `interleave` ys) ! (2*k - 1) = xs!k|.  With these in hand, we can
-define the Fenwick $\to$ binary index conversion function as
+define the Fenwick to binary index conversion function as
 \[ |f2b n k = b n ! k|. \]
 %if false
 \begin{code}
@@ -1584,6 +1596,7 @@ will need a few lemmas.
     shl|. \]
 \end{lem}
 \begin{proof}
+  XXX make a more formal proof, OR say this is just a sketch.
   The left-hand side shifts out some zeros before shifting them
   all back in, whereas the right-hand side avoids the redundant
   shifts; but both stop when the $2^{n+1}$ bit becomes $1$.
@@ -1705,7 +1718,7 @@ to the use of the |onOdd| function, as follows:
     \stmt{|(clear (n+1) . while (not . test (n+1)) shl . f . while even shr) (1 : set n xs)|}
     \reason{=}{Definition of |while|}
     \stmt{|(clear (n+1) . while (not . test (n+1)) shl . f) (1 : set n xs)|}
-    \reason{=}{Definition of |while|}
+    \reason{=}{Definition of |set|}
     \stmt{|(clear (n+1) . while (not . test (n+1)) shl . f . set (n+1)) (1 : xs)|}
     \reason{=}{|f| commutes with |set (n+1)|}
     \stmt{|(clear (n+1) . while (not . test (n+1)) shl . set (n+1) . f) (1 : xs)|}
@@ -1719,7 +1732,7 @@ to the use of the |onOdd| function, as follows:
   can proceed by a nested induction on $n$.  First, if $n = 1$, then
   $0 < x \leq 2^n$ must be either 1 or 2, and an easy calculation
   shows that if $x = 1$, both sides are equal to |f 1|, whereas if $x
-  = 2$, both sides are equal to $0 : onOdd f 1$.
+  = 2$, both sides are equal to |0 : onOdd f 1|.
   \begin{sproof}
     \stmt{|(clear (n+1) . while (not . test (n+1)) shl . f . while even shr . set (n+1)) (0 : xs)|}
     \reason{=}{Definition of |set|}
