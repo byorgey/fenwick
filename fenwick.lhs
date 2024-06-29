@@ -626,8 +626,7 @@ them?  What problem are we trying to solve?
 \section{Segment Trees are Redundant}
 \label{sec:redundant}
 
-Let's think more carefully about the information stored in a segment
-tree.  Of course, segment trees are redundant in the sense that they
+Of course, segment trees are redundant in the sense that they
 cache range sums which could easily be recomputed from the original
 sequence.  That's the whole point: caching these ``redundant'' sums
 trades off space for time, allowing us to perform arbitrary updates
@@ -824,7 +823,7 @@ implement the update and range query operations.  Our implementations
 of these operations for segment trees worked by recursively descending
 through the tree, either directly if the tree is stored as a recursive
 data structure, or using simple operations on indices if the tree is
-stored in an array. When storing the active nodes of a thinned tree in
+stored in an array. However, when storing the active nodes of a thinned tree in
 a Fenwick array, it is not \emph{a priori} obvious what operations on
 array indices will correspond to moving around the tree.
 
@@ -832,7 +831,8 @@ In fact, moving around a Fenwick tree can indeed be done using simple
 index operations; \pref{fig:fenwick-java} shows a typical
 implementation (specialized to integer values) in the imperative
 language Java. This implementation is incredibly concise, but not at
-all perspicuous!  The \mintinline{java}{range} and
+all perspicuous!  The \mintinline{java}{range},
+\mintinline{java}{set}, and
 \mintinline{java}{get} functions are straightforward, but the other
 functions are a puzzle. We can see that both the
 \mintinline{java}{prefix} and \mintinline{java}{update} functions call
@@ -1379,8 +1379,8 @@ ghci> b 4
 Let |s ! k| denote the $k$th item in the list $s$ (counting from 1),
 as defined in \pref{fig:index-interleave}.  The same figure also lists
 two easy lemmas about the interaction between indexing and
-interleaving, namely, |(xs `interleave` ys) ! (2*k) = ys ! k|, and
-|(xs `interleave` ys) ! (2*k - 1) = xs!k|.  With these in hand, we can
+interleaving, namely, |(xs `interleave` ys) ! (2*j) = ys ! j|, and
+|(xs `interleave` ys) ! (2*j - 1) = xs!j|.  With these in hand, we can
 define the Fenwick to binary index conversion function as
 \[ |f2b n k = b n ! k|. \]
 %if false
@@ -1433,7 +1433,7 @@ Whereas for odd inputs,
   \reason{=}{Definition of |f2b|}
   \stmt{|b n ! (2 * j-1)|}
   \reason{=}{Definition of |b|}
-  \stmt{|(map (2*) [pow 2 n .. pow 2 n + pow 2 (n-1) - 1] `interleave` b (n-1)) ! (2 * j)|}
+  \stmt{|(map (2*) [pow 2 n .. pow 2 n + pow 2 (n-1) - 1] `interleave` b (n-1)) ! (2*j-1)|}
   \reason{=}{|`interleave`-!| lemma}
   \stmt{|map (2*) [pow 2 n .. pow 2 n + pow 2 (n-1) - 1] ! j|}
   \reason{=}{Definition of |map|, algebra}
@@ -1446,8 +1446,8 @@ Thus we have
     + k - 1 & k \text{ odd} \end{cases} \] Note that when $n = 0$ we
 must have $k = 1$, and hence $|f2b 0 1| = 2^0 + 1 - 1 = 1$, as
 required, so this definition is valid for all $n \geq 0$.  Now factor
-$k$ uniquely as $2^a \cdot b$ where $b$ is odd.  Then by induction it
-is easy to see that
+$k$ uniquely as $2^a \cdot b$ where $b$ is odd.  Then by induction we
+can see that
 \[ |f2b n (pow 2 a * b) = f2b (n - a) b| = 2^{n-a+1} + b - 1. \] So,
 in other words, computing |f2b| consists of repeatedly dividing by 2
 (\ie right bit shifts) as long as the input is even, and then finally
@@ -1528,7 +1528,7 @@ indices.  First, in order to fuse away the resulting conversion, we
 will need a few lemmas.
 
 \begin{lem} \label{lem:incshr}
-  For all |bs :: Bits| such that |odd bs|,
+  For all odd |bs :: Bits|,
   \begin{itemize}
   \item |(shr . dec) bs = shr bs|
   \item |(shr . inc) bs = (inc . shr) bs|
