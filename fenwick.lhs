@@ -617,8 +617,6 @@ than being forced to start at the root and recurse downwards, we can
 start at a particular index of interest and move \emph{up} the tree
 instead.
 
-
-
 XXX something here to motivate Fenwick trees.  What is better about
 them?  What problem are we trying to solve?
 - Segment trees lend themselves to cool generalizations (lazy updates
@@ -628,17 +626,17 @@ them?  What problem are we trying to solve?
 \section{Segment Trees are Redundant}
 \label{sec:redundant}
 
-What do I mean by saying ``segment trees are redundant''?  Of course,
-segment trees are redundant in the sense that they cache range sums
-which could easily be recomputed from the original sequence.  That's
-the whole point: caching these ``redundant'' sums trades off space for
-time, allowing us to perform arbitrary updates and range queries
-quickly, at the cost of doubling the required storage space.
+Let's think more carefully about the information stored in a segment
+tree.  Of course, segment trees are redundant in the sense that they
+cache range sums which could easily be recomputed from the original
+sequence.  That's the whole point: caching these ``redundant'' sums
+trades off space for time, allowing us to perform arbitrary updates
+and range queries quickly, at the cost of doubling the required
+storage space.
 
-However, if the values come from a group, segment trees are redundant
-in a stronger sense: we can throw out almost \emph{half} of the data
-in a segment tree and still retain the logarithmic running time for
-updates and range queries!
+However, segment trees are redundant in a stronger sense: we can throw
+out almost \emph{half} of the data in a segment tree and still retain
+the logarithmic running time for updates and range queries!
 
 How, you ask?  Simple: just throw out the data stored in \emph{every
   node which is a right child}. \pref{fig:deactivate-right} shows the
@@ -669,83 +667,25 @@ has been \emph{thinned}.
 \caption{Inactivating all right children in a segment tree} \label{fig:deactivate-right}
 \end{figure}
 
-First, let's see that there is enough information remaining to
-reconstruct the information that was discarded.  You might wish to
-pause at this point and work it out for yourself: can you deduce what
-values must go in the greyed-out nodes in \pref{fig:deactivate-right},
-without peeking at any previous figures?
+Updating a thinned segment tree is easy: just update the same nodes as
+before, ignoring updates to inactive nodes.  But how do we answer
+range queries?  It's not too hard to see that there is enough
+information remaining to reconstruct the information that was
+discarded (you might like to try convincing yourself of this: can you
+deduce what values must go in the greyed-out nodes in
+\pref{fig:deactivate-right}, without peeking at any previous
+figures?).  However, in and of itself, this observation does not give
+us a nice algorithm for computing range sums.
 
-\begin{theorem}
-  The value of any inactive node in a thinned segment tree over a
-  group can be recovered, in $O(\lg n)$ time, using only the values of
-  active nodes.
-\end{theorem}
-\begin{proof}
-  The proof is by induction on the depth of an inactive node from its
-  nearest active ancestor.  Note that every inactive node must have an
-  active ancestor; if nothing else, the root of the tree remains
-  active.
-  \begin{itemize}
-  \item In the base case, if an inactive node is the child of an
-    active node, the situation looks like the diagram on the left side
-    of \pref{fig:inactive-child}.
-    \begin{figure}
-    \begin{center}
-    \begin{diagram}[width=150]
-      import FenwickDiagrams
-      import SegTree
-      dia :: Diagram B
-      dia = hsep 2
-        [ t # deactivate # drawSegTree stopts
-          # beneath upedge
-        , t # deactivateR Inactive # drawSegTree stopts
-          # beneath upedge
-        ]
-        where
-          t = Branch "p" 1 2 (Leaf "l" 1) (Leaf "r" 2)
-          iopts = (showInactiveOpts True) { nodeShape = const circleNodeShape }
-          stopts = (mkSTOpts iopts) { stVSep = 0.5 }
-          upedge = ((origin ~~ ((-0.5) ^& 1)) # dashingL [0.05,0.05] 0)
-    \end{diagram}
-    \end{center}
-    \caption{An inactive node whose parent is: (L) active (R) inactive} \label{fig:inactive-child}
-    \end{figure}
-    In this case $p = l \oplus r$ by definition, so $r$ can be
-    computed as $(-l) \oplus p$. (It is tempting to say $r = p \ominus
-    l$, but note that is only correct if the group is commutative.)
-  \item Otherwise, the situation looks like the right side of
-    \pref{fig:inactive-child}.  Again $r = (-l) \oplus p$, but we do
-    not know the value of $p$.  However, since $p$ is closer to its
-    nearest active ancestor than $r$, by the induction hypothesis we
-    can find an expression for $p$ using only the values of active
-    nodes; substituting this into $r = (-l) \oplus p$ yields the
-    desired expression for $r$.
-  \end{itemize}
-  As for taking logarithmic time, the inductive case shows that the
-  number of operations ultimately needed to compute $r$ grows linearly
-  with the depth of $r$ from its nearest active ancestor, which is
-  bounded by the depth of the tree.
-\end{proof}
-
-This proof is, in fact, an algorithm, although this algorithm isn't
-typically used, because it is too specialized. Simply being able to
-\emph{recover} all the discarded information isn't particularly
-useful; what we really want is to perform range queries and updates.
-
-Updates are easy: as before, we only need to update nodes along the
-path from the modified leaf to the root, simply skipping any inactive
-nodes along the way.  However, it is less clear that we can still do
-range queries in $O(\lg n)$ time.  Naively, we would need to do
-$O(\lg n)$ work (using the above algorithm) to reconstruct each of the
-$O(\lg n)$ nodes needed to compute a range sum, resulting in
-$O((\lg n)^2)$ time.  This isn't bad, but we can do better.  The key
-is to focus on \emph{prefix} sums, that is, range queries of the form
-$[1,j]$.
+It turns out the key is to think about \emph{prefix sums}.  As we saw
+in the introduction, if we can compute the prefix sum
+$P_k = a_1 + \dots + a_k$ for any $k$, then we can compute the range
+sum $a_i + \dots + a_j$ as $P_j - P_{i-1}$.
 
 \begin{theorem}
   Given a thinned segment tree, the sum of \emph{any prefix} of the
-  original array can be computed, in logarithmic time, using only the
-  values of active nodes.
+  original array (and hence also any range sum) can be computed, in
+  logarithmic time, using only the values of active nodes.
 \end{theorem}
 \begin{proof}
   Surprisingly, in the special case of prefix queries, the original
@@ -804,18 +744,6 @@ blue or grey; the only green nodes are left children.
 \end{figure}
 
 % \todoi{Discuss starting at leaf and moving UP the tree?}
-
-\begin{corollary}
-  Range queries on thinned segment trees can be performed in $O(\lg n)$ time.
-\end{corollary}
-\begin{proof}
-  We can compute any range sum by subtracting prefix sums:
-  $RQ(i,j) = -P(i-1) \oplus P(j)$ (or just $P(j) \ominus P(i-1)$ for
-  commutative groups).
-\end{proof}
-
-Note that computing $RQ(i,i)$ gives us an alternative way to
-efficiently recover the value of an individual inactive element.
 
 \section{Fenwick trees}
 

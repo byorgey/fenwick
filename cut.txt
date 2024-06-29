@@ -37,3 +37,77 @@
 % binary trees but not so great for schemes with buckets since we
 % don't want to have to rebuild the sum of an entire bucket from
 % scratch.
+
+
+First, let's see that there is enough information remaining to
+reconstruct the information that was discarded.  You might wish to
+pause at this point and work it out for yourself: can you deduce what
+values must go in the greyed-out nodes in \pref{fig:deactivate-right},
+without peeking at any previous figures?
+
+\begin{theorem}
+  The value of any inactive node in a thinned segment tree over a
+  group can be recovered, in $O(\lg n)$ time, using only the values of
+  active nodes.
+\end{theorem}
+\begin{proof}
+  The proof is by induction on the depth of an inactive node from its
+  nearest active ancestor.  Note that every inactive node must have an
+  active ancestor; if nothing else, the root of the tree remains
+  active.
+  \begin{itemize}
+  \item In the base case, if an inactive node is the child of an
+    active node, the situation looks like the diagram on the left side
+    of \pref{fig:inactive-child}.
+    \begin{figure}
+    \begin{center}
+    \begin{diagram}[width=150]
+      import FenwickDiagrams
+      import SegTree
+      dia :: Diagram B
+      dia = hsep 2
+        [ t # deactivate # drawSegTree stopts
+          # beneath upedge
+        , t # deactivateR Inactive # drawSegTree stopts
+          # beneath upedge
+        ]
+        where
+          t = Branch "p" 1 2 (Leaf "l" 1) (Leaf "r" 2)
+          iopts = (showInactiveOpts True) { nodeShape = const circleNodeShape }
+          stopts = (mkSTOpts iopts) { stVSep = 0.5 }
+          upedge = ((origin ~~ ((-0.5) ^& 1)) # dashingL [0.05,0.05] 0)
+    \end{diagram}
+    \end{center}
+    \caption{An inactive node whose parent is: (L) active (R) inactive} \label{fig:inactive-child}
+    \end{figure}
+    In this case $p = l \oplus r$ by definition, so $r$ can be
+    computed as $(-l) \oplus p$. (It is tempting to say $r = p \ominus
+    l$, but note that is only correct if the group is commutative.)
+  \item Otherwise, the situation looks like the right side of
+    \pref{fig:inactive-child}.  Again $r = (-l) \oplus p$, but we do
+    not know the value of $p$.  However, since $p$ is closer to its
+    nearest active ancestor than $r$, by the induction hypothesis we
+    can find an expression for $p$ using only the values of active
+    nodes; substituting this into $r = (-l) \oplus p$ yields the
+    desired expression for $r$.
+  \end{itemize}
+  As for taking logarithmic time, the inductive case shows that the
+  number of operations ultimately needed to compute $r$ grows linearly
+  with the depth of $r$ from its nearest active ancestor, which is
+  bounded by the depth of the tree.
+\end{proof}
+
+This proof is, in fact, an algorithm, although this algorithm isn't
+typically used, because it is too specialized. Simply being able to
+\emph{recover} all the discarded information isn't particularly
+useful; what we really want is to perform range queries and updates.
+
+Updates are easy: as before, we only need to update nodes along the
+path from the modified leaf to the root, simply skipping any inactive
+nodes along the way.  However, it is less clear that we can still do
+range queries in $O(\lg n)$ time.  Naively, we would need to do
+$O(\lg n)$ work (using the above algorithm) to reconstruct each of the
+$O(\lg n)$ nodes needed to compute a range sum, resulting in
+$O((\lg n)^2)$ time.  This isn't bad, but we can do better.  The key
+is to focus on \emph{prefix} sums, that is, range queries of the form
+$[1,j]$.
