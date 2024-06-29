@@ -243,11 +243,14 @@ two operations, illustrated in \pref{fig:update-rq}:
 \item \emph{Update} the value at any given index\footnote{Note that we
     use $1$-based indexing here and throughout the paper, that is, the
     first item in the sequence has index $1$.  The reasons for this
-    choice will become clear later.} $i$ to a new value $v$.
+    choice will become clear later.} $i$ by adding some value $v$.
 \item Find the sum of all values in any given range $[i, j]$, that
   is, $a_i + a_{i+1} + \dots + a_j$.  We call this operation a
   \emph{range query}.
 \end{itemize}
+Note that update is phrased in terms of \emph{adding} some value $v$
+to the existing value; we can \emph{set} a given index to a new value
+$v$ by by adding $v - u$, where $u$ is the old value.
 
 If we simply store the integers in a mutable array, then we can update
 in constant time, but a range query requires time linear in the size
@@ -274,11 +277,11 @@ dia = vsep 0.5
     , text "$\\emph{range query}$" # fontSizeL 0.5 # translate (1.8 ^& (-0.5))
     ]
     # translateX (2.5 * leafWidth)
-  , text "$a_2 + a_3 + x + a_5$" # fontSizeL 0.6
+  , text "$a_2 + a_3 + (a_4 + v) + a_5$" # fontSizeL 0.6
     # translateX (2.5 * leafWidth)
   ]
   where
-    draw2 4 = draw "x"
+    draw2 4 = text (mathify "a_4 + v") # fontSizeL 0.3
     draw2 n = draw ("a_" ++ show n)
 \end{diagram}
 \end{center}
@@ -492,72 +495,33 @@ searches, one to find each endpoint of the query range.
 \end{figure}
 \end{itemize}
 
-XXX something here to motivate Fenwick trees.  What is better about
-them?  What problem are we trying to solve?
-- Segment trees lend themselves to cool generalizations (lazy updates
-  of entire ranges, sharing between old + updated trees)
-- But they have overhead of pointers, recursion, etc.  Better for applications where speed + small memory footprint is critical
-
-\section{Segment Trees, Generally}
-
-Although most reference material on segment trees (or Fenwick trees)
-talks about sums of \emph{integers}, this is needlessly specific.  In
-general, all we need is a sequence of elements from
-some \emph{monoid}.  Recall that a monoid is a set $M$ together with
-an associative binary operation $\oplus : M \times M \to M$ and an
-identity element $\mempty \in M$ such that
-$m \oplus \mempty = \mempty \oplus m = m$ for all $m \in M$. We will
-continue to talk about ``sums'' of elements of a monoid $M$ even
-though the monoidal operation need not be sum-like in general (for
-example, the set of natural numbers forms a monoid under
-multiplication).  However, the ``sum'' metaphor does fail in one
-important way: unlike addition, $\oplus$ need not be commutative, that
-is, we may have $a \oplus b \neq b \oplus a$.  All the data structures
-we will discuss work perfectly well for non-commutative monoids,
-though some care is required to ensure values are combined in the
-correct order.
-
-Some monoids also have \emph{inverses}, that is, for each $m \in M$
-there is an element $-m \in M$ such that
-$m \oplus (-m) = (-m) \oplus m = \mempty$.  Such monoids-with-inverses
-are called \emph{groups}.  For convenience, in any group we can also
-define a ``subtraction'' operation $a \ominus b = a \oplus (-b)$.
-Although basic segment trees work with any monoid, the constructions
-we consider in the rest of the paper will generally require a group.
-
-% Used to have a note here that said: "actually, depends on whether
-% your update operation lets you set value arbitrarily (requires group
-% to update cached sums!), or allows you to combine with a given
-% value."  But that's not true.  To update the cached sums when we
-% only have a monoid, think in terms of *rebuilding* the cached sums
-% instead of *updating* them.  Indeed, if we set a leaf value to a new
-% value, we don't know "by how much it changed"; but we can just throw
-% away any cached sums in the path up to the root and rebuild them by
-% combining values from their children.  Of course this works well for
-% binary trees but not so great for schemes with buckets since we
-% don't want to have to rebuild the sum of an entire bucket from
-% scratch.
-
 \section{Implementing Segment Trees}
 \label{sec:impl-seg-trees}
 
-\pref{fig:haskell-segtree} exhibits a simple, generic implementation
-of a segment tree in Haskell, using some utilities for working with
-index ranges shown in \pref{fig:ranges}.  We store a segment tree as a
+\pref{fig:haskell-segtree} exhibits a simple implementation of a
+segment tree in Haskell, using some utilities for working with index
+ranges shown in \pref{fig:ranges}.  We store a segment tree as a
 recursive algebraic data type, and implement |update| and |rq| using
 code that directly corresponds to the recursive descriptions given in
-the previous section.
+the previous section. |get| and |set| can then also be implemented in
+terms of them.  It is not hard to generalize this code to work for
+segment trees storing values from either an arbitrary monoid if we
+don't need the |set| operation---or from an arbitrary Abelian group
+(\ie commutative monoid with inverses) if we do need |set|---but we
+keep things simple since the generalization doesn't add anything to
+our story.
 
 \begin{figure}
 \begin{code}
 
-data Range = Int :--: Int    -- ($a$ |:--:| $b$) represents the closed interval $[a,b]$
+type Index = Int
+data Range = Index :--: Index    -- ($a$ |:--:| $b$) represents the closed interval $[a,b]$
   deriving (Eq, Show)
 
 subR :: Range -> Range -> Bool
 (lo1 :--: hi1) `subR` (lo2 :--: hi2) = lo2 <= lo1 && hi1 <= hi2
 
-inR :: Int -> Range -> Bool
+inR :: Index -> Range -> Bool
 k `inR` i = (k :--: k) `subR` i
 
 disjoint :: Range -> Range -> Bool
@@ -571,23 +535,28 @@ disjoint (lo1 :--: hi1) (lo2 :--: hi2) = hi1 < lo2 || hi2 < lo1
 \begin{figure}
 \begin{code}
 
-data SegTree a where
-  Empty   :: SegTree a
-  Branch  :: a -> Range -> SegTree a -> SegTree a -> SegTree a
+data SegTree where
+  Empty   :: SegTree
+  Branch  :: Integer -> Range -> SegTree -> SegTree -> SegTree
 
-update :: Monoid a => Int -> a -> SegTree a -> SegTree a
+update :: Index -> Integer -> SegTree -> SegTree
 update _ _ Empty = Empty
 update i v b@(Branch a rng l r)
-  | i `inR` rng  = Branch (a <> v) rng (update i v l) (update i v r)
+  | i `inR` rng  = Branch (a + v) rng (update i v l) (update i v r)
   | otherwise    = b
 
-rq :: Monoid a => Range -> SegTree a -> a
-rq _ Empty = mempty
+rq :: Range -> SegTree -> Integer
+rq _ Empty = 0
 rq q (Branch a rng l r)
-  | disjoint rng q  = mempty
+  | disjoint rng q  = 0
   | rng `subR` q    = a
-  | otherwise       = rq q l <> rq q r
+  | otherwise       = rq q l + rq q r
 
+get :: Index -> SegTree -> Integer
+get i = rq (i :--: i)
+
+set :: Index -> Integer -> SegTree -> SegTree
+set i v t = update i (v - get i t) t
 \end{code}
 \caption{Simple segment tree implementation in Haskell} \label{fig:haskell-segtree}
 \end{figure}
@@ -638,8 +607,8 @@ dn i = text ("$" ++ show i ++ "$") <> circle 1 # fc white
 
 The important point is that since descending recursively through the
 tree corresponds to simple operations on indices, all the algorithms
-we have discussed can be straightforwardly transformed into imperative
-code that works with a mutable array: for example, instead of storing
+we have discussed can be straightforwardly transformed into
+code that works with a (mutable) array: for example, instead of storing
 a reference to the current subtree, we store an integer index; every
 time we want to descend to the left or right we simply double the
 current index or double and add one; and so on.  Working with tree
@@ -647,6 +616,14 @@ nodes stored in an array presents an additional opportunity: rather
 than being forced to start at the root and recurse downwards, we can
 start at a particular index of interest and move \emph{up} the tree
 instead.
+
+
+
+XXX something here to motivate Fenwick trees.  What is better about
+them?  What problem are we trying to solve?
+- Segment trees lend themselves to cool generalizations (lazy updates
+  of entire ranges, sharing between old + updated trees)
+- But they have overhead of pointers, recursion, etc.  Better for applications where speed + small memory footprint is critical
 
 \section{Segment Trees are Redundant}
 \label{sec:redundant}

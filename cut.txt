@@ -1,0 +1,39 @@
+% \section{Segment Trees, Generally}
+
+% Although most reference material on segment trees (or Fenwick trees)
+% talks about sums of \emph{integers}, this is needlessly specific.  In
+% general, all we need is a sequence of elements from
+% some \emph{monoid}.  Recall that a monoid is a set $M$ together with
+% an associative binary operation $\oplus : M \times M \to M$ and an
+% identity element $\mempty \in M$ such that
+% $m \oplus \mempty = \mempty \oplus m = m$ for all $m \in M$. We will
+% continue to talk about ``sums'' of elements of a monoid $M$ even
+% though the monoidal operation need not be sum-like in general (for
+% example, the set of natural numbers forms a monoid under
+% multiplication).  However, the ``sum'' metaphor does fail in one
+% important way: unlike addition, $\oplus$ need not be commutative, that
+% is, we may have $a \oplus b \neq b \oplus a$.  All the data structures
+% we will discuss work perfectly well for non-commutative monoids,
+% though some care is required to ensure values are combined in the
+% correct order.
+
+% Some monoids also have \emph{inverses}, that is, for each $m \in M$
+% there is an element $-m \in M$ such that
+% $m \oplus (-m) = (-m) \oplus m = \mempty$.  Such monoids-with-inverses
+% are called \emph{groups}.  For convenience, in any group we can also
+% define a ``subtraction'' operation $a \ominus b = a \oplus (-b)$.
+% Although basic segment trees work with any monoid, the constructions
+% we consider in the rest of the paper will generally require a group.
+
+% Used to have a note here that said: "actually, depends on whether
+% your update operation lets you set value arbitrarily (requires group
+% to update cached sums!), or allows you to combine with a given
+% value."  But that's not true.  To update the cached sums when we
+% only have a monoid, think in terms of *rebuilding* the cached sums
+% instead of *updating* them.  Indeed, if we set a leaf value to a new
+% value, we don't know "by how much it changed"; but we can just throw
+% away any cached sums in the path up to the root and rebuild them by
+% combining values from their children.  Of course this works well for
+% binary trees but not so great for schemes with buckets since we
+% don't want to have to rebuild the sum of an entire bucket from
+% scratch.

@@ -10,6 +10,7 @@
 
 module FenwickDiagrams where
 
+import Control.Monad (when)
 import Control.Monad.State
 import Data.Typeable
 import Diagrams.Prelude hiding (Empty)
