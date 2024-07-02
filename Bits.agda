@@ -231,3 +231,15 @@ lsb-neg {bs ∷ O} = refl , lsb-neg
 lsb-neg {bs ∷ I} = refl , (≅-sym &-inv)
 
 ------------------------------------------------------------
+
+atLSB : (Bits → Bits) → Bits → Bits
+atLSB _ (Rep O) = Rep O
+atLSB f (Rep I) = f (Rep I)
+atLSB f (bs ∷ O) = atLSB f bs ∷ O
+atLSB f (bs ∷ I) = f (bs ∷ I)
+
++lsb : bs + lsb bs ≅ atLSB inc bs
++lsb {Rep O} = refl
++lsb {Rep I} = refl , refl
++lsb {bs ∷ O} = refl , +lsb {bs}
++lsb {bs ∷ I} = refl , (inc-≅ +0)

@@ -46,6 +46,8 @@
 
 %format not = "not"
 
+%format ul(x) = "\underline{" x "}"
+
 %if false
 \begin{code}
 
@@ -1046,7 +1048,6 @@ dec (bs :. O)  = dec bs :. I
 
 The \emph{least significant bit}, or LSB, of a sequence of bits can be
 defined as follows:
-XXX note we add the (Rep O) case so it terminates
 
 \begin{code}
 
@@ -1056,6 +1057,10 @@ lsb (bs :. O) = lsb bs :. O
 lsb (_ :. I)  = Rep O :. I
 
 \end{code}
+
+Note that we add a special case for |Rep O|---which technically does
+not have a least significant bit---to ensure that |lsb| terminates for
+all inputs.
 
 For example,
 \begin{verbatim}
@@ -1198,10 +1203,7 @@ even = not . odd
 
 The only other things we will need are left and right shift, and a
 generic |while| combinator that iterates a given function, returning
-the first iterate for which a predicate is false.  Note the use of
-|head| in the definition of |while| is safe, since |iterate| in fact
-generates an infinite list, and |dropWhile p| preserves the finiteness
-(or not) of its argument.
+the first iterate for which a predicate is false.
 
 \begin{code}
 
@@ -1212,9 +1214,13 @@ shl :: Bits -> Bits
 shl = (:. O)
 
 while :: (a -> Bool) -> (a -> a) -> a -> a
-while p f = head . dropWhile p . iterate f
+while p f x
+  | p x = while p f (f x)
+  | otherwise = x
 
 \end{code}
+
+We could alternatively define |while p f = head . dropWhile p . iterate f|, but this more direct style will be more convenient.
 
 \section{Index Conversion} \label{sec:convert}
 
@@ -1340,6 +1346,9 @@ $2^{n+1}, 2^{n+1} + 2, \dots, 2^{n+1} + 2^n - 2$ interleaved with $b_{n-1}$.
 %if false
 \begin{code}
 
+ul :: a -> a
+ul = id
+
 class Exponentiable a where
   pow :: a -> Int -> a
 
@@ -1458,12 +1467,16 @@ of $2$ to add at the end depends on knowing how many times we shifted.
 A better way to think of it is to add $2^{n+1}$ at the
 \emph{beginning}, and then let it be shifted along with everything
 else.  Thus, we have the following definition of |f2b'| using our
-|Bits| DSL:
+|Bits| DSL.  Defining |shift n = while even shr . set n| separately
+will make some of our proofs more compact later.
 
 \begin{code}
 
+shift :: Int -> Bits -> Bits
+shift n = while even shr . set n
+
 f2b' :: Int -> Bits -> Bits
-f2b' n = dec . while even shr . set (n+1)
+f2b' n = dec . shift (n+1)
 
 \end{code}
 
@@ -1493,8 +1506,11 @@ That is:
 
 \begin{code}
 
+unshift :: Int -> Bits -> Bits
+unshift n = clear n . while (not . test n) shl
+
 b2f' :: Int -> Bits -> Bits
-b2f' n = clear (n+1) . while (not . test (n+1)) shl . inc
+b2f' n = unshift (n+1) . inc
 
 \end{code}
 
@@ -1503,23 +1519,6 @@ Verifying:
 ghci> all (\k -> (fromBits . b2f' 4 . f2b' 4 . toBits) k == k) [1 .. 2^4]
 True
 \end{verbatim}
-
-% Let |find :: [a] -> a -> Maybe Int| be the partial left inverse of |!|, that is, |xs `find`
-% (xs ! k) == Just k| (XXX as long as list |xs| has no duplicates, which is
-% the case here); and |xs `find` j == Nothing| if |j| is not an element
-% of |xs|. Then since |f2b n k = b n ! k|, we define |b2f n k = b
-% n `find` k|.
-
-% Lemma: |(xs `interleave` ys) `find` k = (2*(xs `find` k)-1) <||> 2*(ys `find` k)|
-% etc.
-
-% |b 0 `find` 1 = 1|
-
-% If $j = 2^a \cdot b$ where $b$ is odd, then $2^a = |lsb(b)|$
-
-% $b - 1 = -(-b + 1) = |neg (inc (neg b)) = inc (map inv (inc (inc (map
-% inv b))))|$
-
 
 \section{Deriving Fenwick Operations} \label{sec:fenwick-ops}
 
@@ -1553,34 +1552,58 @@ will need a few lemmas.
   the first 0 bit to a 1.
 \end{proof}
 
+Finally, we will need one somewhat technical lemma related to shifting
+zero bits in and out of the right side of a value.
+
 \begin{lem} \label{lem:shlshr}
   For all positive |Bits| values less than $2^{n+2}$,
-  \[ |while (not . test (n+1)) shl . while even shr = while (not . test (n+1))
-    shl|. \]
+  \[ |while (not . test (n+1)) shl . while even shr = while (not . test (n+1)) shl|. \]
 \end{lem}
 \begin{proof}
-  XXX make a more formal proof, OR say this is just a sketch.
-  The left-hand side shifts out some zeros before shifting them
-  all back in, whereas the right-hand side avoids the redundant
-  shifts; but both stop when the $2^{n+1}$ bit becomes $1$.
+  Intuitively, this says that if we first shift out all the zero bits
+  we can then left shift until bit $n+1$ is set, we could get the same
+  result by forgetting about the right shifts entirely; shifting out
+  zero bits and then shifting them back in should be the identity.
+
+  The proof is by induction.  If |x = xs :. I| is odd, the equality is
+  immediate since |while even shr x = x|. Otherwise, if |x = xs :. O|,
+  on the left-hand side we have
+  \begin{sproof}
+    \stmt{|(while (not . test (n+1)) shl . while even shr) (xs :. O)|}
+    \reason{=}{Definition of |while|}
+    \stmt{|(while (not . test (n+1)) shl . while even shr) xs|}
+  \end{sproof}
+  whereas on the right-hand side,
+  \begin{sproof}
+    \stmt{|while (not . test (n+1)) shl (xs :. O)|}
+    \reason{=}{Definition of |shl|}
+    \stmt{|while (not . test (n+1)) shl (shl xs)|}
+    \reason{=}{Definition of |while|; $|xs| < 2^{n+1}$ so |test (n+1) xs = False| }
+    \stmt{|while (not . test (n+1)) shl xs|}
+  \end{sproof}
+  These are equal by the induction hypothesis.
 \end{proof}
 
-Now, let' see how to move around a Fenwick array in order to implement
-|update| and |query|; we'll begin with |update|.
-
-When implementing the |update| operation, we need to start at a leaf
+With these lemmas under our belt, let's see how to move around a
+Fenwick array in order to implement |update| and |query|; we'll begin
+with |update|. When implementing the |update| operation, we need to start at a leaf
 and follow the path up to the root, updating all the active nodes
 along the way.  In fact, for any given leaf, its closest active parent
 is precisely the node stored in the slot that used to correspond to
 that leaf (see \pref{fig:right-leaning}).  So to update index $i$, we
 just need to start at index $i$ in the Fenwick array, and then
-repeatedly find the closest active parent, updating as we go.
+repeatedly find the closest active parent, updating as we go.  Recall
+that the imperative code for |update| works this way, apparently
+finding the closest active parent at each step by adding the |lsb| of
+the current index:
+\inputminted[fontsize=\footnotesize,firstline=8,lastline=10]{java}{FenwickTree.java}
+Let's see how to derive this behavior.
 
 To find the closest active parent of a node under a binary indexing
 scheme, we first move up to the immediate parent (by dividing the
 index by two, \ie performing a right bit shift); then continue moving
 up to the next immediate parent as long as the current node is a right
-child (\ie has an odd index).  This yields the definition:
+child (\ie has an odd index).  XXX picture?  This yields the definition:
 
 \begin{code}
 
@@ -1595,62 +1618,72 @@ node whose active parent is the root!
 
 Now, to derive the corresponding operation on Fenwick indices, we
 conjugate by conversion to and from Fenwick indices, and compute as
-follows.  For convenience, define |unshift n = clear n . while (not
-. test n) shl|, so |b2f' n = unshift (n+1) . inc|.
+follows.  To make the computation easier to read, the portion being
+rewritten is underlined at each step.
 
 \begin{sproof}
   \stmt{|b2f' n . activeParentBinary . f2b' n|}
   \reason{=}{expand definitions}
-  \stmt{|unshift (n+1) . inc . while odd shr . shr . dec . while even shr . set (n+1)|}
+  \stmt{|unshift (n+1) . ul(inc . while odd shr) . shr . dec . shift (n+1)|}
   \reason{=}{\pref{lem:incwhile}}
-  \stmt{|unshift (n+1) . while even shr . inc . shr . dec . while even shr . set (n+1)|}
-  \reason{=}{\pref{lem:incshr}; the output of |while even shr|
-    will be odd}
-  \stmt{|unshift (n+1) . while even shr . inc . shr . while even shr . set (n+1)|}
+  \stmt{|unshift (n+1) . while even shr . inc . ul(shr . dec) . shift (n+1)|}
+  \reason{=}{\pref{lem:incshr}; the output of |shift (n+1)|
+    is always odd}
+  \stmt{|unshift (n+1) . while even shr . ul(inc . shr) . shift (n+1)|}
   \reason{=}{\pref{lem:incshr}}
-  \stmt{|unshift (n+1) . while even shr . shr . inc . while even shr . set (n+1)|}
+  \stmt{|unshift (n+1) . ul(while even shr . shr) . inc . shift (n+1)|}
   \reason{=}{|while even shr . shr = while even shr| on an even input}
-  \stmt{|unshift (n+1) . while even shr . inc . while even shr . set (n+1)|}
+  \stmt{|ul(unshift (n+1)) . while even shr . inc . shift (n+1)|}
   \reason{=}{Definition of |unshift|}
-  \stmt{|clear (n+1) . while (not . test (n+1)) shl . while even shr . inc . while even shr . set (n+1)|}
-  \reason{=}{\pref{lem:shlshr}}
+  \stmt{|clear (n+1) . ul(while (not . test (n+1)) shl . while even shr) . inc . ul(shift (n+1))|}
+  \reason{=}{\pref{lem:shlshr}; definition of |shift|}
   \stmt{|clear (n+1) . while (not . test (n+1)) shl . inc . while even shr . set (n+1)|}
 \end{sproof}
+In the final step, since the input $x$ satisfies $x \leq 2^n$, we have
+$|inc . shift (n+1)| < 2^{n+2}$, so \pref{lem:shlshr} applies.
 
-Reading from right to left, this performs the following steps:
+Reading from right to left, the pipeline we have just computed
+performs the following steps:
 \begin{enumerate}
 \item Set bit $n+1$ to 1
-\item Shift out consecutive zeros to find the least significant $1$ bit
+\item Shift out consecutive zeros until finding the least significant $1$ bit
 \item Increment
-\item Shift zeros back in to bring the $1$ bit back to position $n+1$,
+\item Shift zeros back in to bring the most significant bit back to position $n+1$,
   then clear it.
 \end{enumerate}
-Intuitively, this looks a lot like $\lambda x. |x + lsb x|$!  To find
-the LSB, one must shift through consecutive $0$ bits until finding the
-first $1$; the question is how to keep track of how many $0$ bits we
-shifted through on the way.  The |lsb| function itself keeps track via
-the recursion stack; after finding the first $1$ bit, the recursion
-stack unwides and re-conses all the $0$ bits we recursed through on
-the way.  The above pipeline represents an alternative approach: set
-bit $n+1$ as a ``placeholder'' so we can keep track of how much we
-have shifted; right shift until the first $1$ is literally in the ones
-place; and then shift all the $0$ bits back in by doing left shifts
-until the placeholder bit gets back to the $n+1$ place.  However, this
-only works for values that are sufficiently small that the placeholder
-bit will not be disturbed throughout the operation.
 
-To prove this formally, we begin by defining a helper function |onOdd|:
+XXX illustrate!
+
+Intuitively, this does look a lot like adding the LSB.  In general, to
+find the LSB, one must shift through consecutive $0$ bits until
+finding the first $1$; the question is how to keep track of how many
+$0$ bits were shifted on the way.  The |lsb| function itself keeps
+track via the recursion stack; after finding the first $1$ bit, the
+recursion stack unwinds and re-snocs all the $0$ bits recursed through
+on the way.  The above pipeline represents an alternative approach:
+set bit $n+1$ as a ``placeholder'' to keep track of how much we have
+shifted; right shift until the first $1$ is literally in the ones
+place, at which point we increment; and then shift all the $0$ bits
+back in by doing left shifts until the placeholder bit gets back to
+the $n+1$ place. Of course, this only works for values that are
+sufficiently small that the placeholder bit will not be disturbed
+throughout the operation.
+
+To prove this formally, we begin by defining a helper function
+|atLSB|, which does an operation ``at the LSB'', that is, it shifts
+out 0 bits until finding a 1, applies a function, then restores the 0 bits:
 
 \begin{code}
 
-onOdd :: (Bits -> Bits) -> Bits -> Bits
-onOdd f (bs :. O) = onOdd f bs :. O
-onOdd f bs = f bs
+atLSB :: (Bits -> Bits) -> Bits -> Bits
+atLSB _ (Rep O) = Rep O
+atLSB f (bs :. O) = atLSB f bs :. O
+atLSB f bs = f bs
 
 \end{code}
 
 \begin{lem}
-  For all |x :: Bits|, |x + lsb x = onOdd inc x|.
+  For all |x :: Bits|, |x + lsb x = atLSB inc x|.
 \end{lem}
 
 \begin{proof}
@@ -1658,63 +1691,63 @@ onOdd f bs = f bs
 \end{proof}
 
 Now we can formally relate the ``shifting with a placeholder'' scheme
-to the use of the |onOdd| function, as follows:
+to the use of the |atLSB| function, as follows:
 
-\begin{lem} \label{lem:placeholder-scheme}
-  Let $n \geq 1$ and let $0 < x \leq 2^n$, and suppose that, when
-  given inputs $\leq 2^n$, $f$ commutes with $set (n+1)$, that is, \[
-    |(f . set (n+1)) x = (set (n+1) . f) x|. \] Then
-  \[ |(clear (n+1) . while (not . test (n+1)) shl . f . while even shr
-    . set (n+1)) x = onOdd f x|. \]
+\begin{lem} \label{lem:placeholder-scheme} Let $n \geq 1$ and let |f
+  :: Bits -> Bits| be a function such that
+  \begin{enumerate}
+  \item |(f . set (n+1)) x = (set (n+1) . f) x| for any $0 < x \leq 2^n$
+  \item $|f x| < 2^{n+1}$ for any $0 < x \leq 2^n + 2^{n-1}$
+  \end{enumerate}
+  Then for all $0 < x \leq 2^n$,
+  \[ |(unshift (n+1) . f . shift (n+1)) x = atLSB f x|. \]
 \end{lem}
 \begin{proof}
-  % % Let $g^k$ denote $k$-fold composition of $g$, that is, $g^0 = |id|$
-  % % and $g^{k+1} = |pow g k . g|$. Since $x > 0$, it has some bit set to
-  % % $1$, and hence there exists some $k \geq 0$ such that |while even
-  % % shr x = pow shr k x|.  Since $x < 2^{n+1}$, then $k < n+1$ as
-  % % well.
-  By induction on $x$.  First, suppose $x = xs :. I$.  In that case,
-  |onOdd f (xs :. I) = f (xs :. I)|, and
+  By induction on $x$.  First, suppose |x = xs :. I|.  In that case,
+  |atLSB f (xs :. I) = f (xs :. I)|, and
   \begin{sproof}
-    \stmt{|(clear (n+1) . while (not . test (n+1)) shl . f . while even shr . set (n+1)) (xs :. I)|}
+    \stmt{|(unshift (n+1) . f . ul(shift (n+1))) (xs :. I)|}
+    \reason{=}{Definition of |shift|}
+    \stmt{|(unshift (n+1) . f . while even shr . ul(set (n+1))) (xs :. I)|}
     \reason{=}{Definition of |set|}
-    \stmt{|(clear (n+1) . while (not . test (n+1)) shl . f . while even shr) (set n xs :. I)|}
-    \reason{=}{Definition of |while|}
-    \stmt{|(clear (n+1) . while (not . test (n+1)) shl . f) (set n xs :. I)|}
+    \stmt{|(unshift (n+1) . f . ul(while even shr)) (set n xs :. I)|}
+    \reason{=}{|while even f y = y| on odd |y|}
+    \stmt{|(unshift (n+1) . f) (ul(set n xs) :. I)|}
     \reason{=}{Definition of |set|}
-    \stmt{|(clear (n+1) . while (not . test (n+1)) shl . f . set (n+1)) (xs :. I)|}
-    \reason{=}{|f| commutes with |set (n+1)|}
-    \stmt{|(clear (n+1) . while (not . test (n+1)) shl . set (n+1) . f) (xs :. I)|}
-    \reason{=}{Definition of |while|}
-    \stmt{|(clear (n+1) . set (n+1) . f) (xs :. I)|}
-    \reason{=}{|clear (n+1)| and |set (n+1)| are inverse, since the
-      input is $< 2^{n+1}$}
+    \stmt{|(unshift (n+1) . ul(f . set (n+1))) (xs :. I)|}
+    \reason{=}{|f| commutes with |set (n+1)| on input $\leq 2^n$}
+    \stmt{|(ul(unshift (n+1)) . set (n+1) . f) (xs :. I)|}
+    \reason{=}{Definition of |unshift|}
+    \stmt{|(clear (n+1) . ul(while (not . test (n+1)) shl . set (n+1)) . f) (xs :. I)|}
+    \reason{=}{|not . test (n+1)| is false on output of |set (n+1)|}
+    \stmt{|(ul(clear (n+1) . set (n+1)) . f) (xs :. I)|}
+    \reason{=}{|clear (n+1)| and |set (n+1)| are inverse, since $|f x| < 2^{n+1}$}
     \stmt{f (xs :. I)}
   \end{sproof}
-  Next, if $x = xs :. O$, then |onOdd f (xs :. O) = onOdd f xs :. O|, and we
-  can proceed by a nested induction on $n$.  First, if $n = 1$, then
-  $0 < x \leq 2^n$ must be either 1 or 2, and an easy calculation
-  shows that if $x = 1$, both sides are equal to |f 1|, whereas if $x
-  = 2$, both sides are equal to |onOdd f 1 :. O|.
+  Next, if |x = xs :. O|, then |atLSB f (xs :. O) = atLSB f xs :. O|,
+  and we can proceed by a nested induction on $n$.  First, if $n = 1$,
+  then $x = 2$ (the only $0 < x \leq 2^n$ that ends with a zero bit),
+  and an easy calculation shows that both sides are equal to |atLSB f
+  1 :. O|.  XXX verify this!!   Otherwise, we have  XXX working here
   \begin{sproof}
-    \stmt{|(clear (n+1) . while (not . test (n+1)) shl . f . while even shr . set (n+1)) (xs :. O)|}
+    \stmt{|(unshift (n+1) . f . while even shr . set (n+1)) (xs :. O)|}
     \reason{=}{Definition of |set|}
-    \stmt{|(clear (n+1) . while (not . test (n+1)) shl . f . while even shr) (set n xs :. O)|}
+    \stmt{|(unshift (n+1) . f . while even shr) (set n xs :. O)|}
     \reason{=}{Definition of |while| and |even|}
-    \stmt{|(clear (n+1) . while (not . test (n+1)) shl . f . while even shr . set n) xs|}
+    \stmt{|(unshift (n+1) . f . while even shr . set n) xs|}
     \reason{=}{Factor out a single |shl|}
     \stmt{|(shl . clear n . while (not . test n) shl . f . while even shr . set n) xs|}
     \reason{=}{Induction hypothesis}
-    \stmt{|shl (onOdd f xs)|}
+    \stmt{|shl (atLSB f xs)|}
     \reason{=}{Definition of |shl|}
-    \stmt{|onOdd f xs :. O|}
+    \stmt{|atLSB f xs :. O|}
   \end{sproof}
 
   % \begin{sproof}
-  %   \stmt{|(clear (n+1) . while (not . test (n+1)) shl . f . while even shr
+  %   \stmt{|(unshift (n+1) . f . while even shr
   %   . set (n+1)) (0:x)|}
-  %   \stmt{|(clear (n+1) . while (not . test (n+1)) shl . f . while even shr) (0:set n x)|}
-  %   \stmt{|(clear (n+1) . while (not . test (n+1)) shl . f . while even shr) (set n x)|}
+  %   \stmt{|(unshift (n+1) . f . while even shr) (0:set n x)|}
+  %   \stmt{|(unshift (n+1) . f . while even shr) (set n x)|}
   %   \stmt{|(shl . clear n . while (not . test n) shl . f . while even shr . set n) x|}
   % \end{sproof}
 
@@ -1805,10 +1838,10 @@ We can then compute:
   \reason{=}{\pref{lem:shlshr}}
   \stmt{|clear (n+1) . while (not . test (n+1)) shl . dec . while even shr . set (n+1)|}
   \reason{=}{\pref{lem:placeholder-scheme}}
-  \stmt{|onOdd dec|}
+  \stmt{|atLSB dec|}
 \end{sproof}
 
-Just as |onOdd inc x = x + lsb x|, we have dually that |onOdd dec x =
+Just as |atLSB inc x = x + lsb x|, we have dually that |atLSB dec x =
 x - lsb x|, which is also easy to prove via induction.
 
 The implementations of |prefix| and |update| are reproduced in
