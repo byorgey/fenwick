@@ -1046,10 +1046,12 @@ dec (bs :. O)  = dec bs :. I
 
 The \emph{least significant bit}, or LSB, of a sequence of bits can be
 defined as follows:
+XXX note we add the (Rep O) case so it terminates
 
 \begin{code}
 
 lsb :: Bits -> Bits
+lsb (Rep O) = Rep O
 lsb (bs :. O) = lsb bs :. O
 lsb (_ :. I)  = Rep O :. I
 
