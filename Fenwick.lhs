@@ -48,6 +48,8 @@
 
 %format ul(x) = "\underline{" x "}"
 
+%format len(x) = "|" x "|"
+
 %if false
 \begin{code}
 
@@ -55,6 +57,8 @@
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE ViewPatterns #-}
 {-# OPTIONS_GHC -fno-warn-missing-methods #-}
+
+module Fenwick where
 
 import Prelude hiding (even, odd)
 
@@ -73,7 +77,6 @@ import Prelude hiding (even, odd)
 
 \usepackage{xspace}
 \usepackage{prettyref}
-\usepackage{amsthm}
 \usepackage{bbm}
 \usepackage{stmaryrd}
 % \usepackage{subdepth}   %% Unify positioning of all subscripts
@@ -201,8 +204,8 @@ import Prelude hiding (even, odd)
   indices.  We begin with \emph{segment trees}, a much more
   straightforward, easy-to-verify, purely functional solution to the
   problem, and use equational reasoning to derive the implementation
-  of Fenwick trees as an optimized variant. XXX mention DSL for
-  arbitrary-size two's complement.
+  of Fenwick trees as an optimized variant, making use of a Haskell
+  EDSL for operations on infinite two's complement binary numbers.
 \end{abstract}
 
 
@@ -557,8 +560,8 @@ rq q (Branch a rng l r)
 get :: Index -> SegTree -> Integer
 get i = rq (i :--: i)
 
-set :: Index -> Integer -> SegTree -> SegTree
-set i v t = update i (v - get i t) t
+put :: Index -> Integer -> SegTree -> SegTree
+put i v t = update i (v - get i t) t
 \end{code}
 \caption{Simple segment tree implementation in Haskell} \label{fig:haskell-segtree}
 \end{figure}
@@ -834,7 +837,7 @@ index operations; \pref{fig:fenwick-java} shows a typical
 implementation (specialized to integer values) in the imperative
 language Java. This implementation is incredibly concise, but not at
 all perspicuous!  The \mintinline{java}{range},
-\mintinline{java}{set}, and
+\mintinline{java}{put}, and
 \mintinline{java}{get} functions are straightforward, but the other
 functions are a puzzle. We can see that both the
 \mintinline{java}{prefix} and \mintinline{java}{update} functions call
@@ -1170,6 +1173,7 @@ By induction on |x|.
     \stmt{|1 : zeros|}
   \end{sproof}
 \end{itemize}
+\vspace{-3\baselineskip}
 \end{proof}
 
 For the last equality we need a lemma that |xs .&&. inv xs = Rep O|, which
@@ -1220,7 +1224,9 @@ while p f x
 
 \end{code}
 
-We could alternatively define |while p f = head . dropWhile p . iterate f|, but this more direct style will be more convenient.
+We could alternatively define |while p f = head . dropWhile p
+. iterate f|, but the more direct definition will be more convenient
+for reasoning.
 
 \section{Index Conversion} \label{sec:convert}
 
@@ -1390,8 +1396,9 @@ ghci> b 4
 Let |s ! k| denote the $k$th item in the list $s$ (counting from 1),
 as defined in \pref{fig:index-interleave}.  The same figure also lists
 two easy lemmas about the interaction between indexing and
-interleaving, namely, |(xs `interleave` ys) ! (2*j) = ys ! j|, and
-|(xs `interleave` ys) ! (2*j - 1) = xs!j|.  With these in hand, we can
+interleaving, namely, |(xs `interleave` ys) ! (2*j) = ys ! j| and
+|(xs `interleave` ys) ! (2*j - 1) = xs!j| (as long as |xs| and |ys|
+have equal lengths).  With these in hand, we can
 define the Fenwick to binary index conversion function as
 \[ |f2b n k = b n ! k|. \]
 %if false
@@ -1416,6 +1423,7 @@ defined on the range $[1, 2^n]$.
 \end{code}
 
 \begin{spec}
+-- If |len(xs) == len(ys)|:
 (xs `interleave` ys) ! (2*j)      = ys ! j
 (xs `interleave` ys) ! (2*j - 1)  = xs ! j
 \end{spec}
@@ -1561,7 +1569,7 @@ zero bits in and out of the right side of a value.
 \end{lem}
 \begin{proof}
   Intuitively, this says that if we first shift out all the zero bits
-  we can then left shift until bit $n+1$ is set, we could get the same
+  and then left shift until bit $n+1$ is set, we could get the same
   result by forgetting about the right shifts entirely; shifting out
   zero bits and then shifting them back in should be the identity.
 
@@ -1597,13 +1605,14 @@ that the imperative code for |update| works this way, apparently
 finding the closest active parent at each step by adding the |lsb| of
 the current index:
 \inputminted[fontsize=\footnotesize,firstline=8,lastline=10]{java}{FenwickTree.java}
+\noindent
 Let's see how to derive this behavior.
 
 To find the closest active parent of a node under a binary indexing
 scheme, we first move up to the immediate parent (by dividing the
 index by two, \ie performing a right bit shift); then continue moving
 up to the next immediate parent as long as the current node is a right
-child (\ie has an odd index).  XXX picture?  This yields the definition:
+child (\ie has an odd index).  This yields the definition:
 
 \begin{code}
 
@@ -1652,26 +1661,78 @@ performs the following steps:
   then clear it.
 \end{enumerate}
 
-XXX illustrate!
+\begin{figure}
+\begin{center}
+\begin{diagram}[width=100]
+  import Fenwick
+  import Diagrams.Prelude hiding (Empty)
+  import Prelude hiding (even)
 
-Intuitively, this does look a lot like adding the LSB.  In general, to
+  type FBits = (Int, [Style V2 Double], Bits)
+
+  drawBits :: FBits -> Diagram B
+  drawBits (0, _, _) = mempty
+  drawBits (n, [], bs :. b) = drawBits (n-1, [], bs) |||||| drawBit mempty b
+  drawBits (n, (s:ss), bs :. b) = drawBits (n-1, ss, bs) |||||| drawBit s b
+
+  bitColor O = grey
+  bitColor I = blue
+
+  drawBit :: Style V2 Double -> Bit -> Diagram B
+  drawBit s b = mconcat
+    [ text (show (fromEnum b)) # applyStyle s # fc (bitColor b)
+    , square 1
+    ]
+
+  drawSteps :: [(FBits, Maybe String)] -> Diagram B
+  drawSteps = vsep 0.5 . map drawStep
+
+  drawStep :: (FBits, Maybe String) -> Diagram B
+  drawStep (bs, Nothing) = drawBits bs # centerX
+  drawStep (bs, Just s) = vsep 0.5
+    [ drawBits bs # centerX
+    , hsep 0.5
+      [ arrowV unit_Y # centerY
+      , alignedText 0 0.5 s # fontSizeL 0.7
+      ]
+      # alignL
+    ]
+
+  sentinelStyle n = replicate (n-1) mempty ++ [mempty # fc red]
+
+  dia = drawSteps
+    [ ((8, [], toBits 52), Just "set sentinel bit")
+    , ((8, sentinelStyle 8, toBits 52 .+. toBits (2^7)), Just "shift right")
+    , ((8, sentinelStyle 6, while even shr (toBits 52 .+. toBits (2^7))), Just "increment")
+    , ((8, sentinelStyle 6, inc (while even shr (toBits 52 .+. toBits (2^7)))), Just "shift left")
+    , ((8, sentinelStyle 8, toBits 56 .+. toBits (2^7)), Just "unset sentinel bit")
+    , ((8, [], toBits 56), Nothing)
+    ]
+\end{diagram}
+\end{center}
+\caption{Adding LSB with a sentinel bit + shifts} \label{fig:bitspipeline}
+\end{figure}
+
+Intuitively, this does look a lot like adding the LSB!  In general, to
 find the LSB, one must shift through consecutive $0$ bits until
 finding the first $1$; the question is how to keep track of how many
 $0$ bits were shifted on the way.  The |lsb| function itself keeps
 track via the recursion stack; after finding the first $1$ bit, the
 recursion stack unwinds and re-snocs all the $0$ bits recursed through
 on the way.  The above pipeline represents an alternative approach:
-set bit $n+1$ as a ``placeholder'' to keep track of how much we have
+set bit $n+1$ as a ``sentinel'' to keep track of how much we have
 shifted; right shift until the first $1$ is literally in the ones
 place, at which point we increment; and then shift all the $0$ bits
-back in by doing left shifts until the placeholder bit gets back to
-the $n+1$ place. Of course, this only works for values that are
-sufficiently small that the placeholder bit will not be disturbed
+back in by doing left shifts until the sentinel bit gets back to
+the $n+1$ place. One example of this process is illustrated in
+\pref{fig:bitspipeline}. Of course, this only works for values that are
+sufficiently small that the sentinel bit will not be disturbed
 throughout the operation.
 
-To prove this formally, we begin by defining a helper function
+To make this more formal, we begin by defining a helper function
 |atLSB|, which does an operation ``at the LSB'', that is, it shifts
-out 0 bits until finding a 1, applies a function, then restores the 0 bits:
+out 0 bits until finding a 1, applies the given function, then
+restores the 0 bits:
 
 \begin{code}
 
@@ -1682,142 +1743,126 @@ atLSB f bs = f bs
 
 \end{code}
 
-\begin{lem}
-  For all |x :: Bits|, |x + lsb x = atLSB inc x|.
+\begin{lem} \label{lem:addlsb}
+  For all |x :: Bits|, |x + lsb x = atLSB inc x| and |x - lsb x =
+  atLSB dec x|.
 \end{lem}
 
 \begin{proof}
   Straightforward induction on $x$.
 \end{proof}
 
-Now we can formally relate the ``shifting with a placeholder'' scheme
-to the use of the |atLSB| function, as follows:
+We can formally relate the ``shifting with a sentinel'' scheme to
+the use of |atLSB|, with the following (admittedly rather technical)
+lemma:
 
-\begin{lem} \label{lem:placeholder-scheme} Let $n \geq 1$ and let |f
+\begin{lem} \label{lem:sentinel-scheme} Let $n \geq 1$ and let |f
   :: Bits -> Bits| be a function such that
   \begin{enumerate}
-  \item |(f . set (n+1)) x = (set (n+1) . f) x| for any $0 < x \leq 2^n$
-  \item $|f x| < 2^{n+1}$ for any $0 < x \leq 2^n + 2^{n-1}$
+  \item |(f . set (n+1)) x = (set (n+1) . f) x| for any $0 < x \leq
+    2^n$, and
+  \item $|f x| < 2^{n+1}$ for any $0 < x \leq 2^n + 2^{n-1}$ as long
+    as $n \geq 2$.
   \end{enumerate}
   Then for all $0 < x \leq 2^n$,
   \[ |(unshift (n+1) . f . shift (n+1)) x = atLSB f x|. \]
 \end{lem}
+
+The proof is rather tedious and not all that illuminating, so we omit
+it.  However, we do note that both |inc| and |dec| fit the criteria
+for |f|: incrementing or decrementing some $0 < x \leq 2^n$ cannot affect
+the $(n+1)$st bit as long as $n \geq 1$, and the result of
+incrementing or decrementing a number up to $2^n + 2^{n-1}$ will
+certainly result in number less than $2^{n+1}$, as long as $n \geq 2$
+(if $n=1$ then in fact $|inc| (2^n + 2^{n-1}) = 2^{n+1}$).  We can now
+put all the pieces together show that adding the LSB at each step is
+the correct way to implement |update|.
+
+\begin{thm}
+  Adding the LSB is the correct way to move up a Fenwick-indexed tree
+  to the nearest active parent, that is,
+  \[ |activeParentFenwick = b2f' n . activeParentBinary . f2b' n = \x -> x + lsb x|. \]
+\end{thm}
 \begin{proof}
-  By induction on $x$.  First, suppose |x = xs :. I|.  In that case,
-  |atLSB f (xs :. I) = f (xs :. I)|, and
-  \begin{sproof}
-    \stmt{|(unshift (n+1) . f . ul(shift (n+1))) (xs :. I)|}
-    \reason{=}{Definition of |shift|}
-    \stmt{|(unshift (n+1) . f . while even shr . ul(set (n+1))) (xs :. I)|}
-    \reason{=}{Definition of |set|}
-    \stmt{|(unshift (n+1) . f . ul(while even shr)) (set n xs :. I)|}
-    \reason{=}{|while even f y = y| on odd |y|}
-    \stmt{|(unshift (n+1) . f) (ul(set n xs) :. I)|}
-    \reason{=}{Definition of |set|}
-    \stmt{|(unshift (n+1) . ul(f . set (n+1))) (xs :. I)|}
-    \reason{=}{|f| commutes with |set (n+1)| on input $\leq 2^n$}
-    \stmt{|(ul(unshift (n+1)) . set (n+1) . f) (xs :. I)|}
-    \reason{=}{Definition of |unshift|}
-    \stmt{|(clear (n+1) . ul(while (not . test (n+1)) shl . set (n+1)) . f) (xs :. I)|}
-    \reason{=}{|not . test (n+1)| is false on output of |set (n+1)|}
-    \stmt{|(ul(clear (n+1) . set (n+1)) . f) (xs :. I)|}
-    \reason{=}{|clear (n+1)| and |set (n+1)| are inverse, since $|f x| < 2^{n+1}$}
-    \stmt{f (xs :. I)}
-  \end{sproof}
-  Next, if |x = xs :. O|, then |atLSB f (xs :. O) = atLSB f xs :. O|,
-  and we can proceed by a nested induction on $n$.  First, if $n = 1$,
-  then $x = 2$ (the only $0 < x \leq 2^n$ that ends with a zero bit),
-  and an easy calculation shows that both sides are equal to |atLSB f
-  1 :. O|.  XXX verify this!!   Otherwise, we have  XXX working here
-  \begin{sproof}
-    \stmt{|(unshift (n+1) . f . while even shr . set (n+1)) (xs :. O)|}
-    \reason{=}{Definition of |set|}
-    \stmt{|(unshift (n+1) . f . while even shr) (set n xs :. O)|}
-    \reason{=}{Definition of |while| and |even|}
-    \stmt{|(unshift (n+1) . f . while even shr . set n) xs|}
-    \reason{=}{Factor out a single |shl|}
-    \stmt{|(shl . clear n . while (not . test n) shl . f . while even shr . set n) xs|}
-    \reason{=}{Induction hypothesis}
-    \stmt{|shl (atLSB f xs)|}
-    \reason{=}{Definition of |shl|}
-    \stmt{|atLSB f xs :. O|}
-  \end{sproof}
-
-  % \begin{sproof}
-  %   \stmt{|(unshift (n+1) . f . while even shr
-  %   . set (n+1)) (0:x)|}
-  %   \stmt{|(unshift (n+1) . f . while even shr) (0:set n x)|}
-  %   \stmt{|(unshift (n+1) . f . while even shr) (set n x)|}
-  %   \stmt{|(shl . clear n . while (not . test n) shl . f . while even shr . set n) x|}
-  % \end{sproof}
-
+\begin{sproof}
+  \stmt{|b2f' n . activeParentBinary . f2b' n|}
+  \reason{=}{Previous calculation}
+  \stmt{|unshift (n+1) . inc . shift (n+1)|}
+  \reason{=}{\pref{lem:sentinel-scheme}}
+  \stmt{|atLSB inc|}
+  \reason{=}{\pref{lem:addlsb}}
+  \stmt{|\x -> x + lsb x|}
+\end{sproof}
+\vspace{-3\baselineskip}
 \end{proof}
 
-
-% , we need a lemma about the ``shifting with a
-% placeholder'' scheme we see above.
-
-% \begin{defn}
-% Say a function on |Bits| is \emph{$n$-smooth} if it only examines
-% up to the first $n$ bits of its input, and also leaves the input ``the
-% same length''.  That is, formally, |g :: Bits -> Bits| is $n$-smooth
-% if \[ |g . set m = set m . g| \] for all $m \geq n$.  Note this also
-% means that if the input to $g$ is less than $2^n$, then its output
-% will be as well.
-% \end{defn}
-
-% \begin{code}
-
-% over :: Int -> (Bits -> Bits) -> Bits -> Bits
-% over k f = pow shl k . f . pow shr k
-
-% \end{code}
-
-% \begin{thm}
-%   Let |f :: Bits -> Bits| and $n \in \N$, and suppose there exists
-%   some $k < n$ and $(n-k)$-smooth |g :: Bits -> Bits| such that
-%   \[ |f = g . pow shr k|. \] Then for all inputs $< 2^n$, \[ |clear n . while (not . test n)
-%     shl . f . set n = over k g|. \]
-% \end{thm}
-
-% \begin{proof}
-%   \begin{sproof}
-%     \stmt{|clear n . while (not . test n) shl . f . set n|}
-%     \reason{=}{assumption}
-%     \stmt{|clear n . while (not . test n) shl . g . pow shr k . set n|}
-%     \reason{=}{XXX lemma}
-%     \stmt{|clear n . while (not . test n) shl . g . set (n-k) . pow shr k|}
-%     \reason{=}{$g$ is $(n-k)$-smooth}
-%     \stmt{|clear n . while (not . test n) shl . set (n-k) . g . pow shr k|}
-%     \reason{=}{Input $< 2^n$; after |shr| it is $< 2^{n-k}$; $g$
-%       preserves; hence $2^{n-k}$ is biggest bit set}
-%     \stmt{|clear n . pow shl k . set (n-k) . g . pow shr k|}
-%     \reason{=}{XXX lemma}
-%     \stmt{|clear n . set n . pow shl k . g . pow shr k|}
-%     \reason{=}{XXX inverses (assuming that bit was not set in the
-%       first place)}
-%     \stmt{|pow shl k . g . pow shr k|}
-%     \reason{=}{definition}
-%     \stmt{|over k g|}
-%   \end{sproof}
-% \end{proof}
-
-% XXX note |inc| is not actually $n$-smooth for any $n$ according to the
-% above definition!  This is the wrong definition.  We really just need
-% something about bounding the size of the output of $g$ relative to the
-% size of the input.
-
-Now, let's see how to implement prefix query operations.  Again, if we
+We can do a similar process to derive an implementation for prefix
+query (which suppsedly involves \emph{subtracting} the LSB).  Again, if we
 want to compute the sum of $[1, j]$, we can start at index $j$ in the
 Fenwick array, which stores the sum of the unique segment ending at
 $j$.  If the node at index $j$ stores the segment $[i,j]$, we next
 need to find the unique node storing a segment that ends at $i-1$.  We
 can do this repeatedly, adding up segments as we go.
 
-Staring at \pref{fig:right-leaning} for inspiration, we can see that
-what we want to do is find the \emph{left sibling} of our
-\emph{closest inactive parent}.  Under a binary indexing scheme, this
-can be implemented simply as:
+\begin{figure}
+\begin{center}
+\begin{diagram}[width=300]
+  import FenwickDiagrams
+  import SegTree
+  import Data.Monoid
+  import Control.Arrow ((***), second)
+
+  dia :: Diagram B
+  dia = vsep 0.7
+    [ sampleArray
+      # mkSegTree
+      # rq' i j
+      # fst
+      # drawSegTree opts
+    , (fst (leafX i n) ^& 0) ~~ (snd (leafX j n) ^& 0)
+      # lc green
+      # applyStyle defRangeStyle
+    ]
+      <> (arrowBetween' arrOpts (5 ^& (-2)) (0 ^& (-2))) # lw veryThick
+      <> (arrowBetween' arrOpts (3.5 ^& (-6)) (1.5 ^& (-6))) # lw veryThick
+    where
+      i = 1
+      j = 11
+      n = length sampleArray
+
+      de (_, (Recurse, _)) x _ y
+        || location x ^. _x > location y ^. _x =
+             beneath (arrowBetween' arrOpts (location y) (location x) # lw veryThick
+                      <> (location x ~~ location y))
+      de _ x _ y = beneath (location x ~~ location y)
+
+      arrOpts = with & gaps .~ local 0.5
+
+      opts :: SegTreeOpts (Visit, Sum Int) B
+      opts = (mkSTOpts (showRangeOpts' False False) :: SegTreeOpts (Visit, Sum Int) B)
+        { drawEdge = de
+        }
+\end{diagram}
+\end{center}
+\caption{Moving up a segment tree to find successive prefix
+  segments} \label{fig:segment-tree-prefix-query-up}
+\end{figure}
+
+      % drawSTOpts :: SegTreeOpts (Visit, Sum Int) B
+      % drawSTOpts = STOpts
+      %   { drawNode = drawNode' (undefined :: DrawNodeOpts (Visit, Sum Int) B)
+      %         -- SegNode (Visit, Sum Int) -> Int -> Int -> QDiagram B V2 Double Any
+      %   , drawEdge = drawEdgeDef
+      %   , stVSep = 1
+      %   , leanRight = False
+      %   }
+
+
+Staring at \pref{fig:segment-tree-prefix-query-up} for inspiration, we
+can see that what we want to do is find the \emph{left sibling} of our
+\emph{closest inactive parent}, that is, we go up until finding the
+first ancestor which is a right child, then go to its left sibling.
+Under a binary indexing scheme, this can be implemented simply as:
 
 \begin{code}
 
@@ -1826,37 +1871,43 @@ prevSegmentBinary = dec . while even shr
 
 \end{code}
 
-We can then compute:
+\begin{thm}
+  Subtracting the LSB is the correct way to move up a Fenwick-indexed
+  tree to the to active node covering the segment previous to the
+  current one, that is,
+  \[ |prevSegmentFenwick = b2f' n . prevSegmentBinary . f2b' n = \x -> x - lsb x|. \]
+\end{thm}
+\begin{proof}
 \begin{sproof}
   \stmt{|b2f' n . prevSegmentBinary . f2b' n|}
   \reason{=}{expand definitions}
-  \stmt{|unshift (n+1) . inc . dec . while even shr . dec . while even shr . set (n+1)|}
+  \stmt{|unshift (n+1) . ul(inc . dec) . while even shr . dec . shift (n+1)|}
   \reason{=}{|inc . dec = id|}
-  \stmt{|unshift (n+1) . while even shr . dec . while even shr . set (n+1)|}
+  \stmt{|ul(unshift (n+1)) . while even shr . dec . shift (n+1)|}
   \reason{=}{Definition of |unshift|}
-  \stmt{|clear (n+1) . while (not . test (n+1)) shl . while even shr . dec . while even shr . set (n+1)|}
+  \stmt{|clear (n+1) . ul(while (not . test (n+1)) shl . while even shr) . dec . shift (n+1)|}
   \reason{=}{\pref{lem:shlshr}}
-  \stmt{|clear (n+1) . while (not . test (n+1)) shl . dec . while even shr . set (n+1)|}
-  \reason{=}{\pref{lem:placeholder-scheme}}
+  \stmt{|ul(clear (n+1) . while (not . test (n+1)) shl) . dec . shift
+    (n+1)|}
+  \reason{=}{Definition of |unshift|}
+  \stmt{|unshift (n+1) . dec . shift (n+1)|}
+  \reason{=}{\pref{lem:sentinel-scheme}}
   \stmt{|atLSB dec|}
+  \reason{=}{\pref{lem:addlsb}}
+  \stmt{|\x -> x - lsb x|}
 \end{sproof}
+\vspace{-3\baselineskip}
+\end{proof}
 
-Just as |atLSB inc x = x + lsb x|, we have dually that |atLSB dec x =
-x - lsb x|, which is also easy to prove via induction.
+\section{Conclusion}
 
-The implementations of |prefix| and |update| are reproduced in
-\pref{fig:prefix-update}, and we can now see that they make perfect
-sense: both start at index |i|, and repeatedly either subtract or add
-the LSB, respectively. As we have seen, these correspond precisely to
-moving up the Fenwick tree to the next active parent, in the case of
-|update|, or to the previous segment, in the case of |prefix|.
+XXX write me.
 
-\begin{figure}
-  \inputminted[fontsize=\footnotesize,firstline=4,lastline=10]{java}{FenwickTree.java}
-  \caption{|prefix| and |update| implementations}
-  \label{fig:prefix-update}
-\end{figure}
+\section*{Acknowledgements}
 
+Thanks to the anonymous JFP reviewers for their helpful feedback,
+which resulted in a much improved paper.  Thanks also to Penn PL
+Club for the opportunity to present an early version of this work.
 
 \bibliographystyle{JFPlike}
 \bibliography{fenwick}

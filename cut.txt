@@ -111,3 +111,148 @@ $O(\lg n)$ nodes needed to compute a range sum, resulting in
 $O((\lg n)^2)$ time.  This isn't bad, but we can do better.  The key
 is to focus on \emph{prefix} sums, that is, range queries of the form
 $[1,j]$.
+
+
+------------------------------------------------------------
+-- Proof of
+
+During the above calculation we have also made use of the equality |clear
+(n+1) . shl = shl . clear n|, which can be shown by a
+simple calculation.
+
+
+Now we can formally relate the ``shifting with a placeholder'' scheme
+to the use of the |atLSB| function, with the following (admittedly
+rather technical) lemma:
+
+\begin{lem} \label{lem:placeholder-scheme} Let $n \geq 1$ and let |f
+  :: Bits -> Bits| be a function such that
+  \begin{enumerate}
+  \item |(f . set (n+1)) x = (set (n+1) . f) x| for any $0 < x \leq 2^n$
+  \item $|f x| < 2^{n+1}$ for any $0 < x \leq 2^n + 2^{n-1}$ as long
+    as $n \geq 2$
+  \end{enumerate}
+  Then for all $0 < x \leq 2^n$,
+  \[ |(unshift (n+1) . f . shift (n+1)) x = atLSB f x|. \]
+\end{lem}
+\begin{proof}
+  By induction on $x$.  First, suppose |x = xs :. I|.  In that case,
+  |atLSB f (xs :. I) = f (xs :. I)|, and
+  \begin{sproof}
+    \stmt{|(unshift (n+1) . f . ul(shift (n+1))) (xs :. I)|}
+    \reason{=}{Definition of |shift|}
+    \stmt{|(unshift (n+1) . f . while even shr . ul(set (n+1))) (xs :. I)|}
+    \reason{=}{Definition of |set|}
+    \stmt{|(unshift (n+1) . f . ul(while even shr)) (set n xs :. I)|}
+    \reason{=}{|while even f y = y| on odd |y|}
+    \stmt{|(unshift (n+1) . f) (ul(set n xs) :. I)|}
+    \reason{=}{Definition of |set|}
+    \stmt{|(unshift (n+1) . ul(f . set (n+1))) (xs :. I)|}
+    \reason{=}{|f| commutes with |set (n+1)| on input $\leq 2^n$}
+    \stmt{|(ul(unshift (n+1)) . set (n+1) . f) (xs :. I)|}
+    \reason{=}{Definition of |unshift|}
+    \stmt{|(clear (n+1) . ul(while (not . test (n+1)) shl . set (n+1)) . f) (xs :. I)|}
+    \reason{=}{|not . test (n+1)| is false on output of |set (n+1)|}
+    \stmt{|(ul(clear (n+1) . set (n+1)) . f) (xs :. I)|}
+    \reason{=}{|clear (n+1)| and |set (n+1)| are inverse, since $|f x| < 2^{n+1}$}
+    \stmt{f (xs :. I)}
+  \end{sproof}
+  Next, if |x = xs :. O|, then |atLSB f (xs :. O) = atLSB f xs :. O|,
+  and we can proceed by a nested induction on $n$.  First, if $n = 1$,
+  then $x = 2$ (the only $0 < x \leq 2^n$ that ends with a zero bit),
+  and an easy calculation shows that both sides are equal to |atLSB f
+  1 :. O|.  XXX verify this!!   Otherwise, if $n \geq 2$, we have  XXX working here
+  \begin{sproof}
+    \stmt{|(unshift (n+1) . f . ul(shift (n+1))) (xs :. O)|}
+    \reason{=}{Definition of |shift|}
+    \stmt{|(unshift (n+1) . f . while even shr . ul(set (n+1))) (xs :. O)|}
+    \reason{=}{Definition of |set|}
+    \stmt{|(unshift (n+1) . f . while even shr) (ul(set n xs :. O))|}
+    \reason{=}{Definition of |while| and |even|}
+    \stmt{|(ul(unshift (n+1)) . f . ul(while even shr . set n)) xs|}
+    \reason{=}{Definition of |unshift| and |shift|}
+    \stmt{|(clear (n+1) . ul(while (not . test (n+1)) shl) . f . shift n) xs|}
+  \end{sproof}
+
+  At this point we would like to rewrite |while (not . test (n+1))
+  shl| by pulling out one iteration of |shl|.  First, note that the
+  input to the |while| will be less than $2^{n+1}$ (and hence the
+  |while| will iterate at least once): since $|x = xs :. O| \leq 2^n$,
+  we have $|xs| \leq 2^{n-1}$ and $|shift n xs| \leq 2^n + 2^{n-1}$
+  (recall that |shift n = while even shr . set n| sets the $n$th bit
+  and then can only make the number smaller by doing repeated right
+  shifts). Hence by assumption $|f (shift n xs)| < 2^{n+1}$.
+  \begin{lem} \label{lem:shlwhile}
+    For all $0 \leq x < 2^{n+1}$, \[ |(while (not . test (n+1)) shl) x = (shl
+      . while (not . test n) shl) x|. \]
+  \end{lem}
+  We defer the proof of this lemma to later; getting back to the main
+  proof we can use it to make further progress:
+  \begin{sproof}
+    \stmt{|(clear (n+1) . ul(while (not . test (n+1)) shl) . f . shift n) xs|}
+    \reason{=}{\pref{lem:shlwhile}}
+    \stmt{|(ul(clear (n+1) . shl) . while (not . test n) shl . f . shift n) xs|}
+    \reason{=}{|clear (n+1) . shl = shl . clear n|}
+    \stmt{|(shl . ul(clear n . while (not . test n) shl) . f . shift n) xs|}
+    \reason{=}{Definition of |unshift|}
+    \stmt{|(shl . unshift n . f . shift n) xs|}
+    \reason{=}{Induction hypothesis}
+    \stmt{|shl (atLSB f xs)|}
+    \reason{=}{Definition of |shl|}
+    \stmt{|atLSB f xs :. O|}
+  \end{sproof}
+\end{proof}
+
+------------------------------------------------------------
+-- n-smooth stuff (wrong)
+
+
+% \begin{defn}
+% Say a function on |Bits| is \emph{$n$-smooth} if it only examines
+% up to the first $n$ bits of its input, and also leaves the input ``the
+% same length''.  That is, formally, |g :: Bits -> Bits| is $n$-smooth
+% if \[ |g . set m = set m . g| \] for all $m \geq n$.  Note this also
+% means that if the input to $g$ is less than $2^n$, then its output
+% will be as well.
+% \end{defn}
+
+% \begin{code}
+
+% over :: Int -> (Bits -> Bits) -> Bits -> Bits
+% over k f = pow shl k . f . pow shr k
+
+% \end{code}
+
+% \begin{thm}
+%   Let |f :: Bits -> Bits| and $n \in \N$, and suppose there exists
+%   some $k < n$ and $(n-k)$-smooth |g :: Bits -> Bits| such that
+%   \[ |f = g . pow shr k|. \] Then for all inputs $< 2^n$, \[ |clear n . while (not . test n)
+%     shl . f . set n = over k g|. \]
+% \end{thm}
+
+% \begin{proof}
+%   \begin{sproof}
+%     \stmt{|clear n . while (not . test n) shl . f . set n|}
+%     \reason{=}{assumption}
+%     \stmt{|clear n . while (not . test n) shl . g . pow shr k . set n|}
+%     \reason{=}{XXX lemma}
+%     \stmt{|clear n . while (not . test n) shl . g . set (n-k) . pow shr k|}
+%     \reason{=}{$g$ is $(n-k)$-smooth}
+%     \stmt{|clear n . while (not . test n) shl . set (n-k) . g . pow shr k|}
+%     \reason{=}{Input $< 2^n$; after |shr| it is $< 2^{n-k}$; $g$
+%       preserves; hence $2^{n-k}$ is biggest bit set}
+%     \stmt{|clear n . pow shl k . set (n-k) . g . pow shr k|}
+%     \reason{=}{XXX lemma}
+%     \stmt{|clear n . set n . pow shl k . g . pow shr k|}
+%     \reason{=}{XXX inverses (assuming that bit was not set in the
+%       first place)}
+%     \stmt{|pow shl k . g . pow shr k|}
+%     \reason{=}{definition}
+%     \stmt{|over k g|}
+%   \end{sproof}
+% \end{proof}
+
+% XXX note |inc| is not actually $n$-smooth for any $n$ according to the
+% above definition!  This is the wrong definition.  We really just need
+% something about bounding the size of the output of $g$ relative to the
+% size of the input.
