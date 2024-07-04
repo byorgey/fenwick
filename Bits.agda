@@ -41,12 +41,12 @@ Normalized (Rep b) = ⊤
 Normalized (Rep b ∷ b′) = b ≢ b′
 Normalized ((bs ∷ b) ∷ _) = Normalized (bs ∷ b)
 
-∷-Normalized : Normalized bs → Normalized (bs ∷ b)
-∷-Normalized {Rep b} {b′} _ with b ≟B b′
+∷′-Normalized : Normalized bs → Normalized (bs ∷′ b)
+∷′-Normalized {Rep b} {b′} _ with b ≟B b′
 ... | no ¬a = ¬a
-... | yes a = {!!}
-∷-Normalized {Rep b ∷ b′} b≢b′ = b≢b′
-∷-Normalized {bs ∷ b ∷ _} norm = norm
+... | yes a = tt
+∷′-Normalized {Rep b ∷ b′} b≢b′ = b≢b′
+∷′-Normalized {bs ∷ b ∷ _} norm = norm
 
 normalize : Bits → Σ Bits Normalized
 normalize (Rep b) = Rep b , tt

@@ -83,6 +83,8 @@ import Prelude hiding (even, odd)
 
 \usepackage{minted}
 
+\usepackage{thmtools, thm-restate}
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Prettyref
 
@@ -255,7 +257,7 @@ two operations, illustrated in \pref{fig:update-rq}:
 \end{itemize}
 Note that update is phrased in terms of \emph{adding} some value $v$
 to the existing value; we can \emph{set} a given index to a new value
-$v$ by by adding $v - u$, where $u$ is the old value.
+$v$ by adding $v - u$, where $u$ is the old value.
 
 If we simply store the integers in a mutable array, then we can update
 in constant time, but a range query requires time linear in the size
@@ -320,11 +322,6 @@ the need to maintain a dynamic table of character frequencies.  We
 subdivide a unit interval into consecutive segments proportional to
 the frequency of each character \citep{fenwick1994new, ryabko1989fast}.
 
-Incidentally, before revealing the answer, note that this is a
-literate Haskell document, which can be found (along with other
-accompanying source code) at
-\url{https://github.com/byorgey/fenwick/}.
-
 So, can we get both operations to run in sublinear time?  The answer,
 of course, is yes.  One simple technique is to divide the sequence
 into $\sqrt n$ buckets, each of size $\sqrt n$, and create an
@@ -358,7 +355,7 @@ resulting data structure is popularly known as a \emph{segment
   computational geometry.  However, most of the Google search results
   for ``segment tree'' are from the world of competitive programming,
   where it refers to the data structure considered in this paper (see,
-  for example, \citet[\S 2.8] {CP4}). The two data structures are largely
+  for example, \citet[\S 2.8]{CP4} or \citet{cp-alg}). The two data structures are largely
   unrelated.}, presumably because each internal node ultimately caches
 the sum of a (contiguous) \emph{segment} of the underlying sequence.
 \pref{fig:segment-tree} shows a segment tree built on a sample array
@@ -500,8 +497,67 @@ searches, one to find each endpoint of the query range.
 \end{figure}
 \end{itemize}
 
-\section{Implementing Segment Trees}
-\label{sec:impl-seg-trees}
+Segment trees are a very nice solution to the problem: as we will see
+in \pref{sec:seg-trees}, they fit well in a functional language;
+they also lend themselves to powerful generalizations such as lazily
+propagated range updates, and persisting update history via shared
+immutable structure.
+
+\term{Fenwick trees}, or \term{bit-indexed trees}
+\citep{fenwick1994new}, are an alternative solution to the problem.
+What they lack in generality, they make up for with an extremely small
+memory footprint and blazing fast implementation---perfect for
+applications where we don't need any of the advanced features that
+segment trees offer, and want to squeeze out every last bit of
+performance.
+
+\pref{fig:fenwick-java} shows a typical implementation of Fenwick
+trees in Java. As you can see, the implementation is incredibly
+concise, and consists mostly of some small loops doing just a few
+arithmetic and bit operations per iteration.  It is not at all clear
+what this code is doing, or how it works!  Upon closer inspection, the
+\mintinline{java}{range}, \mintinline{java}{get}, and
+\mintinline{java}{set} functions are straightforward, but the other
+functions are a puzzle. We can see that both the
+\mintinline{java}{prefix} and \mintinline{java}{update} functions call
+another function \mintinline{java}{LSB}, which for some reason
+performs a bitwise logical AND of an integer and its negation.  In
+fact, \mintinline{java}{LSB(x)} computes the \emph{least significant
+  bit} of $x$, that is, it returns the smallest $2^k$ such that the
+$k$th bit of $x$ is a one.  However, it is not obvious how the
+implementation of \mintinline{java}{LSB} works, nor how and why least
+significant bits are being used to compute updates and prefix sums.
+
+\begin{figure}
+  \inputminted[fontsize=\footnotesize]{java}{FenwickTree.java}
+  \caption{Implementing Fenwick trees with bit tricks}
+  \label{fig:fenwick-java}
+\end{figure}
+
+Our goal is \emph{not} to write elegant functional code for
+this---already solved!---problem.  Rather, our goal will be to use a
+functional domain-specific language for bit strings, along with
+equational reasoning, to \emph{derive} and \emph{explain} this
+baffling imperative code from first principles---a demonstration of
+the power of functional thinking and equational reasoning to
+understand code written even in other, non-functional languages.
+After developing more intuition for segment trees
+(\pref{sec:seg-trees}), we will see how Fenwick trees can be seen to
+arise as a special case of segment trees (\pref{sec:fenwick}).  We
+will then take a detour into two's complement binary encoding, develop
+a suitable DSL for bit manipuations, and explain the implementation of
+the \mintinline{java}{LSB} function (\pref{sec:twos-complement}).
+Armed with the DSL, we will then derive functions for converting back
+and forth between Fenwick trees and standard binary trees
+(\pref{sec:convert}).  Finally, we will be able to compute motion
+within a Fenwick tree by converting to binary tree indices, doing the
+obvious operations to effect the desired motion within the binary
+tree, and then converting back.  Fusing away the conversions via
+equational reasoning will finally reveal the hidden LSB function, as
+expected (\pref{sec:fenwick-ops}).
+
+\section{Segment Trees}
+\label{sec:seg-trees}
 
 \pref{fig:haskell-segtree} exhibits a simple implementation of a
 segment tree in Haskell, using some utilities for working with index
@@ -510,11 +566,11 @@ recursive algebraic data type, and implement |update| and |rq| using
 code that directly corresponds to the recursive descriptions given in
 the previous section. |get| and |set| can then also be implemented in
 terms of them.  It is not hard to generalize this code to work for
-segment trees storing values from either an arbitrary monoid if we
-don't need the |set| operation---or from an arbitrary Abelian group
-(\ie commutative monoid with inverses) if we do need |set|---but we
-keep things simple since the generalization doesn't add anything to
-our story.
+segment trees storing values from either an arbitrary commutative
+monoid if we don't need the |set| operation---or from an arbitrary
+Abelian group (\ie commutative monoid with inverses) if we do need
+|set|---but we keep things simple since the generalization doesn't add
+anything to our story.
 
 \begin{figure}
 \begin{code}
@@ -538,7 +594,7 @@ disjoint (lo1 :--: hi1) (lo2 :--: hi2) = hi1 < lo2 || hi2 < lo1
 \end{figure}
 
 \begin{figure}
-\begin{code}
+\begin{spec}
 
 data SegTree where
   Empty   :: SegTree
@@ -560,9 +616,10 @@ rq q (Branch a rng l r)
 get :: Index -> SegTree -> Integer
 get i = rq (i :--: i)
 
-put :: Index -> Integer -> SegTree -> SegTree
-put i v t = update i (v - get i t) t
-\end{code}
+set :: Index -> Integer -> SegTree -> SegTree
+set i v t = update i (v - get i t) t
+
+\end{spec}
 \caption{Simple segment tree implementation in Haskell} \label{fig:haskell-segtree}
 \end{figure}
 
@@ -622,36 +679,28 @@ than being forced to start at the root and recurse downwards, we can
 start at a particular index of interest and move \emph{up} the tree
 instead.
 
-XXX something here to motivate Fenwick trees.  What is better about
-them?  What problem are we trying to solve?
-- Segment trees lend themselves to cool generalizations (lazy updates
-  of entire ranges, sharing between old + updated trees)
-- But they have overhead of pointers, recursion, etc.  Better for applications where speed + small memory footprint is critical
+So how do we get from segment trees to Fenwick trees?  We start with
+an innocuous-seeming observation: \emph{not all the values stored in a
+  segment tree are necessary}.  Of course, all the non-leaf nodes are
+``unnecessary'' in the sense that they represent cached range sums
+which could easily be recomputed from the original sequence.  That's
+the whole point: caching these ``redundant'' sums trades off space for
+time, allowing us to perform arbitrary updates and range queries
+quickly, at the cost of doubling the required storage space.
 
-\section{Segment Trees are Redundant}
-\label{sec:redundant}
-
-Of course, segment trees are redundant in the sense that they
-cache range sums which could easily be recomputed from the original
-sequence.  That's the whole point: caching these ``redundant'' sums
-trades off space for time, allowing us to perform arbitrary updates
-and range queries quickly, at the cost of doubling the required
-storage space.
-
-However, segment trees are redundant in a stronger sense: we can throw
-out almost \emph{half} of the data in a segment tree and still retain
-the logarithmic running time for updates and range queries!
-
-How, you ask?  Simple: just throw out the data stored in \emph{every
-  node which is a right child}. \pref{fig:deactivate-right} shows the
-same example tree we have been using, but with the data deleted from
-every right child.  Note that ``every right child'' includes both
-leaves and internal nodes: we throw out the data associated to
-\emph{every} node which is the right child of its parent.  We will refer
-to the nodes with discarded data as \emph{inactive} and the remaining
-nodes (that is, left children and the root) as \emph{active}.  We also
-say that a tree with all its right children inactivated in this way
-has been \emph{thinned}.
+But that's not what I mean: in fact, there is a different set of
+values we can forget about, but in such a way that we still retain the
+logarithmic running time for updates and range queries. Which values,
+you ask?  Simple: just forget the data stored in \emph{every node
+  which is a right child}. \pref{fig:deactivate-right} shows the same
+example tree we have been using, but with the data deleted from every
+right child.  Note that ``every right child'' includes both leaves and
+internal nodes: we forget the data associated to \emph{every} node
+which is the right child of its parent.  We will refer to the nodes
+with discarded data as \emph{inactive} and the remaining nodes (that
+is, left children and the root) as \emph{active}.  We also say that a
+tree with all its right children inactivated in this way has been
+\emph{thinned}.
 
 \begin{figure}
 \begin{center}
@@ -682,9 +731,10 @@ figures?).  However, in and of itself, this observation does not give
 us a nice algorithm for computing range sums.
 
 It turns out the key is to think about \emph{prefix sums}.  As we saw
-in the introduction, if we can compute the prefix sum
-$P_k = a_1 + \dots + a_k$ for any $k$, then we can compute the range
-sum $a_i + \dots + a_j$ as $P_j - P_{i-1}$.
+in the introduction and the implementation of
+\mintinline{java}{range} in \pref{fig:fenwick-java}, if we can compute
+the prefix sum $P_k = a_1 + \dots + a_k$ for any $k$, then we can
+compute the range sum $a_i + \dots + a_j$ as $P_j - P_{i-1}$.
 
 \begin{theorem}
   Given a thinned segment tree, the sum of \emph{any prefix} of the
@@ -750,6 +800,7 @@ blue or grey; the only green nodes are left children.
 % \todoi{Discuss starting at leaf and moving UP the tree?}
 
 \section{Fenwick trees}
+\label{sec:fenwick}
 
 How should we actually store a thinned segment tree in memory?  If we
 stare at \pref{fig:deactivate-right} again, one strategy suggests
@@ -819,55 +870,19 @@ nOpts = (showInactiveOpts False)
 %   on their height, fill in array with corresponding shaded values}
 
 This method of storing the active nodes from a thinned segment tree in
-an array is precisely what is commonly known as a \emph{Fenwick tree},
-or \emph{bit-indexed tree} \citep{fenwick1994new}. I will also
-sometimes refer to it as a \emph{Fenwick array}, when I want to
-particularly emphasize the underlying array data structure.  Although
-it is certainly a clever use of space, the big question is how to
-implement the update and range query operations.  Our implementations
-of these operations for segment trees worked by recursively descending
-through the tree, either directly if the tree is stored as a recursive
-data structure, or using simple operations on indices if the tree is
-stored in an array. However, when storing the active nodes of a thinned tree in
-a Fenwick array, it is not \emph{a priori} obvious what operations on
-array indices will correspond to moving around the tree.
-
-In fact, moving around a Fenwick tree can indeed be done using simple
-index operations; \pref{fig:fenwick-java} shows a typical
-implementation (specialized to integer values) in the imperative
-language Java. This implementation is incredibly concise, but not at
-all perspicuous!  The \mintinline{java}{range},
-\mintinline{java}{put}, and
-\mintinline{java}{get} functions are straightforward, but the other
-functions are a puzzle. We can see that both the
-\mintinline{java}{prefix} and \mintinline{java}{update} functions call
-another function \mintinline{java}{LSB}, which for some reason
-performs a bitwise logical AND of an integer and its negation.  In
-fact, \mintinline{java}{LSB(x)} computes the \emph{least significant
-  bit} of $x$, that is, it returns the smallest $2^k$ such that the
-$k$th bit of $x$ is a one.  However, it is not obvious how the
-implementation of \mintinline{java}{LSB} works, nor how and why least
-significant bits are being used to compute updates and prefix sums.
-
-\begin{figure}
-  \inputminted[fontsize=\footnotesize]{java}{FenwickTree.java}
-  \caption{Implementing Fenwick trees with bit tricks}
-  \label{fig:fenwick-java}
-\end{figure}
-
-Our goal will be to \emph{derive} this concise, fast, but nonobvious
-implementation from first principles.  We will first take a detour
-into two's complement binary encoding, develop a suitable DSL for bit
-manipuations, and explain the implementation of the
-\mintinline{java}{LSB} function (\pref{sec:twos-complement}).  Armed
-with the DSL, we will then derive functions for converting back and
-forth between Fenwick array indices and standard binary tree indices
-(\pref{sec:convert}).  Finally, we will be able to compute motion
-within a Fenwick-indexed tree by converting to binary tree indices,
-doing the obvious operations to effect the desired motion within the
-binary tree, and then converting back.  Fusing away the conversions
-via equational reasoning will finally yield concise direct
-implementations (\pref{sec:fenwick-ops}).
+an array is precisely a \emph{Fenwick tree}. I will also sometimes
+refer to it as a \emph{Fenwick array}, when I want to particularly
+emphasize the underlying array data structure.  Although it is
+certainly a clever use of space, the big question is how to implement
+the update and range query operations.  Our implementations of these
+operations for segment trees worked by recursively descending through
+the tree, either directly if the tree is stored as a recursive data
+structure, or using simple operations on indices if the tree is stored
+in an array. However, when storing the active nodes of a thinned tree
+in a Fenwick array, it is not \emph{a priori} obvious what operations
+on array indices will correspond to moving around the tree.  In order
+to attack this problem, we first take a detour through a
+domain-specific language for two's complement binary values.
 
 \section{Two's Complement Binary} \label{sec:twos-complement}
 
@@ -919,10 +934,10 @@ of an integer.  Even worse are non-periodic lists, such as the one with
 In fact, the bit strings we want are the \emph{eventually constant}
 ones, that is, strings which eventually settle down to an infinite
 tail of all zeros (which represent nonnegative integers) or all ones
-(negative integers).  Every such string has a finite representation,
-so directly encoding eventually constant bit strings in Haskell not
-only gets rid of the junk but also leads to elegant, terminating
-algorithms for working with them.
+(which represent negative integers).  Every such string has a finite
+representation, so directly encoding eventually constant bit strings
+in Haskell not only gets rid of the junk but also leads to elegant,
+terminating algorithms for working with them.
 
 \begin{code}
 
@@ -931,6 +946,16 @@ data Bits where
   Snoc  :: !Bits -> Bit -> Bits
 
 \end{code}
+
+%if false
+\begin{code}
+
+instance Eq Bits where
+  Rep x == Rep y = x == y
+  (xs :. x) == (ys :. y) = x == y && xs == ys
+
+\end{code}
+%endif
 
 |Rep b| represents an infinite sequence of bit |b|, whereas |Snoc bs
 b| represents the bit string |bs| followed by a final bit |b|. We use
@@ -950,12 +975,12 @@ carefully constructed \emph{bidirectional pattern synonym} \citep{pickering2016p
 
 \begin{code}
 
-expand :: Bits -> Bits
-expand (Rep a) = Snoc (Rep a) a
-expand as = as
+toSnoc :: Bits -> Bits
+toSnoc (Rep a) = Snoc (Rep a) a
+toSnoc as = as
 
 pattern (:.) :: Bits -> Bit -> Bits
-pattern (:.) bs b <- (expand -> Snoc bs b)
+pattern (:.) bs b <- (toSnoc -> Snoc bs b)
   where
     Rep b :. b' | b == b' = Rep b
     bs :. b = Snoc bs b
@@ -1125,7 +1150,7 @@ ghci> quickCheck $ \x y -> fromBits (toBits x .+. toBits y) == x + y
 
 Finally, the following definition of negation is probably familiar to
 anyone who has studied two's complement arithmetic; I leave it as an
-exercise for the interested reader to prove that |x .+. neg x == 0|.
+exercise for the interested reader to prove that |x .+. neg x == Rep O|.
 \begin{code}
 
 neg :: Bits -> Bits
@@ -1157,7 +1182,7 @@ By induction on |x|.
     \reason{=}{Induction hypothesis}
     \stmt{|lsb xs :. O|}
   \end{sproof}
-\item Next, if |x = xs :. I|, then |lsb (xs :. I) = Rep O :. 1| by
+\item Next, if |x = xs :. I|, then |lsb (xs :. I) = Rep O :. I| by
   definition, whereas
   \begin{sproof}
     \stmt{|(xs :. I) .&&. neg (xs :. I)|}
@@ -1170,7 +1195,7 @@ By induction on |x|.
     \reason{=}{Definition of |.&&.|}
     \stmt{|(xs .&&. inv xs) :. I|}
     \reason{=}{Bitwise AND of $xs$ and its inverse is |Rep O|}
-    \stmt{|1 : zeros|}
+    \stmt{|Rep O :. I|}
   \end{sproof}
 \end{itemize}
 \vspace{-3\baselineskip}
@@ -1239,9 +1264,7 @@ node and every left child are active, with all right children being
 inactive.  This makes the root an awkward special case---all active
 nodes have an even index, \emph{except} the root, which has index $1$.
 This makes it more difficult to check whether we are at an active
-node---we cannot simply look at the least significant bit; we also
-have to look at the entire value (up to some chosen, fixed bit width)
-to see whether it is equal to 1.
+node---it is not enough to simply look at the least significant bit.
 
 One easy way to fix this is simply to give the root index $2$, and
 then proceed to label the rest of the nodes using the same
@@ -1507,10 +1530,10 @@ it uniquely as $m = 2^c + d$ where $d < 2^{c-1}$; then
 \[ |b2f n (pow 2 c + d) = pow 2 (n-c+1) * (d+1)|. \] In other words,
 given the input $2^c + d$, we subtract off the highest bit $2^c$,
 increment, then left shift $n-c+1$ times.  Again, though, there is a
-simpler way: we can increment first (note since $d < 2^{c-1}$, this
-cannot disturb the bit at $2^c$), then left shift enough times to
-bring the leftmost bit into position $n+1$, and finally remove it.
-That is:
+simpler way: we can increment first (note since $d < 2^{c-1}$,
+incrementing cannot disturb the bit at $2^c$), then left shift enough
+times to bring the leftmost bit into position $n+1$, and finally
+remove it.  That is:
 
 \begin{code}
 
@@ -1537,7 +1560,7 @@ indices.  First, in order to fuse away the resulting conversion, we
 will need a few lemmas.
 
 \begin{lem} \label{lem:incshr}
-  For all odd |bs :: Bits|,
+  For all |bs :: Bits| which are |odd| (that is, end with |I|),
   \begin{itemize}
   \item |(shr . dec) bs = shr bs|
   \item |(shr . inc) bs = (inc . shr) bs|
@@ -1560,8 +1583,8 @@ will need a few lemmas.
   the first 0 bit to a 1.
 \end{proof}
 
-Finally, we will need one somewhat technical lemma related to shifting
-zero bits in and out of the right side of a value.
+Finally, we will need a lemma about shifting zero bits in and out of
+the right side of a value.
 
 \begin{lem} \label{lem:shlshr}
   For all positive |Bits| values less than $2^{n+2}$,
@@ -1602,7 +1625,7 @@ that leaf (see \pref{fig:right-leaning}).  So to update index $i$, we
 just need to start at index $i$ in the Fenwick array, and then
 repeatedly find the closest active parent, updating as we go.  Recall
 that the imperative code for |update| works this way, apparently
-finding the closest active parent at each step by adding the |lsb| of
+finding the closest active parent at each step by adding the LSB of
 the current index:
 \inputminted[fontsize=\footnotesize,firstline=8,lastline=10]{java}{FenwickTree.java}
 \noindent
@@ -1654,8 +1677,9 @@ $|inc . shift (n+1)| < 2^{n+2}$, so \pref{lem:shlshr} applies.
 Reading from right to left, the pipeline we have just computed
 performs the following steps:
 \begin{enumerate}
-\item Set bit $n+1$ to 1
-\item Shift out consecutive zeros until finding the least significant $1$ bit
+\item Set bit $n+1$
+\item Shift out consecutive zeros until finding the least significant
+  $1$ bit
 \item Increment
 \item Shift zeros back in to bring the most significant bit back to position $n+1$,
   then clear it.
@@ -1754,29 +1778,31 @@ atLSB f bs = f bs
 
 We can formally relate the ``shifting with a sentinel'' scheme to
 the use of |atLSB|, with the following (admittedly rather technical)
-lemma:
+lemma:/
 
-\begin{lem} \label{lem:sentinel-scheme} Let $n \geq 1$ and let |f
+\begin{restatable}{lem}{sentinel} \label{lem:sentinel-scheme} Let $n \geq 1$ and let |f
   :: Bits -> Bits| be a function such that
   \begin{enumerate}
   \item |(f . set (n+1)) x = (set (n+1) . f) x| for any $0 < x \leq
     2^n$, and
+  \item $|f x| < 2^{n+1}$ for any $0 < x \leq 2^n$
   \item $|f x| < 2^{n+1}$ for any $0 < x \leq 2^n + 2^{n-1}$ as long
     as $n \geq 2$.
   \end{enumerate}
   Then for all $0 < x \leq 2^n$,
   \[ |(unshift (n+1) . f . shift (n+1)) x = atLSB f x|. \]
-\end{lem}
+\end{restatable}
 
 The proof is rather tedious and not all that illuminating, so we omit
-it.  However, we do note that both |inc| and |dec| fit the criteria
-for |f|: incrementing or decrementing some $0 < x \leq 2^n$ cannot affect
-the $(n+1)$st bit as long as $n \geq 1$, and the result of
-incrementing or decrementing a number up to $2^n + 2^{n-1}$ will
-certainly result in number less than $2^{n+1}$, as long as $n \geq 2$
-(if $n=1$ then in fact $|inc| (2^n + 2^{n-1}) = 2^{n+1}$).  We can now
-put all the pieces together show that adding the LSB at each step is
-the correct way to implement |update|.
+it (XXX it can be found...).  However, we do note that both |inc| and
+|dec| fit the criteria for |f|: incrementing or decrementing some
+$0 < x \leq 2^n$ cannot affect the $(n+1)$st bit as long as
+$n \geq 1$, and the result of incrementing or decrementing a number up
+to $2^n + 2^{n-1}$ will certainly result in number less than
+$2^{n+1}$, as long as $n \geq 2$ (if $n=1$ then in fact
+$|inc| (2^n + 2^{n-1}) = 2^{n+1}$).  We can now put all the pieces
+together show that adding the LSB at each step is the correct way to
+implement |update|.
 
 \begin{thm}
   Adding the LSB is the correct way to move up a Fenwick-indexed tree
@@ -1796,13 +1822,14 @@ the correct way to implement |update|.
 \vspace{-3\baselineskip}
 \end{proof}
 
-We can do a similar process to derive an implementation for prefix
-query (which suppsedly involves \emph{subtracting} the LSB).  Again, if we
-want to compute the sum of $[1, j]$, we can start at index $j$ in the
-Fenwick array, which stores the sum of the unique segment ending at
-$j$.  If the node at index $j$ stores the segment $[i,j]$, we next
-need to find the unique node storing a segment that ends at $i-1$.  We
-can do this repeatedly, adding up segments as we go.
+We can carry out a similar process to derive an implementation for
+prefix query (which suppsedly involves \emph{subtracting} the LSB).
+Again, if we want to compute the sum of $[1, j]$, we can start at
+index $j$ in the Fenwick array, which stores the sum of the unique
+segment ending at $j$.  If the node at index $j$ stores the segment
+$[i,j]$, we next need to find the unique node storing a segment that
+ends at $i-1$.  We can do this repeatedly, adding up segments as we
+go.
 
 \begin{figure}
 \begin{center}
@@ -1901,7 +1928,15 @@ prevSegmentBinary = dec . while even shr
 
 \section{Conclusion}
 
-XXX write me.
+Historically, to my knowledge, Fenwick trees were not actually
+developed as an optimization of segment trees as presented here.  This
+has merely been a fictional---but hopefully illuminating---alternate
+history of ideas, highlighting the power of functional thinking,
+domain-specific languages, and equational reasoning to explore
+relationships between different structures and algorithms.  As future
+work, it would be interesting to explore some of the mentioned
+generalizations of segment trees, to see how to derive Fenwick-like
+structures that support additional operations.
 
 \section*{Acknowledgements}
 
@@ -1912,5 +1947,101 @@ Club for the opportunity to present an early version of this work.
 \bibliographystyle{JFPlike}
 \bibliography{fenwick}
 
+\section*{Appendix}
+
+For completeness, we include here a proof of
+\pref{lem:sentinel-scheme}, which shows that for functions $f$
+satisfying suitable conditions, |atLSB f| has the same effect as the
+``sentinel scheme'' where we set a sentinel bit, shift to bring the
+LSB to the ones place, perform $f$, then shift back.  To complete the
+proof of this lemma we first need a few more.
+
+\begin{lem} \label{lem:clearshl}
+  |clear (n+1) . shl = shl . clear n|
+\end{lem}
+\begin{proof}
+  Immediate by a simple computation.
+\end{proof}
+
+\begin{lem} \label{lem:shlwhile}
+ For all $0 \leq x < 2^{n+1}$, \[ |(while (not . test (n+1)) shl) x = (shl
+   . while (not . test n) shl) x|. \]
+\end{lem}
+\begin{proof}
+  Intuitively, if $x$ is small enough, we can either keep shifting
+  left until bit $n+1$ is set, or we can shift left until bit $n$ is
+  set and then shift left one additional time.
+
+  Formally, XXX
+\end{proof}
+
+Now we can finally prove \pref{lem:sentinel-scheme}, which we restate
+here for convenience.
+
+\sentinel*
+
+\begin{proof}
+  By induction on $x$.  First, suppose |x = xs :. I|.  In that case,
+  |atLSB f (xs :. I) = f (xs :. I)|, and
+  \begin{sproof}
+    \stmt{|(unshift (n+1) . f . ul(shift (n+1))) (xs :. I)|}
+    \reason{=}{Definition of |shift|}
+    \stmt{|(unshift (n+1) . f . while even shr . ul(set (n+1))) (xs :. I)|}
+    \reason{=}{Definition of |set|}
+    \stmt{|(unshift (n+1) . f . ul(while even shr)) (set n xs :. I)|}
+    \reason{=}{|while even f y = y| on odd |y|}
+    \stmt{|(unshift (n+1) . f) (ul(set n xs) :. I)|}
+    \reason{=}{Definition of |set|}
+    \stmt{|(unshift (n+1) . ul(f . set (n+1))) (xs :. I)|}
+    \reason{=}{|f| commutes with |set (n+1)| on input $\leq 2^n$}
+    \stmt{|(ul(unshift (n+1)) . set (n+1) . f) (xs :. I)|}
+    \reason{=}{Definition of |unshift|}
+    \stmt{|(clear (n+1) . ul(while (not . test (n+1)) shl . set (n+1)) . f) (xs :. I)|}
+    \reason{=}{|not . test (n+1)| is false on output of |set (n+1)|}
+    \stmt{|(ul(clear (n+1) . set (n+1)) . f) (xs :. I)|}
+    \reason{=}{|clear (n+1)| and |set (n+1)| are inverse, since $|f x| < 2^{n+1}$}
+    \stmt{f (xs :. I)}
+  \end{sproof}
+  Next, if |x = xs :. O|, then |atLSB f (xs :. O) = atLSB f xs :. O|,
+  and we can proceed by a nested induction on $n$.  First, if $n = 1$,
+  then $x = 2$ (the only $0 < x \leq 2^n$ that ends with a zero bit),
+  and an easy calculation shows that both sides are equal to |atLSB f
+  1 :. O|.  XXX verify this!!   Otherwise, if $n \geq 2$, we have  XXX working here
+  \begin{sproof}
+    \stmt{|(unshift (n+1) . f . ul(shift (n+1))) (xs :. O)|}
+    \reason{=}{Definition of |shift|}
+    \stmt{|(unshift (n+1) . f . while even shr . ul(set (n+1))) (xs :. O)|}
+    \reason{=}{Definition of |set|}
+    \stmt{|(unshift (n+1) . f . while even shr) (ul(set n xs :. O))|}
+    \reason{=}{Definition of |while| and |even|}
+    \stmt{|(ul(unshift (n+1)) . f . ul(while even shr . set n)) xs|}
+    \reason{=}{Definition of |unshift| and |shift|}
+    \stmt{|(clear (n+1) . ul(while (not . test (n+1)) shl) . f . shift n) xs|}
+  \end{sproof}
+
+  At this point we would like to rewrite |while (not . test (n+1))
+  shl| by pulling out one iteration of |shl|.  First, note that the
+  input to the |while| will be less than $2^{n+1}$ (and hence the
+  |while| will iterate at least once): since $|x = xs :. O| \leq 2^n$,
+  we have $|xs| \leq 2^{n-1}$ and $|shift n xs| \leq 2^n + 2^{n-1}$
+  (recall that |shift n = while even shr . set n| sets the $n$th bit
+  and then can only make the number smaller by doing repeated right
+  shifts). Hence by assumption $|f (shift n xs)| < 2^{n+1}$.
+  We defer the proof of this lemma to later; getting back to the main
+  proof we can use it to make further progress:
+  \begin{sproof}
+    \stmt{|(clear (n+1) . ul(while (not . test (n+1)) shl) . f . shift n) xs|}
+    \reason{=}{\pref{lem:shlwhile}}
+    \stmt{|(ul(clear (n+1) . shl) . while (not . test n) shl . f . shift n) xs|}
+    \reason{=}{\pref{lem:clearshl}}
+    \stmt{|(shl . ul(clear n . while (not . test n) shl) . f . shift n) xs|}
+    \reason{=}{Definition of |unshift|}
+    \stmt{|(shl . unshift n . f . shift n) xs|}
+    \reason{=}{Induction hypothesis}
+    \stmt{|shl (atLSB f xs)|}
+    \reason{=}{Definition of |shl|}
+    \stmt{|atLSB f xs :. O|}
+  \end{sproof}
+\end{proof}
 
 \end{document}
