@@ -2391,16 +2391,11 @@ here for convenience.
     \reason{=}{Definition of \ensuremath{\Varid{unshift}} and \ensuremath{\Varid{shift}}}
     \stmt{\ensuremath{(\Varid{clear}\;(\Varid{n}\mathbin{+}\mathrm{1})\mathbin{\circ}\underline{\Varid{while}\;(not\mathbin{\circ}\Varid{test}\;(\Varid{n}\mathbin{+}\mathrm{1}))\;\Varid{shl}}\mathbin{\circ}\Varid{f}\mathbin{\circ}\Varid{shift}\;\Varid{n})\;\Varid{xs}}}
   \end{sproof}
-
-  At this point we would like to rewrite \ensuremath{\Varid{while}\;(not\mathbin{\circ}\Varid{test}\;(\Varid{n}\mathbin{+}\mathrm{1}))\;\Varid{shl}} by pulling out one iteration of \ensuremath{\Varid{shl}}.  First, note that the
-  input to the \ensuremath{\Varid{while}} will be less than $2^{n+1}$ (and hence the
-  \ensuremath{\Varid{while}} will iterate at least once): since $\ensuremath{\Varid{x}\mathrel{=}\Varid{xs}\mathrel{:\!.}\Conid{O}} \leq 2^n$,
-  we have $\ensuremath{\Varid{xs}} \leq 2^{n-1}$ and $\ensuremath{\Varid{shift}\;\Varid{n}\;\Varid{xs}} \leq 2^n + 2^{n-1}$
-  (recall that \ensuremath{\Varid{shift}\;\Varid{n}\mathrel{=}\Varid{while}\;\Varid{even}\;\Varid{shr}\mathbin{\circ}\Varid{set}\;\Varid{n}} sets the $n$th bit
-  and then can only make the number smaller by doing repeated right
-  shifts). Hence by assumption $\ensuremath{\Varid{f}\;(\Varid{shift}\;\Varid{n}\;\Varid{xs})} < 2^{n+1}$.
-  We defer the proof of this lemma to later; getting back to the main
-  proof we can use it to make further progress:
+  At this point we would like to rewrite \ensuremath{\Varid{while}\;(not\mathbin{\circ}\Varid{test}\;(\Varid{n}\mathbin{+}\mathrm{1}))\;\Varid{shl}} by pulling out one iteration of \ensuremath{\Varid{shl}}. Since
+  $\ensuremath{\Varid{x}\mathrel{=}\Varid{xs}\mathrel{:\!.}\Conid{O}} \leq 2^n$, we have $\ensuremath{\Varid{xs}} \leq 2^{n-1}$ and
+  $\ensuremath{\Varid{shift}\;\Varid{n}\;\Varid{xs}} \leq 2^n + 2^{n-1}$ (recall that \ensuremath{\Varid{shift}\;\Varid{n}\mathrel{=}\Varid{while}\;\Varid{even}\;\Varid{shr}\mathbin{\circ}\Varid{set}\;\Varid{n}} sets the $n$th bit and then can only make the number
+  smaller by doing repeated right shifts). Hence by assumption
+  $\ensuremath{\Varid{f}\;(\Varid{shift}\;\Varid{n}\;\Varid{xs})} < 2^{n+1}$, and we may apply \pref{lem:shlwhile}.
   \begin{sproof}
     \stmt{\ensuremath{(\Varid{clear}\;(\Varid{n}\mathbin{+}\mathrm{1})\mathbin{\circ}\underline{\Varid{while}\;(not\mathbin{\circ}\Varid{test}\;(\Varid{n}\mathbin{+}\mathrm{1}))\;\Varid{shl}}\mathbin{\circ}\Varid{f}\mathbin{\circ}\Varid{shift}\;\Varid{n})\;\Varid{xs}}}
     \reason{=}{\pref{lem:shlwhile}}

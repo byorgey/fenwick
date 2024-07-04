@@ -2006,7 +2006,7 @@ here for convenience.
   and we can proceed by a nested induction on $n$.  First, if $n = 1$,
   then $x = 2$ (the only $0 < x \leq 2^n$ that ends with a zero bit),
   and an easy calculation shows that both sides are equal to |atLSB f
-  1 :. O|.  XXX verify this!!   Otherwise, if $n \geq 2$, we have  XXX working here
+  I :. O|.  XXX verify this!!   Otherwise, if $n \geq 2$, we have:
   \begin{sproof}
     \stmt{|(unshift (n+1) . f . ul(shift (n+1))) (xs :. O)|}
     \reason{=}{Definition of |shift|}
@@ -2018,17 +2018,13 @@ here for convenience.
     \reason{=}{Definition of |unshift| and |shift|}
     \stmt{|(clear (n+1) . ul(while (not . test (n+1)) shl) . f . shift n) xs|}
   \end{sproof}
-
   At this point we would like to rewrite |while (not . test (n+1))
-  shl| by pulling out one iteration of |shl|.  First, note that the
-  input to the |while| will be less than $2^{n+1}$ (and hence the
-  |while| will iterate at least once): since $|x = xs :. O| \leq 2^n$,
-  we have $|xs| \leq 2^{n-1}$ and $|shift n xs| \leq 2^n + 2^{n-1}$
-  (recall that |shift n = while even shr . set n| sets the $n$th bit
-  and then can only make the number smaller by doing repeated right
-  shifts). Hence by assumption $|f (shift n xs)| < 2^{n+1}$.
-  We defer the proof of this lemma to later; getting back to the main
-  proof we can use it to make further progress:
+  shl| by pulling out one iteration of |shl|. Since
+  $|x = xs :. O| \leq 2^n$, we have $|xs| \leq 2^{n-1}$ and
+  $|shift n xs| \leq 2^n + 2^{n-1}$ (recall that |shift n = while even
+  shr . set n| sets the $n$th bit and then can only make the number
+  smaller by doing repeated right shifts). Hence by assumption
+  $|f (shift n xs)| < 2^{n+1}$, and we may apply \pref{lem:shlwhile}.
   \begin{sproof}
     \stmt{|(clear (n+1) . ul(while (not . test (n+1)) shl) . f . shift n) xs|}
     \reason{=}{\pref{lem:shlwhile}}
