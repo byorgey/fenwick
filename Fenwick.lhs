@@ -168,27 +168,20 @@ import Prelude hiding (even, odd)
 
 \newcommand{\sem}[1]{\llbracket {#1} \rrbracket}
 
-\DeclareMathSymbol{\mathinvertedexclamationmark}{\mathbin}{operators}{'074}
-\makeatletter
-\newcommand{\raisedmathinvertedexclamationmark}{%
-  \mathord{\mathpalette\raised@@mathinvertedexclamationmark\relax}%
-}
-\newcommand{\raised@@mathinvertedexclamationmark}[2]{%
-  \raisebox{\depth}{$\m@@th#1\mathinvertedexclamationmark$}%
-}
-\makeatother
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-\newcommand{\gnab}{\mathbin{\raisedmathinvertedexclamationmark}}
+\newif\ifJFP
+\JFPtrue
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \begin{document}
 
-\journaltitle{JFP}
+\journaltitle{Journal of Functional Programming}
 \cpr{Cambridge University Press}
 \doival{10.1017/xxxxx}
 
-\jnlDoiYr{2023}
+\jnlDoiYr{2024}
 
 \title{You Could Have Invented Fenwick Trees}
 \begin{authgrp}
@@ -205,7 +198,7 @@ import Prelude hiding (even, odd)
   baffling, consisting largely of nonobvious bitwise operations on
   indices.  We begin with \emph{segment trees}, a much more
   straightforward, easy-to-verify, purely functional solution to the
-  problem, and use equational reasoning to derive the implementation
+  problem, and use equational reasoning to explain the implementation
   of Fenwick trees as an optimized variant, making use of a Haskell
   EDSL for operations on infinite two's complement binary numbers.
 \end{abstract}
@@ -256,11 +249,11 @@ two operations, illustrated in \pref{fig:update-rq}:
   \emph{range query}.
 \end{itemize}
 Note that update is phrased in terms of \emph{adding} some value $v$
-to the existing value; we can \emph{set} a given index to a new value
+to the existing value; we can also \emph{set} a given index to a new value
 $v$ by adding $v - u$, where $u$ is the old value.
 
 If we simply store the integers in a mutable array, then we can update
-in constant time, but a range query requires time linear in the size
+in constant time, but range queries requires time linear in the size
 of the range, since we must iterate through the entire range $[i, j]$
 to add up the values.
 
@@ -347,7 +340,7 @@ time.  In particular, we can make a balanced binary tree where the
 leaves store the sequence itself, and every internal node stores the
 sum of its children.  (This will be a familiar idea to many functional
 programmers; for example, finger trees
-\citep{Hinze-Paterson:FingerTree} use a similar sort of caching scheme.)  The
+\citep{Hinze-Paterson:FingerTree, apfelmus:fingertree} use a similar sort of caching scheme.)  The
 resulting data structure is popularly known as a \emph{segment
   tree}\footnote{There is some confusion of terminology here.  As of
   this writing, the Wikipedia article on \emph{segment trees}
@@ -500,7 +493,7 @@ searches, one to find each endpoint of the query range.
 Segment trees are a very nice solution to the problem: as we will see
 in \pref{sec:seg-trees}, they fit well in a functional language;
 they also lend themselves to powerful generalizations such as lazily
-propagated range updates, and persisting update history via shared
+propagated range updates and persistent update history via shared
 immutable structure.
 
 \term{Fenwick trees}, or \term{bit-indexed trees}
@@ -542,19 +535,19 @@ baffling imperative code from first principles---a demonstration of
 the power of functional thinking and equational reasoning to
 understand code written even in other, non-functional languages.
 After developing more intuition for segment trees
-(\pref{sec:seg-trees}), we will see how Fenwick trees can be seen to
-arise as a special case of segment trees (\pref{sec:fenwick}).  We
-will then take a detour into two's complement binary encoding, develop
-a suitable DSL for bit manipuations, and explain the implementation of
-the \mintinline{java}{LSB} function (\pref{sec:twos-complement}).
-Armed with the DSL, we will then derive functions for converting back
-and forth between Fenwick trees and standard binary trees
-(\pref{sec:convert}).  Finally, we will be able to compute motion
-within a Fenwick tree by converting to binary tree indices, doing the
-obvious operations to effect the desired motion within the binary
-tree, and then converting back.  Fusing away the conversions via
-equational reasoning will finally reveal the hidden LSB function, as
-expected (\pref{sec:fenwick-ops}).
+(\pref{sec:seg-trees}), we will see how Fenwick trees can be viewed as
+a variant on segment trees (\pref{sec:fenwick}).  We will then take a
+detour into two's complement binary encoding, develop a suitable DSL
+for bit manipuations, and explain the implementation of the
+\mintinline{java}{LSB} function (\pref{sec:twos-complement}).  Armed
+with the DSL, we will then derive functions for converting back and
+forth between Fenwick trees and standard binary trees
+(\pref{sec:convert}).  Finally, we will be able to derive functions
+for moving within a Fenwick tree by converting to binary tree indices,
+doing the obvious operations to effect the desired motion within the
+binary tree, and then converting back.  Fusing away the conversions
+via equational reasoning will finally reveal the hidden LSB function,
+as expected (\pref{sec:fenwick-ops}).
 
 \section{Segment Trees}
 \label{sec:seg-trees}
@@ -564,7 +557,7 @@ segment tree in Haskell, using some utilities for working with index
 ranges shown in \pref{fig:ranges}.  We store a segment tree as a
 recursive algebraic data type, and implement |update| and |rq| using
 code that directly corresponds to the recursive descriptions given in
-the previous section. |get| and |set| can then also be implemented in
+the previous section; |get| and |set| can then also be implemented in
 terms of them.  It is not hard to generalize this code to work for
 segment trees storing values from either an arbitrary commutative
 monoid if we don't need the |set| operation---or from an arbitrary
@@ -641,8 +634,7 @@ an infinite binary tree.  If we label the segment tree array with
 $s_1 \dots s_{2n-1}$, then $s_1$ stores the sum of all the $a_i$,
 $s_2$ stores the sum of the first half of the $a_i$, $s_3$ stores the
 sum of the second half, and so on.  $a_1 \dots a_n$ themselves are
-stored as $s_n \dots s_{2n-1}$, and in general $a_i$ is stored as
-$s_{n+i-1}$.
+stored as $s_n \dots s_{2n-1}$.
 
 \begin{figure}
   \centering
@@ -688,7 +680,7 @@ the whole point: caching these ``redundant'' sums trades off space for
 time, allowing us to perform arbitrary updates and range queries
 quickly, at the cost of doubling the required storage space.
 
-But that's not what I mean: in fact, there is a different set of
+But that's not what I mean! In fact, there is a different set of
 values we can forget about, but in such a way that we still retain the
 logarithmic running time for updates and range queries. Which values,
 you ask?  Simple: just forget the data stored in \emph{every node
@@ -721,7 +713,7 @@ tree with all its right children inactivated in this way has been
 \end{figure}
 
 Updating a thinned segment tree is easy: just update the same nodes as
-before, ignoring updates to inactive nodes.  But how do we answer
+before, ignoring any updates to inactive nodes.  But how do we answer
 range queries?  It's not too hard to see that there is enough
 information remaining to reconstruct the information that was
 discarded (you might like to try convincing yourself of this: can you
@@ -763,7 +755,7 @@ compute the range sum $a_i + \dots + a_j$ as $P_j - P_{i-1}$.
   value without recursing into the right child.  Thus, when we do
   recurse into a right child, we might end up returning $0$, or we
   might recurse further into both grandchildren, but in any case we
-  will never try to look at the value of a right child.
+  will never try to look at the value of the right child itself.
 \end{proof}
 
 \pref{fig:segment-tree-prefix-query} illustrates performing a prefix
@@ -915,21 +907,22 @@ O  .|. b  = b
 Next, we must define bit strings, \ie sequences of bits.  Rather than
 fix a specific bit width, it will be much more elegant to work with
 \emph{infinite} bit strings.\footnote{Some readers may recognize
-  infinite two's complement bit strings as \term{dyadic} numbers, but
-  nothing in our story depends on understanding the connection.} It is
-tempting to use standard Haskell lists to represent potentially
-infinite bit strings, but this leads to a number of problems. For example,
-equality of infinite lists is not decidable, and there is no way in
-general to convert from an infinite list of bits back to an
-|Integer|---how would we know when to stop?  In fact, these practical
-problems stem from a more fundamental one: infinite lists of bits are
-actually a bad representation for two's complement bit strings,
-because of ``junk'', that is, infinite lists of bits which do not
-correspond to values in our intended semantic domain. For example,
-|cycle [I,O]| is an infinite list which alternates between |I| and |O|
-forever, but it does not represent a valid two's complement encoding
-of an integer.  Even worse are non-periodic lists, such as the one with
-|I| at every prime index and |O| everywhere else.
+  infinite two's complement bit strings as \term{dyadic} numbers, that
+  is, $p$-adic numbers for the specific case $p = 2$, but nothing in
+  our story depends on understanding the connection.} It is tempting
+to use standard Haskell lists to represent potentially infinite bit
+strings, but this leads to a number of problems. For example, equality
+of infinite lists is not decidable, and there is no way in general to
+convert from an infinite list of bits back to an |Integer|---how would
+we know when to stop?  In fact, these practical problems stem from a
+more fundamental one: infinite lists of bits are actually a bad
+representation for two's complement bit strings, because of ``junk'',
+that is, infinite lists of bits which do not correspond to values in
+our intended semantic domain. For example, |cycle [I,O]| is an
+infinite list which alternates between |I| and |O| forever, but it
+does not represent a valid two's complement encoding of an integer.
+Even worse are non-periodic lists, such as the one with |I| at every
+prime index and |O| everywhere else.
 
 In fact, the bit strings we want are the \emph{eventually constant}
 ones, that is, strings which eventually settle down to an infinite
@@ -1248,10 +1241,6 @@ while p f x
   | otherwise = x
 
 \end{code}
-
-We could alternatively define |while p f = head . dropWhile p
-. iterate f|, but the more direct definition will be more convenient
-for reasoning.
 
 \section{Index Conversion} \label{sec:convert}
 
@@ -1778,36 +1767,41 @@ atLSB f bs = f bs
 
 We can formally relate the ``shifting with a sentinel'' scheme to
 the use of |atLSB|, with the following (admittedly rather technical)
-lemma:/
+lemma:
 
 \begin{restatable}{lem}{sentinel} \label{lem:sentinel-scheme} Let $n \geq 1$ and let |f
   :: Bits -> Bits| be a function such that
   \begin{enumerate}
-  \item |(f . set (n+1)) x = (set (n+1) . f) x| for any $0 < x \leq
-    2^n$, and
-  \item $|f x| < 2^{n+1}$ for any $0 < x \leq 2^n$
-  \item $|f x| < 2^{n+1}$ for any $0 < x \leq 2^n + 2^{n-1}$ as long
-    as $n \geq 2$.
+  \item |(f . set (n+1)) x = (set (n+1) . f) x| for any $0 < x < 2^n$, and
+  \item $|f x| < 2^{n+1}$ for any $0 < x < 2^n + 2^{n-1}$.
   \end{enumerate}
-  Then for all $0 < x \leq 2^n$,
+  Then for all $0 < x < 2^n$,
   \[ |(unshift (n+1) . f . shift (n+1)) x = atLSB f x|. \]
 \end{restatable}
 
 The proof is rather tedious and not all that illuminating, so we omit
-it (XXX it can be found...).  However, we do note that both |inc| and
+it
+\ifJFP
+(an extended version including a full proof may be found on the
+author's website).
+\else
+here (a detailed proof can be found in an appendix).
+\fi
+However, we do note that both |inc| and
 |dec| fit the criteria for |f|: incrementing or decrementing some
-$0 < x \leq 2^n$ cannot affect the $(n+1)$st bit as long as
-$n \geq 1$, and the result of incrementing or decrementing a number up
-to $2^n + 2^{n-1}$ will certainly result in number less than
-$2^{n+1}$, as long as $n \geq 2$ (if $n=1$ then in fact
-$|inc| (2^n + 2^{n-1}) = 2^{n+1}$).  We can now put all the pieces
-together show that adding the LSB at each step is the correct way to
-implement |update|.
+$0 < x < 2^n$ cannot affect the $(n+1)$st bit as long as $n \geq 1$,
+and the result of incrementing or decrementing a number less than
+$2^n + 2^{n-1}$ will be a number less than $2^{n+1}$.  We can
+now put all the pieces together show that adding the LSB at each step
+is the correct way to implement |update|.
 
 \begin{thm}
   Adding the LSB is the correct way to move up a Fenwick-indexed tree
   to the nearest active parent, that is,
-  \[ |activeParentFenwick = b2f' n . activeParentBinary . f2b' n = \x -> x + lsb x|. \]
+  \[ |activeParentFenwick = b2f' n . activeParentBinary . f2b' n = \x
+    -> x + lsb x| \] everywhere on the range $[1, 2^n)$. (We exclude
+  $2^n$ since it corresponds to the root of the tree under a Fenwick
+  indexing scheme.)
 \end{thm}
 \begin{proof}
 \begin{sproof}
@@ -1902,7 +1896,9 @@ prevSegmentBinary = dec . while even shr
   Subtracting the LSB is the correct way to move up a Fenwick-indexed
   tree to the to active node covering the segment previous to the
   current one, that is,
-  \[ |prevSegmentFenwick = b2f' n . prevSegmentBinary . f2b' n = \x -> x - lsb x|. \]
+  \[ |prevSegmentFenwick = b2f' n . prevSegmentBinary . f2b' n = \x ->
+    x - lsb x| \]
+  everywhere on the range $[1, 2^n)$.
 \end{thm}
 \begin{proof}
 \begin{sproof}
@@ -1941,12 +1937,14 @@ structures that support additional operations.
 \section*{Acknowledgements}
 
 Thanks to the anonymous JFP reviewers for their helpful feedback,
-which resulted in a much improved paper.  Thanks also to Penn PL
+which resulted in a much improved presentation.  Thanks also to Penn PL
 Club for the opportunity to present an early version of this work.
 
 \bibliographystyle{JFPlike}
 \bibliography{fenwick}
 
+\ifJFP
+\else
 \section*{Appendix}
 
 For completeness, we include here a proof of
@@ -1964,7 +1962,7 @@ proof of this lemma we first need a few more.
 \end{proof}
 
 \begin{lem} \label{lem:shlwhile}
- For all $0 \leq x < 2^{n+1}$, \[ |(while (not . test (n+1)) shl) x = (shl
+ For all $n \geq 0$ and $0 < x < 2^{n+1}$, \[ |(while (not . test (n+1)) shl) x = (shl
    . while (not . test n) shl) x|. \]
 \end{lem}
 \begin{proof}
@@ -1972,7 +1970,19 @@ proof of this lemma we first need a few more.
   left until bit $n+1$ is set, or we can shift left until bit $n$ is
   set and then shift left one additional time.
 
-  Formally, XXX
+  Formally, the proof is by induction on the size of $2^{n+1} - x$.
+  First, if $2^n \leq x < 2^{n+1}$, then bit $n$ of $x$ must be $1$, and both
+  sides will be equal to |shl x|.  Otherwise, suppose $x < 2^n$.  Then
+  \begin{sproof}
+    \stmt{|(while (not . test (n+1)) shl) x|}
+    \reason{=}{$x < 2^{n+1}$}
+    \stmt{|(while (not . test (n+1)) shl) (shl x)|}
+    \reason{=}{Induction hypothesis, since $2^{n+1} - |shl x| < 2^{n+1} - x$}
+    \stmt{|(shl . while (not . test n) shl) (shl x)|}
+    \reason{=}{$x < 2^n$}
+    \stmt{|(shl . while (not . test n) shl) x|}
+  \end{sproof}
+\vspace{-3\baselineskip}
 \end{proof}
 
 Now we can finally prove \pref{lem:sentinel-scheme}, which we restate
@@ -1993,20 +2003,17 @@ here for convenience.
     \stmt{|(unshift (n+1) . f) (ul(set n xs) :. I)|}
     \reason{=}{Definition of |set|}
     \stmt{|(unshift (n+1) . ul(f . set (n+1))) (xs :. I)|}
-    \reason{=}{|f| commutes with |set (n+1)| on input $\leq 2^n$}
+    \reason{=}{|f| commutes with |set (n+1)| on input $< 2^n$}
     \stmt{|(ul(unshift (n+1)) . set (n+1) . f) (xs :. I)|}
     \reason{=}{Definition of |unshift|}
     \stmt{|(clear (n+1) . ul(while (not . test (n+1)) shl . set (n+1)) . f) (xs :. I)|}
     \reason{=}{|not . test (n+1)| is false on output of |set (n+1)|}
     \stmt{|(ul(clear (n+1) . set (n+1)) . f) (xs :. I)|}
     \reason{=}{|clear (n+1)| and |set (n+1)| are inverse, since $|f x| < 2^{n+1}$}
-    \stmt{f (xs :. I)}
+    \stmt{|f (xs :. I)|}
   \end{sproof}
-  Next, if |x = xs :. O|, then |atLSB f (xs :. O) = atLSB f xs :. O|,
-  and we can proceed by a nested induction on $n$.  First, if $n = 1$,
-  then $x = 2$ (the only $0 < x \leq 2^n$ that ends with a zero bit),
-  and an easy calculation shows that both sides are equal to |atLSB f
-  I :. O|.  XXX verify this!!   Otherwise, if $n \geq 2$, we have:
+  Next, if |x = xs :. O|, |atLSB f (xs :. O) = atLSB f xs :. O|.  For
+  the left-hand side, we can compute:
   \begin{sproof}
     \stmt{|(unshift (n+1) . f . ul(shift (n+1))) (xs :. O)|}
     \reason{=}{Definition of |shift|}
@@ -2020,8 +2027,8 @@ here for convenience.
   \end{sproof}
   At this point we would like to rewrite |while (not . test (n+1))
   shl| by pulling out one iteration of |shl|. Since
-  $|x = xs :. O| \leq 2^n$, we have $|xs| \leq 2^{n-1}$ and
-  $|shift n xs| \leq 2^n + 2^{n-1}$ (recall that |shift n = while even
+  $|x = xs :. O| < 2^n$, we have $|xs| < 2^{n-1}$ and
+  $|shift n xs| < 2^n + 2^{n-1}$ (recall that |shift n = while even
   shr . set n| sets the $n$th bit and then can only make the number
   smaller by doing repeated right shifts). Hence by assumption
   $|f (shift n xs)| < 2^{n+1}$, and we may apply \pref{lem:shlwhile}.
@@ -2038,6 +2045,8 @@ here for convenience.
     \reason{=}{Definition of |shl|}
     \stmt{|atLSB f xs :. O|}
   \end{sproof}
+\vspace{-3\baselineskip}
 \end{proof}
+\fi
 
 \end{document}

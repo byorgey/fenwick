@@ -384,27 +384,20 @@
 
 \newcommand{\sem}[1]{\llbracket {#1} \rrbracket}
 
-\DeclareMathSymbol{\mathinvertedexclamationmark}{\mathbin}{operators}{'074}
-\makeatletter
-\newcommand{\raisedmathinvertedexclamationmark}{%
-  \mathord{\mathpalette\raised@mathinvertedexclamationmark\relax}%
-}
-\newcommand{\raised@mathinvertedexclamationmark}[2]{%
-  \raisebox{\depth}{$\m@th#1\mathinvertedexclamationmark$}%
-}
-\makeatother
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-\newcommand{\gnab}{\mathbin{\raisedmathinvertedexclamationmark}}
+\newif\ifJFP
+\JFPtrue
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \begin{document}
 
-\journaltitle{JFP}
+\journaltitle{Journal of Functional Programming}
 \cpr{Cambridge University Press}
 \doival{10.1017/xxxxx}
 
-\jnlDoiYr{2023}
+\jnlDoiYr{2024}
 
 \title{You Could Have Invented Fenwick Trees}
 \begin{authgrp}
@@ -421,7 +414,7 @@
   baffling, consisting largely of nonobvious bitwise operations on
   indices.  We begin with \emph{segment trees}, a much more
   straightforward, easy-to-verify, purely functional solution to the
-  problem, and use equational reasoning to derive the implementation
+  problem, and use equational reasoning to explain the implementation
   of Fenwick trees as an optimized variant, making use of a Haskell
   EDSL for operations on infinite two's complement binary numbers.
 \end{abstract}
@@ -472,11 +465,11 @@ two operations, illustrated in \pref{fig:update-rq}:
   \emph{range query}.
 \end{itemize}
 Note that update is phrased in terms of \emph{adding} some value $v$
-to the existing value; we can \emph{set} a given index to a new value
+to the existing value; we can also \emph{set} a given index to a new value
 $v$ by adding $v - u$, where $u$ is the old value.
 
 If we simply store the integers in a mutable array, then we can update
-in constant time, but a range query requires time linear in the size
+in constant time, but range queries requires time linear in the size
 of the range, since we must iterate through the entire range $[i, j]$
 to add up the values.
 
@@ -563,7 +556,7 @@ time.  In particular, we can make a balanced binary tree where the
 leaves store the sequence itself, and every internal node stores the
 sum of its children.  (This will be a familiar idea to many functional
 programmers; for example, finger trees
-\citep{Hinze-Paterson:FingerTree} use a similar sort of caching scheme.)  The
+\citep{Hinze-Paterson:FingerTree, apfelmus:fingertree} use a similar sort of caching scheme.)  The
 resulting data structure is popularly known as a \emph{segment
   tree}\footnote{There is some confusion of terminology here.  As of
   this writing, the Wikipedia article on \emph{segment trees}
@@ -716,7 +709,7 @@ searches, one to find each endpoint of the query range.
 Segment trees are a very nice solution to the problem: as we will see
 in \pref{sec:seg-trees}, they fit well in a functional language;
 they also lend themselves to powerful generalizations such as lazily
-propagated range updates, and persisting update history via shared
+propagated range updates and persistent update history via shared
 immutable structure.
 
 \term{Fenwick trees}, or \term{bit-indexed trees}
@@ -758,19 +751,19 @@ baffling imperative code from first principles---a demonstration of
 the power of functional thinking and equational reasoning to
 understand code written even in other, non-functional languages.
 After developing more intuition for segment trees
-(\pref{sec:seg-trees}), we will see how Fenwick trees can be seen to
-arise as a special case of segment trees (\pref{sec:fenwick}).  We
-will then take a detour into two's complement binary encoding, develop
-a suitable DSL for bit manipuations, and explain the implementation of
-the \mintinline{java}{LSB} function (\pref{sec:twos-complement}).
-Armed with the DSL, we will then derive functions for converting back
-and forth between Fenwick trees and standard binary trees
-(\pref{sec:convert}).  Finally, we will be able to compute motion
-within a Fenwick tree by converting to binary tree indices, doing the
-obvious operations to effect the desired motion within the binary
-tree, and then converting back.  Fusing away the conversions via
-equational reasoning will finally reveal the hidden LSB function, as
-expected (\pref{sec:fenwick-ops}).
+(\pref{sec:seg-trees}), we will see how Fenwick trees can be viewed as
+a variant on segment trees (\pref{sec:fenwick}).  We will then take a
+detour into two's complement binary encoding, develop a suitable DSL
+for bit manipuations, and explain the implementation of the
+\mintinline{java}{LSB} function (\pref{sec:twos-complement}).  Armed
+with the DSL, we will then derive functions for converting back and
+forth between Fenwick trees and standard binary trees
+(\pref{sec:convert}).  Finally, we will be able to derive functions
+for moving within a Fenwick tree by converting to binary tree indices,
+doing the obvious operations to effect the desired motion within the
+binary tree, and then converting back.  Fusing away the conversions
+via equational reasoning will finally reveal the hidden LSB function,
+as expected (\pref{sec:fenwick-ops}).
 
 \section{Segment Trees}
 \label{sec:seg-trees}
@@ -780,7 +773,7 @@ segment tree in Haskell, using some utilities for working with index
 ranges shown in \pref{fig:ranges}.  We store a segment tree as a
 recursive algebraic data type, and implement \ensuremath{\Varid{update}} and \ensuremath{\Varid{rq}} using
 code that directly corresponds to the recursive descriptions given in
-the previous section. \ensuremath{\Varid{get}} and \ensuremath{\Varid{set}} can then also be implemented in
+the previous section; \ensuremath{\Varid{get}} and \ensuremath{\Varid{set}} can then also be implemented in
 terms of them.  It is not hard to generalize this code to work for
 segment trees storing values from either an arbitrary commutative
 monoid if we don't need the \ensuremath{\Varid{set}} operation---or from an arbitrary
@@ -899,8 +892,7 @@ an infinite binary tree.  If we label the segment tree array with
 $s_1 \dots s_{2n-1}$, then $s_1$ stores the sum of all the $a_i$,
 $s_2$ stores the sum of the first half of the $a_i$, $s_3$ stores the
 sum of the second half, and so on.  $a_1 \dots a_n$ themselves are
-stored as $s_n \dots s_{2n-1}$, and in general $a_i$ is stored as
-$s_{n+i-1}$.
+stored as $s_n \dots s_{2n-1}$.
 
 \begin{figure}
   \centering
@@ -946,7 +938,7 @@ the whole point: caching these ``redundant'' sums trades off space for
 time, allowing us to perform arbitrary updates and range queries
 quickly, at the cost of doubling the required storage space.
 
-But that's not what I mean: in fact, there is a different set of
+But that's not what I mean! In fact, there is a different set of
 values we can forget about, but in such a way that we still retain the
 logarithmic running time for updates and range queries. Which values,
 you ask?  Simple: just forget the data stored in \emph{every node
@@ -979,7 +971,7 @@ tree with all its right children inactivated in this way has been
 \end{figure}
 
 Updating a thinned segment tree is easy: just update the same nodes as
-before, ignoring updates to inactive nodes.  But how do we answer
+before, ignoring any updates to inactive nodes.  But how do we answer
 range queries?  It's not too hard to see that there is enough
 information remaining to reconstruct the information that was
 discarded (you might like to try convincing yourself of this: can you
@@ -1021,7 +1013,7 @@ compute the range sum $a_i + \dots + a_j$ as $P_j - P_{i-1}$.
   value without recursing into the right child.  Thus, when we do
   recurse into a right child, we might end up returning $0$, or we
   might recurse further into both grandchildren, but in any case we
-  will never try to look at the value of a right child.
+  will never try to look at the value of the right child itself.
 \end{proof}
 
 \pref{fig:segment-tree-prefix-query} illustrates performing a prefix
@@ -1190,21 +1182,22 @@ logical conjunction, and logical disjunction:
 Next, we must define bit strings, \ie sequences of bits.  Rather than
 fix a specific bit width, it will be much more elegant to work with
 \emph{infinite} bit strings.\footnote{Some readers may recognize
-  infinite two's complement bit strings as \term{dyadic} numbers, but
-  nothing in our story depends on understanding the connection.} It is
-tempting to use standard Haskell lists to represent potentially
-infinite bit strings, but this leads to a number of problems. For example,
-equality of infinite lists is not decidable, and there is no way in
-general to convert from an infinite list of bits back to an
-\ensuremath{\Conid{Integer}}---how would we know when to stop?  In fact, these practical
-problems stem from a more fundamental one: infinite lists of bits are
-actually a bad representation for two's complement bit strings,
-because of ``junk'', that is, infinite lists of bits which do not
-correspond to values in our intended semantic domain. For example,
-\ensuremath{\Varid{cycle}\;[\mskip1.5mu \Conid{I},\Conid{O}\mskip1.5mu]} is an infinite list which alternates between \ensuremath{\Conid{I}} and \ensuremath{\Conid{O}}
-forever, but it does not represent a valid two's complement encoding
-of an integer.  Even worse are non-periodic lists, such as the one with
-\ensuremath{\Conid{I}} at every prime index and \ensuremath{\Conid{O}} everywhere else.
+  infinite two's complement bit strings as \term{dyadic} numbers, that
+  is, $p$-adic numbers for the specific case $p = 2$, but nothing in
+  our story depends on understanding the connection.} It is tempting
+to use standard Haskell lists to represent potentially infinite bit
+strings, but this leads to a number of problems. For example, equality
+of infinite lists is not decidable, and there is no way in general to
+convert from an infinite list of bits back to an \ensuremath{\Conid{Integer}}---how would
+we know when to stop?  In fact, these practical problems stem from a
+more fundamental one: infinite lists of bits are actually a bad
+representation for two's complement bit strings, because of ``junk'',
+that is, infinite lists of bits which do not correspond to values in
+our intended semantic domain. For example, \ensuremath{\Varid{cycle}\;[\mskip1.5mu \Conid{I},\Conid{O}\mskip1.5mu]} is an
+infinite list which alternates between \ensuremath{\Conid{I}} and \ensuremath{\Conid{O}} forever, but it
+does not represent a valid two's complement encoding of an integer.
+Even worse are non-periodic lists, such as the one with \ensuremath{\Conid{I}} at every
+prime index and \ensuremath{\Conid{O}} everywhere else.
 
 In fact, the bit strings we want are the \emph{eventually constant}
 ones, that is, strings which eventually settle down to an infinite
@@ -1623,9 +1616,6 @@ the first iterate for which a predicate is false.
 \>[3]{}\mid \Varid{otherwise}\mathrel{=}\Varid{x}{}\<[E]%
 \ColumnHook
 \end{hscode}\resethooks
-
-We could alternatively define \ensuremath{\Varid{while}\;\Varid{p}\;\Varid{f}\mathrel{=}\Varid{head}\mathbin{\circ}\Varid{dropWhile}\;\Varid{p}\mathbin{\circ}\Varid{iterate}\;\Varid{f}}, but the more direct definition will be more convenient
-for reasoning.
 
 \section{Index Conversion} \label{sec:convert}
 
@@ -2153,35 +2143,39 @@ restores the 0 bits:
 
 We can formally relate the ``shifting with a sentinel'' scheme to
 the use of \ensuremath{\Varid{atLSB}}, with the following (admittedly rather technical)
-lemma:/
+lemma:
 
 \begin{restatable}{lem}{sentinel} \label{lem:sentinel-scheme} Let $n \geq 1$ and let \ensuremath{\Varid{f}\mathbin{::}\Conid{Bits}\to \Conid{Bits}} be a function such that
   \begin{enumerate}
-  \item \ensuremath{(\Varid{f}\mathbin{\circ}\Varid{set}\;(\Varid{n}\mathbin{+}\mathrm{1}))\;\Varid{x}\mathrel{=}(\Varid{set}\;(\Varid{n}\mathbin{+}\mathrm{1})\mathbin{\circ}\Varid{f})\;\Varid{x}} for any $0 < x \leq
-    2^n$, and
-  \item $\ensuremath{\Varid{f}\;\Varid{x}} < 2^{n+1}$ for any $0 < x \leq 2^n$
-  \item $\ensuremath{\Varid{f}\;\Varid{x}} < 2^{n+1}$ for any $0 < x \leq 2^n + 2^{n-1}$ as long
-    as $n \geq 2$.
+  \item \ensuremath{(\Varid{f}\mathbin{\circ}\Varid{set}\;(\Varid{n}\mathbin{+}\mathrm{1}))\;\Varid{x}\mathrel{=}(\Varid{set}\;(\Varid{n}\mathbin{+}\mathrm{1})\mathbin{\circ}\Varid{f})\;\Varid{x}} for any $0 < x < 2^n$, and
+  \item $\ensuremath{\Varid{f}\;\Varid{x}} < 2^{n+1}$ for any $0 < x < 2^n + 2^{n-1}$.
   \end{enumerate}
-  Then for all $0 < x \leq 2^n$,
+  Then for all $0 < x < 2^n$,
   \[ \ensuremath{(\Varid{unshift}\;(\Varid{n}\mathbin{+}\mathrm{1})\mathbin{\circ}\Varid{f}\mathbin{\circ}\Varid{shift}\;(\Varid{n}\mathbin{+}\mathrm{1}))\;\Varid{x}\mathrel{=}\Varid{atLSB}\;\Varid{f}\;\Varid{x}}. \]
 \end{restatable}
 
 The proof is rather tedious and not all that illuminating, so we omit
-it (XXX it can be found...).  However, we do note that both \ensuremath{\Varid{inc}} and
+it
+\ifJFP
+(an extended version including a full proof can be found on the
+author's website).
+\else
+here (a detailed proof can be found in an appendix).
+\fi
+However, we do note that both \ensuremath{\Varid{inc}} and
 \ensuremath{\Varid{dec}} fit the criteria for \ensuremath{\Varid{f}}: incrementing or decrementing some
-$0 < x \leq 2^n$ cannot affect the $(n+1)$st bit as long as
-$n \geq 1$, and the result of incrementing or decrementing a number up
-to $2^n + 2^{n-1}$ will certainly result in number less than
-$2^{n+1}$, as long as $n \geq 2$ (if $n=1$ then in fact
-$\ensuremath{\Varid{inc}} (2^n + 2^{n-1}) = 2^{n+1}$).  We can now put all the pieces
-together show that adding the LSB at each step is the correct way to
-implement \ensuremath{\Varid{update}}.
+$0 < x < 2^n$ cannot affect the $(n+1)$st bit as long as $n \geq 1$,
+and the result of incrementing or decrementing a number less than
+$2^n + 2^{n-1}$ will be a number less than $2^{n+1}$.  We can
+now put all the pieces together show that adding the LSB at each step
+is the correct way to implement \ensuremath{\Varid{update}}.
 
 \begin{thm}
   Adding the LSB is the correct way to move up a Fenwick-indexed tree
   to the nearest active parent, that is,
-  \[ \ensuremath{\Varid{activeParentFenwick}\mathrel{=}\Varid{b2f'}\;\Varid{n}\mathbin{\circ}\Varid{activeParentBinary}\mathbin{\circ}\Varid{f2b'}\;\Varid{n}\mathrel{=}\lambda \Varid{x}\to \Varid{x}\mathbin{+}\Varid{lsb}\;\Varid{x}}. \]
+  \[ \ensuremath{\Varid{activeParentFenwick}\mathrel{=}\Varid{b2f'}\;\Varid{n}\mathbin{\circ}\Varid{activeParentBinary}\mathbin{\circ}\Varid{f2b'}\;\Varid{n}\mathrel{=}\lambda \Varid{x}\to \Varid{x}\mathbin{+}\Varid{lsb}\;\Varid{x}} \] everywhere on the range $[1, 2^n)$. (We exclude
+  $2^n$ since it corresponds to the root of the tree under a Fenwick
+  indexing scheme.)
 \end{thm}
 \begin{proof}
 \begin{sproof}
@@ -2278,7 +2272,8 @@ Under a binary indexing scheme, this can be implemented simply as:
   Subtracting the LSB is the correct way to move up a Fenwick-indexed
   tree to the to active node covering the segment previous to the
   current one, that is,
-  \[ \ensuremath{\Varid{prevSegmentFenwick}\mathrel{=}\Varid{b2f'}\;\Varid{n}\mathbin{\circ}\Varid{prevSegmentBinary}\mathbin{\circ}\Varid{f2b'}\;\Varid{n}\mathrel{=}\lambda \Varid{x}\to \Varid{x}\mathbin{-}\Varid{lsb}\;\Varid{x}}. \]
+  \[ \ensuremath{\Varid{prevSegmentFenwick}\mathrel{=}\Varid{b2f'}\;\Varid{n}\mathbin{\circ}\Varid{prevSegmentBinary}\mathbin{\circ}\Varid{f2b'}\;\Varid{n}\mathrel{=}\lambda \Varid{x}\to \Varid{x}\mathbin{-}\Varid{lsb}\;\Varid{x}} \]
+  everywhere on the range $[1, 2^n)$.
 \end{thm}
 \begin{proof}
 \begin{sproof}
@@ -2316,12 +2311,14 @@ structures that support additional operations.
 \section*{Acknowledgements}
 
 Thanks to the anonymous JFP reviewers for their helpful feedback,
-which resulted in a much improved paper.  Thanks also to Penn PL
+which resulted in a much improved presentation.  Thanks also to Penn PL
 Club for the opportunity to present an early version of this work.
 
 \bibliographystyle{JFPlike}
 \bibliography{fenwick}
 
+\ifJFP
+\else
 \section*{Appendix}
 
 For completeness, we include here a proof of
@@ -2339,14 +2336,26 @@ proof of this lemma we first need a few more.
 \end{proof}
 
 \begin{lem} \label{lem:shlwhile}
- For all $0 \leq x < 2^{n+1}$, \[ \ensuremath{(\Varid{while}\;(not\mathbin{\circ}\Varid{test}\;(\Varid{n}\mathbin{+}\mathrm{1}))\;\Varid{shl})\;\Varid{x}\mathrel{=}(\Varid{shl}\mathbin{\circ}\Varid{while}\;(not\mathbin{\circ}\Varid{test}\;\Varid{n})\;\Varid{shl})\;\Varid{x}}. \]
+ For all $n \geq 0$ and $0 < x < 2^{n+1}$, \[ \ensuremath{(\Varid{while}\;(not\mathbin{\circ}\Varid{test}\;(\Varid{n}\mathbin{+}\mathrm{1}))\;\Varid{shl})\;\Varid{x}\mathrel{=}(\Varid{shl}\mathbin{\circ}\Varid{while}\;(not\mathbin{\circ}\Varid{test}\;\Varid{n})\;\Varid{shl})\;\Varid{x}}. \]
 \end{lem}
 \begin{proof}
   Intuitively, if $x$ is small enough, we can either keep shifting
   left until bit $n+1$ is set, or we can shift left until bit $n$ is
   set and then shift left one additional time.
 
-  Formally, XXX
+  Formally, the proof is by induction on the size of $2^{n+1} - x$.
+  First, if $2^n \leq x < 2^{n+1}$, then bit $n$ of $x$ must be $1$, and both
+  sides will be equal to \ensuremath{\Varid{shl}\;\Varid{x}}.  Otherwise, suppose $x < 2^n$.  Then
+  \begin{sproof}
+    \stmt{\ensuremath{(\Varid{while}\;(not\mathbin{\circ}\Varid{test}\;(\Varid{n}\mathbin{+}\mathrm{1}))\;\Varid{shl})\;\Varid{x}}}
+    \reason{=}{$x < 2^{n+1}$}
+    \stmt{\ensuremath{(\Varid{while}\;(not\mathbin{\circ}\Varid{test}\;(\Varid{n}\mathbin{+}\mathrm{1}))\;\Varid{shl})\;(\Varid{shl}\;\Varid{x})}}
+    \reason{=}{Induction hypothesis, since $2^{n+1} - \ensuremath{\Varid{shl}\;\Varid{x}} < 2^{n+1} - x$}
+    \stmt{\ensuremath{(\Varid{shl}\mathbin{\circ}\Varid{while}\;(not\mathbin{\circ}\Varid{test}\;\Varid{n})\;\Varid{shl})\;(\Varid{shl}\;\Varid{x})}}
+    \reason{=}{$x < 2^n$}
+    \stmt{\ensuremath{(\Varid{shl}\mathbin{\circ}\Varid{while}\;(not\mathbin{\circ}\Varid{test}\;\Varid{n})\;\Varid{shl})\;\Varid{x}}}
+  \end{sproof}
+\vspace{-3\baselineskip}
 \end{proof}
 
 Now we can finally prove \pref{lem:sentinel-scheme}, which we restate
@@ -2367,19 +2376,17 @@ here for convenience.
     \stmt{\ensuremath{(\Varid{unshift}\;(\Varid{n}\mathbin{+}\mathrm{1})\mathbin{\circ}\Varid{f})\;(\underline{\Varid{set}\;\Varid{n}\;\Varid{xs}}\mathrel{:\!.}\Conid{I})}}
     \reason{=}{Definition of \ensuremath{\Varid{set}}}
     \stmt{\ensuremath{(\Varid{unshift}\;(\Varid{n}\mathbin{+}\mathrm{1})\mathbin{\circ}\underline{\Varid{f}\mathbin{\circ}\Varid{set}\;(\Varid{n}\mathbin{+}\mathrm{1})})\;(\Varid{xs}\mathrel{:\!.}\Conid{I})}}
-    \reason{=}{\ensuremath{\Varid{f}} commutes with \ensuremath{\Varid{set}\;(\Varid{n}\mathbin{+}\mathrm{1})} on input $\leq 2^n$}
+    \reason{=}{\ensuremath{\Varid{f}} commutes with \ensuremath{\Varid{set}\;(\Varid{n}\mathbin{+}\mathrm{1})} on input $< 2^n$}
     \stmt{\ensuremath{(\underline{\Varid{unshift}\;(\Varid{n}\mathbin{+}\mathrm{1})}\mathbin{\circ}\Varid{set}\;(\Varid{n}\mathbin{+}\mathrm{1})\mathbin{\circ}\Varid{f})\;(\Varid{xs}\mathrel{:\!.}\Conid{I})}}
     \reason{=}{Definition of \ensuremath{\Varid{unshift}}}
     \stmt{\ensuremath{(\Varid{clear}\;(\Varid{n}\mathbin{+}\mathrm{1})\mathbin{\circ}\underline{\Varid{while}\;(not\mathbin{\circ}\Varid{test}\;(\Varid{n}\mathbin{+}\mathrm{1}))\;\Varid{shl}\mathbin{\circ}\Varid{set}\;(\Varid{n}\mathbin{+}\mathrm{1})}\mathbin{\circ}\Varid{f})\;(\Varid{xs}\mathrel{:\!.}\Conid{I})}}
     \reason{=}{\ensuremath{not\mathbin{\circ}\Varid{test}\;(\Varid{n}\mathbin{+}\mathrm{1})} is false on output of \ensuremath{\Varid{set}\;(\Varid{n}\mathbin{+}\mathrm{1})}}
     \stmt{\ensuremath{(\underline{\Varid{clear}\;(\Varid{n}\mathbin{+}\mathrm{1})\mathbin{\circ}\Varid{set}\;(\Varid{n}\mathbin{+}\mathrm{1})}\mathbin{\circ}\Varid{f})\;(\Varid{xs}\mathrel{:\!.}\Conid{I})}}
     \reason{=}{\ensuremath{\Varid{clear}\;(\Varid{n}\mathbin{+}\mathrm{1})} and \ensuremath{\Varid{set}\;(\Varid{n}\mathbin{+}\mathrm{1})} are inverse, since $\ensuremath{\Varid{f}\;\Varid{x}} < 2^{n+1}$}
-    \stmt{f (xs :. I)}
+    \stmt{\ensuremath{\Varid{f}\;(\Varid{xs}\mathrel{:\!.}\Conid{I})}}
   \end{sproof}
-  Next, if \ensuremath{\Varid{x}\mathrel{=}\Varid{xs}\mathrel{:\!.}\Conid{O}}, then \ensuremath{\Varid{atLSB}\;\Varid{f}\;(\Varid{xs}\mathrel{:\!.}\Conid{O})\mathrel{=}\Varid{atLSB}\;\Varid{f}\;\Varid{xs}\mathrel{:\!.}\Conid{O}},
-  and we can proceed by a nested induction on $n$.  First, if $n = 1$,
-  then $x = 2$ (the only $0 < x \leq 2^n$ that ends with a zero bit),
-  and an easy calculation shows that both sides are equal to \ensuremath{\Varid{atLSB}\;\Varid{f}\;\mathrm{1}\mathrel{:\!.}\Conid{O}}.  XXX verify this!!   Otherwise, if $n \geq 2$, we have  XXX working here
+  Next, if \ensuremath{\Varid{x}\mathrel{=}\Varid{xs}\mathrel{:\!.}\Conid{O}}, \ensuremath{\Varid{atLSB}\;\Varid{f}\;(\Varid{xs}\mathrel{:\!.}\Conid{O})\mathrel{=}\Varid{atLSB}\;\Varid{f}\;\Varid{xs}\mathrel{:\!.}\Conid{O}}.  For
+  the left-hand side, we can compute:
   \begin{sproof}
     \stmt{\ensuremath{(\Varid{unshift}\;(\Varid{n}\mathbin{+}\mathrm{1})\mathbin{\circ}\Varid{f}\mathbin{\circ}\underline{\Varid{shift}\;(\Varid{n}\mathbin{+}\mathrm{1})})\;(\Varid{xs}\mathrel{:\!.}\Conid{O})}}
     \reason{=}{Definition of \ensuremath{\Varid{shift}}}
@@ -2392,8 +2399,8 @@ here for convenience.
     \stmt{\ensuremath{(\Varid{clear}\;(\Varid{n}\mathbin{+}\mathrm{1})\mathbin{\circ}\underline{\Varid{while}\;(not\mathbin{\circ}\Varid{test}\;(\Varid{n}\mathbin{+}\mathrm{1}))\;\Varid{shl}}\mathbin{\circ}\Varid{f}\mathbin{\circ}\Varid{shift}\;\Varid{n})\;\Varid{xs}}}
   \end{sproof}
   At this point we would like to rewrite \ensuremath{\Varid{while}\;(not\mathbin{\circ}\Varid{test}\;(\Varid{n}\mathbin{+}\mathrm{1}))\;\Varid{shl}} by pulling out one iteration of \ensuremath{\Varid{shl}}. Since
-  $\ensuremath{\Varid{x}\mathrel{=}\Varid{xs}\mathrel{:\!.}\Conid{O}} \leq 2^n$, we have $\ensuremath{\Varid{xs}} \leq 2^{n-1}$ and
-  $\ensuremath{\Varid{shift}\;\Varid{n}\;\Varid{xs}} \leq 2^n + 2^{n-1}$ (recall that \ensuremath{\Varid{shift}\;\Varid{n}\mathrel{=}\Varid{while}\;\Varid{even}\;\Varid{shr}\mathbin{\circ}\Varid{set}\;\Varid{n}} sets the $n$th bit and then can only make the number
+  $\ensuremath{\Varid{x}\mathrel{=}\Varid{xs}\mathrel{:\!.}\Conid{O}} < 2^n$, we have $\ensuremath{\Varid{xs}} < 2^{n-1}$ and
+  $\ensuremath{\Varid{shift}\;\Varid{n}\;\Varid{xs}} < 2^n + 2^{n-1}$ (recall that \ensuremath{\Varid{shift}\;\Varid{n}\mathrel{=}\Varid{while}\;\Varid{even}\;\Varid{shr}\mathbin{\circ}\Varid{set}\;\Varid{n}} sets the $n$th bit and then can only make the number
   smaller by doing repeated right shifts). Hence by assumption
   $\ensuremath{\Varid{f}\;(\Varid{shift}\;\Varid{n}\;\Varid{xs})} < 2^{n+1}$, and we may apply \pref{lem:shlwhile}.
   \begin{sproof}
@@ -2409,6 +2416,8 @@ here for convenience.
     \reason{=}{Definition of \ensuremath{\Varid{shl}}}
     \stmt{\ensuremath{\Varid{atLSB}\;\Varid{f}\;\Varid{xs}\mathrel{:\!.}\Conid{O}}}
   \end{sproof}
+\vspace{-3\baselineskip}
 \end{proof}
+\fi
 
 \end{document}
