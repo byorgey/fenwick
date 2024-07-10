@@ -499,10 +499,12 @@ immutable structure.
 \term{Fenwick trees}, or \term{bit-indexed trees}
 \citep{fenwick1994new}, are an alternative solution to the problem.
 What they lack in generality, they make up for with an extremely small
-memory footprint and blazing fast implementation---perfect for
-applications where we don't need any of the advanced features that
-segment trees offer, and want to squeeze out every last bit of
-performance.
+memory footprint---they require literally nothing more than an array
+storing the values in the tree---and a blazing fast implementation.
+In other words, they are perfect for applications such as low-level
+coding/decoding routines where we don't need any of the advanced
+features that segment trees offer, and want to squeeze out every last
+bit of performance.
 
 \pref{fig:fenwick-java} shows a typical implementation of Fenwick
 trees in Java. As you can see, the implementation is incredibly
@@ -1576,8 +1578,8 @@ Finally, we will need a lemma about shifting zero bits in and out of
 the right side of a value.
 
 \begin{lem} \label{lem:shlshr}
-  For all positive |Bits| values less than $2^{n+2}$,
-  \[ |while (not . test (n+1)) shl . while even shr = while (not . test (n+1)) shl|. \]
+  For all $0 < x < 2^{n+2}$,
+  \[ |(while (not . test (n+1)) shl . while even shr) x = while (not . test (n+1)) shl x|. \]
 \end{lem}
 \begin{proof}
   Intuitively, this says that if we first shift out all the zero bits
@@ -1585,23 +1587,26 @@ the right side of a value.
   result by forgetting about the right shifts entirely; shifting out
   zero bits and then shifting them back in should be the identity.
 
-  The proof is by induction.  If |x = xs :. I| is odd, the equality is
+  Formally, the proof is by induction on |x|.  If |x = xs :. I| is odd, the equality is
   immediate since |while even shr x = x|. Otherwise, if |x = xs :. O|,
-  on the left-hand side we have
-  \begin{sproof}
-    \stmt{|(while (not . test (n+1)) shl . while even shr) (xs :. O)|}
-    \reason{=}{Definition of |while|}
-    \stmt{|(while (not . test (n+1)) shl . while even shr) xs|}
-  \end{sproof}
-  whereas on the right-hand side,
-  \begin{sproof}
-    \stmt{|while (not . test (n+1)) shl (xs :. O)|}
-    \reason{=}{Definition of |shl|}
-    \stmt{|while (not . test (n+1)) shl (shl xs)|}
-    \reason{=}{Definition of |while|; $|xs| < 2^{n+1}$ so |test (n+1) xs = False| }
-    \stmt{|while (not . test (n+1)) shl xs|}
-  \end{sproof}
-  These are equal by the induction hypothesis.
+  on the left-hand side the |O| is immediately discarded by |shr|,
+  whereas on the right-hand side |xs :. O = shl xs|, and the extra
+  |shl| can be absorbed into the |while| since $|xs| < 2^{n+1}$.  What
+  remains is simply the induction hypothesis.
+  % \begin{sproof}
+  %   \stmt{|(while (not . test (n+1)) shl . while even shr) (xs :. O)|}
+  %   \reason{=}{Definition of |while|}
+  %   \stmt{|(while (not . test (n+1)) shl . while even shr) xs|}
+  % \end{sproof}
+  % whereas on the right-hand side,
+  % \begin{sproof}
+  %   \stmt{|while (not . test (n+1)) shl (xs :. O)|}
+  %   \reason{=}{Definition of |shl|}
+  %   \stmt{|while (not . test (n+1)) shl (shl xs)|}
+  %   \reason{=}{Definition of |while|; $|xs| < 2^{n+1}$ so |test (n+1) xs = False| }
+  %   \stmt{|while (not . test (n+1)) shl xs|}
+  % \end{sproof}
+  % These are equal by the induction hypothesis.
 \end{proof}
 
 With these lemmas under our belt, let's see how to move around a
