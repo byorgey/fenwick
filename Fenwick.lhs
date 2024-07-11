@@ -1944,6 +1944,9 @@ structures that support additional operations.
 Thanks to the anonymous JFP reviewers for their helpful feedback,
 which resulted in a much improved presentation.  Thanks also to Penn PL
 Club for the opportunity to present an early version of this work.
+\bigskip
+
+\noindent \textbf{Conflicts of Interest}. None
 
 \bibliographystyle{JFPlike}
 \bibliography{fenwick}
