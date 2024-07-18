@@ -909,7 +909,7 @@ O  .|. b  = b
 Next, we must define bit strings, \ie sequences of bits.  Rather than
 fix a specific bit width, it will be much more elegant to work with
 \emph{infinite} bit strings.\footnote{Some readers may recognize
-  infinite two's complement bit strings as \term{dyadic} numbers, that
+  infinite two's complement bit strings as \term{$2$-adic} numbers, that
   is, $p$-adic numbers for the specific case $p = 2$, but nothing in
   our story depends on understanding the connection.} It is tempting
 to use standard Haskell lists to represent potentially infinite bit
