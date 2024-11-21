@@ -1153,6 +1153,8 @@ neg = inc . inv
 
 \end{code}
 
+XXX WORKING HERE, FIX PROOF a la REVIEWER 2
+
 We now have the tools to resolve the first mystery of the Fenwick tree
 implementation.
 \begin{thm}
