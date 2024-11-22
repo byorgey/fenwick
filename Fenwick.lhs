@@ -79,7 +79,6 @@ import Prelude hiding (even, odd)
 \usepackage{prettyref}
 \usepackage{bbm}
 \usepackage{stmaryrd}
-% \usepackage{subdepth}   %% Unify positioning of all subscripts
 
 \usepackage{minted}
 
@@ -208,21 +207,21 @@ import Prelude hiding (even, odd)
 %% Generate at 'http://dl.acm.org/ccs/ccs.cfm'.
 % \begin{CCSXML}
 % <ccs2012>
-% <concept>
-% <concept_id>10011007.10011006.10011008</concept_id>
-% <concept_desc>Software and its engineering~General programming languages</concept_desc>
-% <concept_significance>500</concept_significance>
-% </concept>
-% <concept>
-% <concept_id>10003456.10003457.10003521.10003525</concept_id>
-% <concept_desc>Social and professional topics~History of programming languages</concept_desc>
-% <concept_significance>300</concept_significance>
-% </concept>
-% </ccs2012>
+%    <concept>
+%        <concept_id>10011007.10011006.10011008.10011009.10011012</concept_id>
+%        <concept_desc>Software and its engineering~Functional languages</concept_desc>
+%        <concept_significance>500</concept_significance>
+%        </concept>
+%    <concept>
+%        <concept_id>10003752.10003809.10010031</concept_id>
+%        <concept_desc>Theory of computation~Data structures design and analysis</concept_desc>
+%        <concept_significance>300</concept_significance>
+%        </concept>
+%  </ccs2012>
 % \end{CCSXML}
 
-% \ccsdesc[500]{Software and its engineering~General programming languages}
-% \ccsdesc[300]{Social and professional topics~History of programming languages}
+% \ccsdesc[500]{Software and its engineering~Functional languages}
+% \ccsdesc[300]{Theory of computation~Data structures design and analysis}
 %% End of generated code
 
 
