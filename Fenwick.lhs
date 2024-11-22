@@ -191,8 +191,8 @@ import Prelude hiding (even, odd)
 \end{authgrp}
 
 \begin{abstract}
-  \emph{Fenwick trees}, also known as \emph{binary indexed trees}, are a
-  clever solution to the problem of maintaining a sequence of values
+  \emph{Fenwick trees}, also known as \emph{binary indexed trees}, are
+  a clever solution to the problem of maintaining a sequence of values
   while allowing both updates and range queries in sublinear time.
   Their implementation is concise and efficient---but also somewhat
   baffling, consisting largely of nonobvious bitwise operations on
@@ -234,6 +234,8 @@ import Prelude hiding (even, odd)
 
 \section{Introduction}
 \label{sec:intro}
+
+\todoi{MENTION IT IS LITERATE HASKELL, WHERE TO DOWNLOAD SOURCE}
 
 Suppose we have a sequence of $n$ integers $a_1, a_2, \dots, a_n$, and
 want to be able to perform arbitrary interleavings of the following
@@ -622,20 +624,20 @@ Although this implementation is simple and relatively straightforward
 to understand, compared to simply storing the sequence of values in an
 array, it incurs a good deal of overhead.  We can be more clever in
 our use of space by storing all the nodes of a segment tree in an
-array, using the standard indexing scheme illustrated in
-\pref{fig:bt-indexing} (for example, this scheme, or something like
-it, is commonly used to implement binary heaps).  The root has label
-$1$; every time we descend one level we append an extra bit: $0$ when
-we descend to the left child and $1$ when we descend to the right.
-Thus, the index of each node expressed in binary records the sequence
-of left-right choices along the path to that node from the root.
-Going from a node to its children is as simple as doing a left
-bit-shift and optionally adding 1; going from a node to its parent is
-a right bit-shift.  This defines a bijection from the positive natural
-numbers to the nodes of an infinite binary tree.  If we label the
-segment tree array with $s_1 \dots s_{2n-1}$, then $s_1$ stores the
-sum of all the $a_i$, $s_2$ stores the sum of the first half of the
-$a_i$, $s_3$ stores the sum of the second half, and so on.
+array, using the standard left-to-right breadth-first indexing scheme
+illustrated in \pref{fig:bt-indexing} (for example, this scheme, or
+something like it, is commonly used to implement binary heaps).  The
+root has label $1$; every time we descend one level we append an extra
+bit: $0$ when we descend to the left child and $1$ when we descend to
+the right.  Thus, the index of each node expressed in binary records
+the sequence of left-right choices along the path to that node from
+the root.  Going from a node to its children is as simple as doing a
+left bit-shift and optionally adding 1; going from a node to its
+parent is a right bit-shift.  This defines a bijection from the
+positive natural numbers to the nodes of an infinite binary tree.  If
+we label the segment tree array with $s_1 \dots s_{2n-1}$, then $s_1$
+stores the sum of all the $a_i$, $s_2$ stores the sum of the first
+half of the $a_i$, $s_3$ stores the sum of the second half, and so on.
 $a_1 \dots a_n$ themselves are stored as $s_n \dots s_{2n-1}$.
 
 \begin{figure}
@@ -791,8 +793,6 @@ blue or grey; the only green nodes are left children.
 \caption{Performing a prefix query on a segment tree} \label{fig:segment-tree-prefix-query}
 \end{figure}
 
-% \todoi{Discuss starting at leaf and moving UP the tree?}
-
 \section{Fenwick trees}
 \label{sec:fenwick}
 
@@ -860,8 +860,6 @@ nOpts = (showInactiveOpts False)
   aligning nodes with their storage
   location} \label{fig:right-leaning}
 \end{figure}
-% \todoi{If time, improve the right-leaning drawing: shade nodes based
-%   on their height, fill in array with corresponding shaded values}
 
 This method of storing the active nodes from a thinned segment tree in
 an array is precisely a \emph{Fenwick tree}. I will also sometimes
@@ -1060,32 +1058,21 @@ dec (bs :. O)  = dec bs :. I
 
 \end{code}
 
-% % We can prove by induction that for all |x :: Bits|, $\sem{|inc x|} = 1
-% % + \sem x$:
-% % \begin{itemize}
-% % \item $\sem{|inc zeros|} = \sem{|inc (O : zeros)|} = \sem{|I : zeros|}
-% %   = 1 + 2\sem |zeros| = 1$
-% % \item $\sem{|inc ones|} = \sem{|inc (I : ones)|} = \sem{|O : inc
-% %     ones|} =
-% % \end{itemize}
-
 The \emph{least significant bit}, or LSB, of a sequence of bits can be
 defined as follows:
-
 \begin{code}
 
 lsb :: Bits -> Bits
-lsb (Rep O) = Rep O
-lsb (bs :. O) = lsb bs :. O
-lsb (_ :. I)  = Rep O :. I
+lsb (Rep O)    = Rep O
+lsb (bs :. O)  = lsb bs :. O
+lsb (_ :. I)   = Rep O :. I
 
 \end{code}
+Note that we add a special case for |Rep O| to ensure that |lsb| is
+total. Technically, |Rep O| does not have a least significant bit, so
+defining |lsb (Rep O) = Rep O| seems sensible.
 
-Note that we add a special case for |Rep O|---which technically does
-not have a least significant bit---to ensure that |lsb| terminates for
-all inputs.
-
-For example,
+For example, \todo{awkward page break?}
 \begin{verbatim}
 ghci> toBits 26
 "...00011010"
@@ -1105,7 +1092,7 @@ shorter one to match the longer one.
 
 (.&&.) :: Bits -> Bits -> Bits
 Rep x .&&. Rep y = Rep (x .&. y)
-(xs :. x) .&& (ys :. y) = (xs .&&. ys) :. (x .&. y)
+(xs :. x) .&&. (ys :. y) = (xs .&&. ys) :. (x .&. y)
 
 \end{code}
 Bitwise inversion is likewise straightforward.
@@ -1145,15 +1132,14 @@ ghci> quickCheck $ \x y -> fromBits (toBits x .+. toBits y) == x + y
 
 Finally, the following definition of negation is probably familiar to
 anyone who has studied two's complement arithmetic; I leave it as an
-exercise for the interested reader to prove that |x .+. neg x == Rep O|.
+exercise for the interested reader to prove that |x .+. neg x == Rep
+O| for all |x :: Bits|.
 \begin{code}
 
 neg :: Bits -> Bits
 neg = inc . inv
 
 \end{code}
-
-XXX WORKING HERE, FIX PROOF a la REVIEWER 2
 
 We now have the tools to resolve the first mystery of the Fenwick tree
 implementation.
@@ -1163,7 +1149,11 @@ implementation.
 \begin{proof}
 By induction on |x|.
 \begin{itemize}
-\item First, if |x = xs :. O|, then |lsb x = lsb (xs :. O) = lsb xs
+\item First, if |x = Rep O|, it is an easy calculation to verify that
+  |lsb x = x .&&. neg x = Rep O|.
+\item Likewise, if |x = Rep I|, both |lsb x| and |x .&&. neg x| reduce
+  to |Rep O :. I|.
+\item If |x = xs :. O|, then |lsb x = lsb (xs :. O) = lsb xs
   :. O|
   by definition, whereas
   \begin{sproof}
@@ -1199,13 +1189,13 @@ By induction on |x|.
 \end{proof}
 
 For the last equality we need a lemma that |xs .&&. inv xs = Rep O|, which
-should be intuitively clear and can be easily proved by induction as
+should be intuitively clear and can easily be proved by induction as
 well.
 
 Finally, in order to express the index conversion functions we will
 develop in the next section, we need a few more things in our DSL.
 First, some functions to set and clear individual bits, and to test
-whether particular bits are set:
+whether particular bits are set: \todo{page break}
 
 \begin{code}
 
@@ -1241,8 +1231,8 @@ shl = (:. O)
 
 while :: (a -> Bool) -> (a -> a) -> a -> a
 while p f x
-  | p x = while p f (f x)
-  | otherwise = x
+  | p x        = while p f (f x)
+  | otherwise  = x
 
 \end{code}
 
@@ -1426,9 +1416,7 @@ f2b n k = b n ! k
 %endif
 Of course, since $b_n$ is of length $2^n$, this function is only
 defined on the range $[1, 2^n]$.
-% We can also see
-% that the output of |f2b| will be contained in the range
-% $[1, 2^{n+1} - 2]$.
+
 \begin{figure}
   \centering
 \begin{code}
@@ -1504,10 +1492,21 @@ f2b' n = dec . shift (n+1)
 
 \end{code}
 
+%if false
+\begin{code}
+
+infix 4 ===
+(===) :: Eq b => (a -> b) -> (a -> b) -> (a -> Bool)
+f === g = \x -> f x == g x
+
+\end{code}
+%endif
+
 For example, we can verify that this produces identical results to
-|f2b 4| on the range $[1, 2^4]$:
+|f2b 4| on the range $[1, 2^4]$ (for convenience, we define |(f === g)
+k = f k == g k|):
 \begin{verbatim}
-ghci> all (\k -> f2b 4 k == (fromBits . f2b' 4 . toBits) k) [1 .. 2^4]
+ghci> all (f2b 4 === fromBits . f2b' 4 . toBits) [1 .. 2^4]
 True
 \end{verbatim}
 
@@ -1540,7 +1539,7 @@ b2f' n = unshift (n+1) . inc
 
 Verifying:
 \begin{verbatim}
-ghci> all (\k -> (fromBits . b2f' 4 . f2b' 4 . toBits) k == k) [1 .. 2^4]
+ghci> all (fromBits . b2f' 4 . f2b' 4 . toBits === id) [1 .. 2^4]
 True
 \end{verbatim}
 
@@ -1595,20 +1594,6 @@ the right side of a value.
   whereas on the right-hand side |xs :. O = shl xs|, and the extra
   |shl| can be absorbed into the |while| since $|xs| < 2^{n+1}$.  What
   remains is simply the induction hypothesis.
-  % \begin{sproof}
-  %   \stmt{|(while (not . test (n+1)) shl . while even shr) (xs :. O)|}
-  %   \reason{=}{Definition of |while|}
-  %   \stmt{|(while (not . test (n+1)) shl . while even shr) xs|}
-  % \end{sproof}
-  % whereas on the right-hand side,
-  % \begin{sproof}
-  %   \stmt{|while (not . test (n+1)) shl (xs :. O)|}
-  %   \reason{=}{Definition of |shl|}
-  %   \stmt{|while (not . test (n+1)) shl (shl xs)|}
-  %   \reason{=}{Definition of |while|; $|xs| < 2^{n+1}$ so |test (n+1) xs = False| }
-  %   \stmt{|while (not . test (n+1)) shl xs|}
-  % \end{sproof}
-  % These are equal by the induction hypothesis.
 \end{proof}
 
 With these lemmas under our belt, let's see how to move around a
@@ -1790,7 +1775,7 @@ The proof is rather tedious and not all that illuminating, so we omit
 it
 \ifJFP
 (an extended version including a full proof may be found on the
-author's website).
+author's website). \todoi{update this with link?}
 \else
 here (a detailed proof can be found in an appendix).
 \fi
@@ -1938,8 +1923,8 @@ history of ideas, highlighting the power of functional thinking,
 domain-specific languages, and equational reasoning to explore
 relationships between different structures and algorithms.  As future
 work, it would be interesting to explore some of the mentioned
-generalizations of segment trees, to see how to derive Fenwick-like
-structures that support additional operations.
+generalizations of segment trees, to see whether one can derive
+Fenwick-like structures that support additional operations.
 
 \section*{Acknowledgements}
 

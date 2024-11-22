@@ -407,8 +407,8 @@
 \end{authgrp}
 
 \begin{abstract}
-  \emph{Fenwick trees}, also known as \emph{binary indexed trees}, are a
-  clever solution to the problem of maintaining a sequence of values
+  \emph{Fenwick trees}, also known as \emph{binary indexed trees}, are
+  a clever solution to the problem of maintaining a sequence of values
   while allowing both updates and range queries in sublinear time.
   Their implementation is concise and efficient---but also somewhat
   baffling, consisting largely of nonobvious bitwise operations on
@@ -450,6 +450,8 @@
 
 \section{Introduction}
 \label{sec:intro}
+
+\todoi{MENTION IT IS LITERATE HASKELL, WHERE TO DOWNLOAD SOURCE}
 
 Suppose we have a sequence of $n$ integers $a_1, a_2, \dots, a_n$, and
 want to be able to perform arbitrary interleavings of the following
@@ -880,20 +882,20 @@ Although this implementation is simple and relatively straightforward
 to understand, compared to simply storing the sequence of values in an
 array, it incurs a good deal of overhead.  We can be more clever in
 our use of space by storing all the nodes of a segment tree in an
-array, using the standard indexing scheme illustrated in
-\pref{fig:bt-indexing} (for example, this scheme, or something like
-it, is commonly used to implement binary heaps).  The root has label
-$1$; every time we descend one level we append an extra bit: $0$ when
-we descend to the left child and $1$ when we descend to the right.
-Thus, the index of each node expressed in binary records the sequence
-of left-right choices along the path to that node from the root.
-Going from a node to its children is as simple as doing a left
-bit-shift and optionally adding 1; going from a node to its parent is
-a right bit-shift.  This defines a bijection from the positive natural
-numbers to the nodes of an infinite binary tree.  If we label the
-segment tree array with $s_1 \dots s_{2n-1}$, then $s_1$ stores the
-sum of all the $a_i$, $s_2$ stores the sum of the first half of the
-$a_i$, $s_3$ stores the sum of the second half, and so on.
+array, using the standard left-to-right breadth-first indexing scheme
+illustrated in \pref{fig:bt-indexing} (for example, this scheme, or
+something like it, is commonly used to implement binary heaps).  The
+root has label $1$; every time we descend one level we append an extra
+bit: $0$ when we descend to the left child and $1$ when we descend to
+the right.  Thus, the index of each node expressed in binary records
+the sequence of left-right choices along the path to that node from
+the root.  Going from a node to its children is as simple as doing a
+left bit-shift and optionally adding 1; going from a node to its
+parent is a right bit-shift.  This defines a bijection from the
+positive natural numbers to the nodes of an infinite binary tree.  If
+we label the segment tree array with $s_1 \dots s_{2n-1}$, then $s_1$
+stores the sum of all the $a_i$, $s_2$ stores the sum of the first
+half of the $a_i$, $s_3$ stores the sum of the second half, and so on.
 $a_1 \dots a_n$ themselves are stored as $s_n \dots s_{2n-1}$.
 
 \begin{figure}
@@ -1049,8 +1051,6 @@ blue or grey; the only green nodes are left children.
 \caption{Performing a prefix query on a segment tree} \label{fig:segment-tree-prefix-query}
 \end{figure}
 
-% \todoi{Discuss starting at leaf and moving UP the tree?}
-
 \section{Fenwick trees}
 \label{sec:fenwick}
 
@@ -1118,8 +1118,6 @@ nOpts = (showInactiveOpts False)
   aligning nodes with their storage
   location} \label{fig:right-leaning}
 \end{figure}
-% \todoi{If time, improve the right-leaning drawing: shade nodes based
-%   on their height, fill in array with corresponding shaded values}
 
 This method of storing the active nodes from a thinned segment tree in
 an array is precisely a \emph{Fenwick tree}. I will also sometimes
@@ -1386,38 +1384,29 @@ follows:
 \ColumnHook
 \end{hscode}\resethooks
 
-% % We can prove by induction that for all |x :: Bits|, $\sem{|inc x|} = 1
-% % + \sem x$:
-% % \begin{itemize}
-% % \item $\sem{|inc zeros|} = \sem{|inc (O : zeros)|} = \sem{|I : zeros|}
-% %   = 1 + 2\sem |zeros| = 1$
-% % \item $\sem{|inc ones|} = \sem{|inc (I : ones)|} = \sem{|O : inc
-% %     ones|} =
-% % \end{itemize}
-
 The \emph{least significant bit}, or LSB, of a sequence of bits can be
 defined as follows:
-
 \begin{hscode}\SaveRestoreHook
 \column{B}{@{}>{\hspre}l<{\hspost}@{}}%
-\column{15}{@{}>{\hspre}l<{\hspost}@{}}%
+\column{16}{@{}>{\hspre}l<{\hspost}@{}}%
 \column{E}{@{}>{\hspre}l<{\hspost}@{}}%
 \>[B]{}\Varid{lsb}\mathbin{::}\Conid{Bits}\to \Conid{Bits}{}\<[E]%
 \\
-\>[B]{}\Varid{lsb}\;(\Conid{Rep}\;\Conid{O})\mathrel{=}\Conid{Rep}\;\Conid{O}{}\<[E]%
+\>[B]{}\Varid{lsb}\;(\Conid{Rep}\;\Conid{O}){}\<[16]%
+\>[16]{}\mathrel{=}\Conid{Rep}\;\Conid{O}{}\<[E]%
 \\
-\>[B]{}\Varid{lsb}\;(\Varid{bs}\mathrel{:\!.}\Conid{O})\mathrel{=}\Varid{lsb}\;\Varid{bs}\mathrel{:\!.}\Conid{O}{}\<[E]%
+\>[B]{}\Varid{lsb}\;(\Varid{bs}\mathrel{:\!.}\Conid{O}){}\<[16]%
+\>[16]{}\mathrel{=}\Varid{lsb}\;\Varid{bs}\mathrel{:\!.}\Conid{O}{}\<[E]%
 \\
-\>[B]{}\Varid{lsb}\;(\anonymous \mathrel{:\!.}\Conid{I}){}\<[15]%
-\>[15]{}\mathrel{=}\Conid{Rep}\;\Conid{O}\mathrel{:\!.}\Conid{I}{}\<[E]%
+\>[B]{}\Varid{lsb}\;(\anonymous \mathrel{:\!.}\Conid{I}){}\<[16]%
+\>[16]{}\mathrel{=}\Conid{Rep}\;\Conid{O}\mathrel{:\!.}\Conid{I}{}\<[E]%
 \ColumnHook
 \end{hscode}\resethooks
+Note that we add a special case for \ensuremath{\Conid{Rep}\;\Conid{O}} to ensure that \ensuremath{\Varid{lsb}} is
+total. Technically, \ensuremath{\Conid{Rep}\;\Conid{O}} does not have a least significant bit, so
+defining \ensuremath{\Varid{lsb}\;(\Conid{Rep}\;\Conid{O})\mathrel{=}\Conid{Rep}\;\Conid{O}} seems sensible.
 
-Note that we add a special case for \ensuremath{\Conid{Rep}\;\Conid{O}}---which technically does
-not have a least significant bit---to ensure that \ensuremath{\Varid{lsb}} terminates for
-all inputs.
-
-For example,
+For example, \todo{awkward page break?}
 \begin{tabbing}\ttfamily
 ~ghci\char62{}~toBits~26\\
 \ttfamily ~\char34{}\char46{}\char46{}\char46{}00011010\char34{}\\
@@ -1440,7 +1429,7 @@ shorter one to match the longer one.
 \\
 \>[B]{}\Conid{Rep}\;\Varid{x}\owedge\Conid{Rep}\;\Varid{y}\mathrel{=}\Conid{Rep}\;(\Varid{x}\land\Varid{y}){}\<[E]%
 \\
-\>[B]{}(\Varid{xs}\mathrel{:\!.}\Varid{x})\mathbin{.\&\&}(\Varid{ys}\mathrel{:\!.}\Varid{y})\mathrel{=}(\Varid{xs}\owedge\Varid{ys})\mathrel{:\!.}(\Varid{x}\land\Varid{y}){}\<[E]%
+\>[B]{}(\Varid{xs}\mathrel{:\!.}\Varid{x})\owedge(\Varid{ys}\mathrel{:\!.}\Varid{y})\mathrel{=}(\Varid{xs}\owedge\Varid{ys})\mathrel{:\!.}(\Varid{x}\land\Varid{y}){}\<[E]%
 \ColumnHook
 \end{hscode}\resethooks
 Bitwise inversion is likewise straightforward.
@@ -1491,9 +1480,8 @@ along with some special cases for \ensuremath{\Conid{Rep}}.
 \ColumnHook
 \end{hscode}\resethooks
 It is not too hard to convince ourselves that this definition of
-addition is terminating and yields correct results; but, just to be
-sure, we can also be fairly confident by just trying it with
-QuickCheck:
+addition is terminating and yields correct results; but we can also be
+fairly confident by just trying it with QuickCheck:
 
 \begin{tabbing}\ttfamily
 ~ghci\char62{}~quickCheck~\char36{}~\char92{}x~y~\char45{}\char62{}~fromBits~\char40{}toBits~x~\char46{}\char43{}\char46{}~toBits~y\char41{}~\char61{}\char61{}~x~\char43{}~y\\
@@ -1502,7 +1490,7 @@ QuickCheck:
 
 Finally, the following definition of negation is probably familiar to
 anyone who has studied two's complement arithmetic; I leave it as an
-exercise for the interested reader to prove that \ensuremath{\Varid{x}\oplus\Varid{neg}\;\Varid{x}\equiv \Conid{Rep}\;\Conid{O}}.
+exercise for the interested reader to prove that \ensuremath{\Varid{x}\oplus\Varid{neg}\;\Varid{x}\equiv \Conid{Rep}\;\Conid{O}} for all \ensuremath{\Varid{x}\mathbin{::}\Conid{Bits}}.
 \begin{hscode}\SaveRestoreHook
 \column{B}{@{}>{\hspre}l<{\hspost}@{}}%
 \column{E}{@{}>{\hspre}l<{\hspost}@{}}%
@@ -1520,7 +1508,11 @@ implementation.
 \begin{proof}
 By induction on \ensuremath{\Varid{x}}.
 \begin{itemize}
-\item First, if \ensuremath{\Varid{x}\mathrel{=}\Varid{xs}\mathrel{:\!.}\Conid{O}}, then \ensuremath{\Varid{lsb}\;\Varid{x}\mathrel{=}\Varid{lsb}\;(\Varid{xs}\mathrel{:\!.}\Conid{O})\mathrel{=}\Varid{lsb}\;\Varid{xs}\mathrel{:\!.}\Conid{O}}
+\item First, if \ensuremath{\Varid{x}\mathrel{=}\Conid{Rep}\;\Conid{O}}, it is an easy calculation to verify that
+  \ensuremath{\Varid{lsb}\;\Varid{x}\mathrel{=}\Varid{x}\owedge\Varid{neg}\;\Varid{x}\mathrel{=}\Conid{Rep}\;\Conid{O}}.
+\item Likewise, if \ensuremath{\Varid{x}\mathrel{=}\Conid{Rep}\;\Conid{I}}, both \ensuremath{\Varid{lsb}\;\Varid{x}} and \ensuremath{\Varid{x}\owedge\Varid{neg}\;\Varid{x}} reduce
+  to \ensuremath{\Conid{Rep}\;\Conid{O}\mathrel{:\!.}\Conid{I}}.
+\item If \ensuremath{\Varid{x}\mathrel{=}\Varid{xs}\mathrel{:\!.}\Conid{O}}, then \ensuremath{\Varid{lsb}\;\Varid{x}\mathrel{=}\Varid{lsb}\;(\Varid{xs}\mathrel{:\!.}\Conid{O})\mathrel{=}\Varid{lsb}\;\Varid{xs}\mathrel{:\!.}\Conid{O}}
   by definition, whereas
   \begin{sproof}
     \stmt{\ensuremath{(\Varid{xs}\mathrel{:\!.}\Conid{O})\owedge\Varid{neg}\;(\Varid{xs}\mathrel{:\!.}\Conid{O})}}
@@ -1555,13 +1547,13 @@ By induction on \ensuremath{\Varid{x}}.
 \end{proof}
 
 For the last equality we need a lemma that \ensuremath{\Varid{xs}\owedge\Varid{inv}\;\Varid{xs}\mathrel{=}\Conid{Rep}\;\Conid{O}}, which
-should be intuitively clear and can be easily proved by induction as
+should be intuitively clear and can easily be proved by induction as
 well.
 
 Finally, in order to express the index conversion functions we will
 develop in the next section, we need a few more things in our DSL.
 First, some functions to set and clear individual bits, and to test
-whether particular bits are set:
+whether particular bits are set: \todo{page break}
 
 \begin{hscode}\SaveRestoreHook
 \column{B}{@{}>{\hspre}l<{\hspost}@{}}%
@@ -1599,6 +1591,7 @@ the first iterate for which a predicate is false.
 \begin{hscode}\SaveRestoreHook
 \column{B}{@{}>{\hspre}l<{\hspost}@{}}%
 \column{3}{@{}>{\hspre}l<{\hspost}@{}}%
+\column{16}{@{}>{\hspre}l<{\hspost}@{}}%
 \column{E}{@{}>{\hspre}l<{\hspost}@{}}%
 \>[B]{}\Varid{shr}\mathbin{::}\Conid{Bits}\to \Conid{Bits}{}\<[E]%
 \\
@@ -1613,10 +1606,12 @@ the first iterate for which a predicate is false.
 \>[B]{}\Varid{while}\;\Varid{p}\;\Varid{f}\;\Varid{x}{}\<[E]%
 \\
 \>[B]{}\hsindent{3}{}\<[3]%
-\>[3]{}\mid \Varid{p}\;\Varid{x}\mathrel{=}\Varid{while}\;\Varid{p}\;\Varid{f}\;(\Varid{f}\;\Varid{x}){}\<[E]%
+\>[3]{}\mid \Varid{p}\;\Varid{x}{}\<[16]%
+\>[16]{}\mathrel{=}\Varid{while}\;\Varid{p}\;\Varid{f}\;(\Varid{f}\;\Varid{x}){}\<[E]%
 \\
 \>[B]{}\hsindent{3}{}\<[3]%
-\>[3]{}\mid \Varid{otherwise}\mathrel{=}\Varid{x}{}\<[E]%
+\>[3]{}\mid \Varid{otherwise}{}\<[16]%
+\>[16]{}\mathrel{=}\Varid{x}{}\<[E]%
 \ColumnHook
 \end{hscode}\resethooks
 
@@ -1780,9 +1775,7 @@ define the Fenwick to binary index conversion function as
 \[ \ensuremath{\Varid{f2b}\;\Varid{n}\;\Varid{k}\mathrel{=}\Varid{b}\;\Varid{n}\mathbin{!}\Varid{k}}. \]
 Of course, since $b_n$ is of length $2^n$, this function is only
 defined on the range $[1, 2^n]$.
-% We can also see
-% that the output of |f2b| will be contained in the range
-% $[1, 2^{n+1} - 2]$.
+
 \begin{figure}
   \centering
 \begin{hscode}\SaveRestoreHook
@@ -1871,10 +1864,11 @@ will make some of our proofs more compact later.
 \ColumnHook
 \end{hscode}\resethooks
 
+
 For example, we can verify that this produces identical results to
-\ensuremath{\Varid{f2b}\;\mathrm{4}} on the range $[1, 2^4]$:
+\ensuremath{\Varid{f2b}\;\mathrm{4}} on the range $[1, 2^4]$ (for convenience, we define \ensuremath{(\Varid{f}\mathbin{===}\Varid{g})\;\Varid{k}\mathrel{=}\Varid{f}\;\Varid{k}\equiv \Varid{g}\;\Varid{k}}):
 \begin{tabbing}\ttfamily
-~ghci\char62{}~all~\char40{}\char92{}k~\char45{}\char62{}~f2b~4~k~\char61{}\char61{}~\char40{}fromBits~\char46{}~f2b\char39{}~4~\char46{}~toBits\char41{}~k\char41{}~\char91{}1~\char46{}\char46{}~2\char94{}4\char93{}\\
+~ghci\char62{}~all~\char40{}f2b~4~\char61{}\char61{}\char61{}~fromBits~\char46{}~f2b\char39{}~4~\char46{}~toBits\char41{}~\char91{}1~\char46{}\char46{}~2\char94{}4\char93{}\\
 \ttfamily ~True
 \end{tabbing}
 
@@ -1910,7 +1904,7 @@ remove it.  That is:
 
 Verifying:
 \begin{tabbing}\ttfamily
-~ghci\char62{}~all~\char40{}\char92{}k~\char45{}\char62{}~\char40{}fromBits~\char46{}~b2f\char39{}~4~\char46{}~f2b\char39{}~4~\char46{}~toBits\char41{}~k~\char61{}\char61{}~k\char41{}~\char91{}1~\char46{}\char46{}~2\char94{}4\char93{}\\
+~ghci\char62{}~all~\char40{}fromBits~\char46{}~b2f\char39{}~4~\char46{}~f2b\char39{}~4~\char46{}~toBits~\char61{}\char61{}\char61{}~id\char41{}~\char91{}1~\char46{}\char46{}~2\char94{}4\char93{}\\
 \ttfamily ~True
 \end{tabbing}
 
@@ -1965,20 +1959,6 @@ the right side of a value.
   whereas on the right-hand side \ensuremath{\Varid{xs}\mathrel{:\!.}\Conid{O}\mathrel{=}\Varid{shl}\;\Varid{xs}}, and the extra
   \ensuremath{\Varid{shl}} can be absorbed into the \ensuremath{\Varid{while}} since $\ensuremath{\Varid{xs}} < 2^{n+1}$.  What
   remains is simply the induction hypothesis.
-  % \begin{sproof}
-  %   \stmt{|(while (not . test (n+1)) shl . while even shr) (xs :. O)|}
-  %   \reason{=}{Definition of |while|}
-  %   \stmt{|(while (not . test (n+1)) shl . while even shr) xs|}
-  % \end{sproof}
-  % whereas on the right-hand side,
-  % \begin{sproof}
-  %   \stmt{|while (not . test (n+1)) shl (xs :. O)|}
-  %   \reason{=}{Definition of |shl|}
-  %   \stmt{|while (not . test (n+1)) shl (shl xs)|}
-  %   \reason{=}{Definition of |while|; $|xs| < 2^{n+1}$ so |test (n+1) xs = False| }
-  %   \stmt{|while (not . test (n+1)) shl xs|}
-  % \end{sproof}
-  % These are equal by the induction hypothesis.
 \end{proof}
 
 With these lemmas under our belt, let's see how to move around a
@@ -2164,7 +2144,7 @@ The proof is rather tedious and not all that illuminating, so we omit
 it
 \ifJFP
 (an extended version including a full proof may be found on the
-author's website).
+author's website). \todoi{update this with link?}
 \else
 here (a detailed proof can be found in an appendix).
 \fi
@@ -2311,8 +2291,8 @@ history of ideas, highlighting the power of functional thinking,
 domain-specific languages, and equational reasoning to explore
 relationships between different structures and algorithms.  As future
 work, it would be interesting to explore some of the mentioned
-generalizations of segment trees, to see how to derive Fenwick-like
-structures that support additional operations.
+generalizations of segment trees, to see whether one can derive
+Fenwick-like structures that support additional operations.
 
 \section*{Acknowledgements}
 
