@@ -1,6 +1,6 @@
 % -*- mode: LaTeX; compile-command: "./build.sh" -*-
 
-\documentclass{jfp}
+\documentclass[nolinenum]{jfp}
 
 % \usepackage{showkeys}
 
@@ -233,8 +233,6 @@ import Prelude hiding (even, odd)
 
 \section{Introduction}
 \label{sec:intro}
-
-\todoi{MENTION IT IS LITERATE HASKELL, WHERE TO DOWNLOAD SOURCE}
 
 Suppose we have a sequence of $n$ integers $a_1, a_2, \dots, a_n$, and
 want to be able to perform arbitrary interleavings of the following
@@ -551,6 +549,9 @@ doing the obvious operations to effect the desired motion within the
 binary tree, and then converting back.  Fusing away the conversions
 via equational reasoning will finally reveal the hidden LSB function,
 as expected (\pref{sec:fenwick-ops}).
+
+This paper was produced from a literate Haskell document; the source
+is available from GitHub, at \url{https://github.com/byorgey/fenwick/blob/master/Fenwick.lhs}.
 
 \section{Segment Trees}
 \label{sec:seg-trees}
@@ -1071,7 +1072,6 @@ Note that we add a special case for |Rep O| to ensure that |lsb| is
 total. Technically, |Rep O| does not have a least significant bit, so
 defining |lsb (Rep O) = Rep O| seems sensible.
 
-For example, \todo{awkward page break?}
 \begin{verbatim}
 ghci> toBits 26
 "...00011010"
@@ -1194,7 +1194,7 @@ well.
 Finally, in order to express the index conversion functions we will
 develop in the next section, we need a few more things in our DSL.
 First, some functions to set and clear individual bits, and to test
-whether particular bits are set: \todo{page break}
+whether particular bits are set:
 
 \begin{code}
 
@@ -1205,6 +1205,9 @@ setTo b' k (bs :. b) = setTo b' (k-1) bs :. b
 set, clear :: Int -> Bits -> Bits
 set = setTo I
 clear = setTo O
+
+\end{code}
+\begin{code}
 
 test :: Int -> Bits -> Bool
 test 0 (bs :. b) = b == I
@@ -1550,6 +1553,8 @@ binary indexed tree and conjugating by conversion to and from Fenwick
 indices.  First, in order to fuse away the resulting conversion, we
 will need a few lemmas.
 
+\todoi{give names to lemmas, cite by name (+ number)}
+
 \begin{lem} \label{lem:incshr}
   For all |bs :: Bits| which are |odd| (that is, end with |I|),
   \begin{itemize}
@@ -1774,7 +1779,7 @@ The proof is rather tedious and not all that illuminating, so we omit
 it
 \ifJFP
 (an extended version including a full proof may be found on the
-author's website). \todoi{update this with link?}
+author's website, at \url{http://ozark.hendrix.edu/~yorgey/pub/Fenwick.pdf}).
 \else
 here (a detailed proof can be found in an appendix).
 \fi
