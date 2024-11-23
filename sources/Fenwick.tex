@@ -289,7 +289,6 @@
 \usepackage{todonotes}
 \usepackage{enumitem}
 \newcommand{\todoi}[2][]{\todo[inline, #1]{#2}}
-\usepackage[backend=pgf, input, extension=pgf, outputdir=diagrams]{diagrams-latex}
 
 \usepackage{xspace}
 \usepackage{prettyref}
@@ -386,7 +385,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \newif\ifJFP
-\JFPfalse
+\JFPtrue
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -410,7 +409,7 @@
   a clever solution to the problem of maintaining a sequence of values
   while allowing both updates and range queries in sublinear time.
   Their implementation is concise and efficient---but also somewhat
-  baffling, consisting largely of non-obvious bitwise operations on
+  baffling, consisting largely of nonobvious bitwise operations on
   indices.  We begin with \emph{segment trees}, a much more
   straightforward, easy-to-verify, purely functional solution to the
   problem, and use equational reasoning to explain the implementation
@@ -474,31 +473,7 @@ to add up the values.
 
 \begin{figure}
 \begin{center}
-\begin{diagram}[width=150]
-import FenwickDiagrams
-
-dia = vsep 0.5
-  [ drawArray draw (map (("a_"++) . show) [1 :: Int .. 8])
-  , mconcat
-    [ arrowV unit_Y
-    , text "$\\emph{update}$" # fontSizeL 0.5 # translate (1.2 ^& (-0.5))
-    ]
-    # translateX (3*leafWidth)
-  , drawArray draw2 [1 :: Int .. 8]
-  , fromOffsets [-0.2 *^ unitY, (3 * leafWidth + boxWidth) *^ unitX, 0.2 *^ unitY]
-    # translateX (boxWidth / 2 + leafSep)
-  , mconcat
-    [ arrowV unit_Y
-    , text "$\\emph{range query}$" # fontSizeL 0.5 # translate (1.8 ^& (-0.5))
-    ]
-    # translateX (2.5 * leafWidth)
-  , text "$a_2 + a_3 + (a_4 + v) + a_5$" # fontSizeL 0.6
-    # translateX (2.5 * leafWidth)
-  ]
-  where
-    draw2 4 = text (mathify "a_4 + v") # fontSizeL 0.3
-    draw2 n = draw ("a_" ++ show n)
-\end{diagram}
+\input{diagrams/Fenwick-diagrams-latex-fig1.pgf}
 \end{center}
 \caption{Update and range query operations} \label{fig:update-rq}
 \end{figure}
@@ -575,16 +550,7 @@ underlying array of which it is the sum.
 
 \begin{figure}
 \begin{center}
-\begin{diagram}[width=300]
-  import FenwickDiagrams
-  import SegTree
-
-  dia :: Diagram B
-  dia = sampleArray
-    # mkSegTree
-    # fmap getSum
-    # drawSegTree def
-\end{diagram}
+\input{diagrams/Fenwick-diagrams-latex-fig2.pgf}
 \end{center}
 \caption{A segment tree} \label{fig:segment-tree}
 \end{figure}
@@ -604,20 +570,7 @@ operations so that they run in logarithmic time.
 
 \begin{figure}
 \begin{center}
-\begin{diagram}[width=300]
-  import FenwickDiagrams
-  import SegTree
-  import Data.Monoid
-  import Control.Arrow ((***))
-
-  dia :: Diagram B
-  dia = sampleArray
-    # map ((,) (Any False))
-    # mkSegTree
-    # update 5 (Any True, Sum 3)
-    # fmap (getAny *** getSum)
-    # drawSegTree (mkSTOpts showUpdateOpts)
-\end{diagram}
+\input{diagrams/Fenwick-diagrams-latex-fig3.pgf}
 \end{center}
 \caption{Updating a segment tree} \label{fig:segment-tree-update}
 \end{figure}
@@ -635,28 +588,7 @@ operations so that they run in logarithmic time.
   \end{itemize}
 \begin{figure}
 \begin{center}
-\begin{diagram}[width=300]
-  import FenwickDiagrams
-  import SegTree
-  import Data.Monoid
-  import Control.Arrow ((***), second)
-
-  dia :: Diagram B
-  dia = vsep 0.7
-    [ sampleArray
-      # mkSegTree
-      # rq' i j
-      # fst
-      # drawSegTree (mkSTOpts showRangeOpts)
-    , (fst (leafX i n) ^& 0) ~~ (snd (leafX j n) ^& 0)
-      # lc green
-      # applyStyle defRangeStyle
-    ]
-    where
-      i = 4
-      j = 11
-      n = length sampleArray
-\end{diagram}
+\input{diagrams/Fenwick-diagrams-latex-fig4.pgf}
 \end{center}
 \caption{Performing a range query on a segment tree} \label{fig:segment-tree-range-query}
 \end{figure}
@@ -678,28 +610,7 @@ blue nodes and two non-blue nodes. We essentially perform two binary
 searches, one to find each endpoint of the query range.
 \begin{figure}
 \begin{center}
-\begin{diagram}[width=300]
-  import FenwickDiagrams
-  import SegTree
-  import Data.Monoid
-  import Control.Arrow ((***), second)
-
-  dia :: Diagram B
-  dia = vsep 0.7
-    [ sampleArray4
-      # mkSegTree
-      # rq' i j
-      # fst
-      # drawSegTree (mkSTOpts (showRangeOpts' False False))
-    , (fst (leafX i n) ^& 0) ~~ (snd (leafX j n) ^& 0)
-      # lc green
-      # applyStyle defRangeStyle
-    ]
-    where
-      i = 12
-      j = 42
-      n = length sampleArray4
-\end{diagram}
+\input{diagrams/Fenwick-diagrams-latex-fig5.pgf}
 \end{center}
 \caption{Performing a range query on a larger segment tree} \label{fig:big-range-query}
 \end{figure}
@@ -755,7 +666,7 @@ After developing more intuition for segment trees
 (\pref{sec:seg-trees}), we will see how Fenwick trees can be viewed as
 a variant on segment trees (\pref{sec:fenwick}).  We will then take a
 detour into two's complement binary encoding, develop a suitable DSL
-for bit manipulations, and explain the implementation of the
+for bit manipuations, and explain the implementation of the
 \mintinline{java}{LSB} function (\pref{sec:twos-complement}).  Armed
 with the DSL, we will then derive functions for converting back and
 forth between Fenwick trees and standard binary trees
@@ -900,23 +811,7 @@ $a_1 \dots a_n$ themselves are stored as $s_n \dots s_{2n-1}$.
 
 \begin{figure}
   \centering
-  \begin{diagram}[width=250]
-import Diagrams.Prelude hiding (Empty)
-import Diagrams.TwoD.Layout.Tree
-import Data.Maybe (fromJust)
-
--- bt depth root
-bt :: Int -> Int -> BTree Int
-bt 0 _ = Empty
-bt d r = BNode r (bt (d-1) (2*r)) (bt (d-1) (2*r+1))
-
-dia = bt 4 1
-  # symmLayoutBin' (with & slHSep .~ 4 & slVSep .~ 4)
-  # fromJust
-  # renderTree dn (~~)
-
-dn i = text ("$" ++ show i ++ "$") <> circle 1 # fc white
-  \end{diagram}
+  \input{diagrams/Fenwick-diagrams-latex-fig6.pgf}
   \caption{Indexing a binary tree}
   \label{fig:bt-indexing}
 \end{figure}
@@ -958,18 +853,7 @@ tree with all its right children inactivated in this way has been
 
 \begin{figure}
 \begin{center}
-\begin{diagram}[width=300]
-  import FenwickDiagrams
-  import SegTree
-  import Data.Monoid
-  import Control.Arrow ((***), first, second)
-
-  dia :: Diagram B
-  dia = sampleArray
-    # mkSegTree
-    # deactivate
-    # drawSegTree (mkSTOpts (showInactiveOpts False))
-\end{diagram}
+\input{diagrams/Fenwick-diagrams-latex-fig7.pgf}
 \end{center}
 \caption{Inactivating all right children in a segment tree} \label{fig:deactivate-right}
 \end{figure}
@@ -1025,28 +909,7 @@ query on a segment tree.  Notice that visited right children are only ever
 blue or grey; the only green nodes are left children.
 \begin{figure}
 \begin{center}
-\begin{diagram}[width=300]
-  import FenwickDiagrams
-  import SegTree
-  import Data.Monoid
-  import Control.Arrow ((***), second)
-
-  dia :: Diagram B
-  dia = vsep 0.7
-    [ sampleArray
-      # mkSegTree
-      # rq' i j
-      # fst
-      # drawSegTree (mkSTOpts (showRangeOpts' False False))
-    , (fst (leafX i n) ^& 0) ~~ (snd (leafX j n) ^& 0)
-      # lc green
-      # applyStyle defRangeStyle
-    ]
-    where
-      i = 1
-      j = 11
-      n = length sampleArray
-\end{diagram}
+\input{diagrams/Fenwick-diagrams-latex-fig8.pgf}
 \end{center}
 \caption{Performing a prefix query on a segment tree} \label{fig:segment-tree-prefix-query}
 \end{figure}
@@ -1069,50 +932,14 @@ aligning each active node with the array slot where it is stored.
 
 \begin{figure}
 \begin{center}
-\begin{diagram}[width=300]
-  import FenwickDiagrams
-  import SegTree
-  import Data.Monoid
-  import Control.Arrow ((***), first, second)
-
-  dia :: Diagram B
-  dia = vsep 0.5
-    [ sampleArray
-      # mkSegTree
-      # deactivate
-      # drawSegTree opts
-    , arrowV (2 *^ unit_Y)
-    , sampleArray
-    # mkFenwickArray
-    # drawArray (draw . getSum)
-    # centerX
-    ]
-
-  opts = (mkSTOpts (showInactiveOpts False))
-    { drawEdge = drawSlidingEdges }
-\end{diagram}
+\input{diagrams/Fenwick-diagrams-latex-fig9.pgf}
 \end{center}
 \caption{Sliding active values down a thinned segment tree} \label{fig:sliding-right}
 \end{figure}
 
 \begin{figure}
 \begin{center}
-\begin{diagram}[width=300]
-import FenwickDiagrams
-import SegTree
-
-dia :: Diagram B
-dia = sampleArray
-  # mkSegTree
-  # deactivate
-  # drawSegTree stOpts
-
-stOpts = (mkSTOpts nOpts)
-  { leanRight = True }
-
-nOpts = (showInactiveOpts False)
-  { leanRightN = True }
-\end{diagram}
+\input{diagrams/Fenwick-diagrams-latex-fig10.pgf}
 \end{center}
 \caption{Right-leaning drawing of a thinned segment tree, vertically
   aligning nodes with their storage
@@ -1639,23 +1466,7 @@ intermediate step which will eventually get fused away.
 
 \begin{figure}
   \centering
-  \begin{diagram}[width=250]
-import Diagrams.Prelude hiding (Empty)
-import Diagrams.TwoD.Layout.Tree
-import Data.Maybe (fromJust)
-
--- bt depth root
-bt :: Int -> Int -> BTree Int
-bt 0 _ = Empty
-bt d r = BNode r (bt (d-1) (2*r)) (bt (d-1) (2*r+1))
-
-dia = bt 4 2
-  # symmLayoutBin' (with & slHSep .~ 4 & slVSep .~ 4)
-  # fromJust
-  # renderTree dn (~~)
-
-dn i = text ("$" ++ show i ++ "$") <> circle 1 # fc white
-  \end{diagram}
+  \input{diagrams/Fenwick-diagrams-latex-fig11.pgf}
   \caption{Indexing a binary tree with $2$ at the root}
   \label{fig:bt-indexing-two}
 \end{figure}
@@ -1671,13 +1482,8 @@ shows the same thing on a binary tree one level deeper.
 
 \begin{figure}
   \centering
-  \begin{diagram}[width=300]
-import FenwickDiagrams
-import Control.Monad.State (evalState)
 
-dia :: Diagram B
-dia = evalState (bt 4 2 True) 1 # drawRightLeaning dn
-  \end{diagram}
+  \input{diagrams/Fenwick-diagrams-latex-fig12.pgf}
 
   \vspace{0.25in}
 
@@ -1690,13 +1496,7 @@ dia = evalState (bt 4 2 True) 1 # drawRightLeaning dn
 
 \begin{figure}
   \centering
-  \begin{diagram}[width=350]
-import FenwickDiagrams
-import Control.Monad.State (evalState)
-
-dia :: Diagram B
-dia = evalState (bt 5 2 True) 1 # drawRightLeaning dn
-  \end{diagram}
+  \input{diagrams/Fenwick-diagrams-latex-fig13.pgf}
 
   \vspace{0.25in}
 
@@ -2033,52 +1833,7 @@ performs the following steps:
 
 \begin{figure}
 \begin{center}
-\begin{diagram}[width=100]
-  import Fenwick
-  import Diagrams.Prelude hiding (Empty)
-  import Prelude hiding (even)
-
-  type FBits = (Int, [Style V2 Double], Bits)
-
-  drawBits :: FBits -> Diagram B
-  drawBits (0, _, _) = mempty
-  drawBits (n, [], bs :. b) = drawBits (n-1, [], bs) ||| drawBit mempty b
-  drawBits (n, (s:ss), bs :. b) = drawBits (n-1, ss, bs) ||| drawBit s b
-
-  bitColor O = grey
-  bitColor I = blue
-
-  drawBit :: Style V2 Double -> Bit -> Diagram B
-  drawBit s b = mconcat
-    [ text (show (fromEnum b)) # applyStyle s # fc (bitColor b)
-    , square 1
-    ]
-
-  drawSteps :: [(FBits, Maybe String)] -> Diagram B
-  drawSteps = vsep 0.5 . map drawStep
-
-  drawStep :: (FBits, Maybe String) -> Diagram B
-  drawStep (bs, Nothing) = drawBits bs # centerX
-  drawStep (bs, Just s) = vsep 0.5
-    [ drawBits bs # centerX
-    , hsep 0.5
-      [ arrowV unit_Y # centerY
-      , alignedText 0 0.5 s # fontSizeL 0.7
-      ]
-      # alignL
-    ]
-
-  sentinelStyle n = replicate (n-1) mempty ++ [mempty # fc red]
-
-  dia = drawSteps
-    [ ((8, [], toBits 52), Just "set sentinel bit")
-    , ((8, sentinelStyle 8, toBits 52 .+. toBits (2^7)), Just "shift right")
-    , ((8, sentinelStyle 6, while even shr (toBits 52 .+. toBits (2^7))), Just "increment")
-    , ((8, sentinelStyle 6, inc (while even shr (toBits 52 .+. toBits (2^7)))), Just "shift left")
-    , ((8, sentinelStyle 8, toBits 56 .+. toBits (2^7)), Just "unset sentinel bit")
-    , ((8, [], toBits 56), Nothing)
-    ]
-\end{diagram}
+\input{diagrams/Fenwick-diagrams-latex-fig14.pgf}
 \end{center}
 \caption{Adding LSB with a sentinel bit + shifts} \label{fig:bitspipeline}
 \end{figure}
@@ -2175,7 +1930,7 @@ is the correct way to implement \ensuremath{\Varid{update}}.
 \end{proof}
 
 We can carry out a similar process to derive an implementation for
-prefix query (which supposedly involves \emph{subtracting} the LSB).
+prefix query (which suppsedly involves \emph{subtracting} the LSB).
 Again, if we want to compute the sum of $[1, j]$, we can start at
 index $j$ in the Fenwick array, which stores the sum of the unique
 segment ending at $j$.  If the node at index $j$ stores the segment
@@ -2185,57 +1940,11 @@ go.
 
 \begin{figure}
 \begin{center}
-\begin{diagram}[width=300]
-  import FenwickDiagrams
-  import SegTree
-  import Data.Monoid
-  import Control.Arrow ((***), second)
-
-  dia :: Diagram B
-  dia = vsep 0.7
-    [ sampleArray
-      # mkSegTree
-      # rq' i j
-      # fst
-      # drawSegTree opts
-    , (fst (leafX i n) ^& 0) ~~ (snd (leafX j n) ^& 0)
-      # lc green
-      # applyStyle defRangeStyle
-    ]
-      <> (arrowBetween' arrOpts (5 ^& (-2)) (0 ^& (-2))) # lw veryThick
-      <> (arrowBetween' arrOpts (3.5 ^& (-6)) (1.5 ^& (-6))) # lw veryThick
-    where
-      i = 1
-      j = 11
-      n = length sampleArray
-
-      de (_, (Recurse, _)) x _ y
-        | location x ^. _x > location y ^. _x =
-             beneath (arrowBetween' arrOpts (location y) (location x) # lw veryThick
-                      <> (location x ~~ location y))
-      de _ x _ y = beneath (location x ~~ location y)
-
-      arrOpts = with & gaps .~ local 0.5
-
-      opts :: SegTreeOpts (Visit, Sum Int) B
-      opts = (mkSTOpts (showRangeOpts' False False) :: SegTreeOpts (Visit, Sum Int) B)
-        { drawEdge = de
-        }
-\end{diagram}
+\input{diagrams/Fenwick-diagrams-latex-fig15.pgf}
 \end{center}
 \caption{Moving up a segment tree to find successive prefix
   segments} \label{fig:segment-tree-prefix-query-up}
 \end{figure}
-
-      % drawSTOpts :: SegTreeOpts (Visit, Sum Int) B
-      % drawSTOpts = STOpts
-      %   { drawNode = drawNode' (undefined :: DrawNodeOpts (Visit, Sum Int) B)
-      %         -- SegNode (Visit, Sum Int) -> Int -> Int -> QDiagram B V2 Double Any
-      %   , drawEdge = drawEdgeDef
-      %   , stVSep = 1
-      %   , leanRight = False
-      %   }
-
 
 Staring at \pref{fig:segment-tree-prefix-query-up} for inspiration, we
 can see that what we want to do is find the \emph{left sibling} of our
@@ -2292,7 +2001,7 @@ work, it would be interesting to explore some of the mentioned
 generalizations of segment trees, to see whether one can derive
 Fenwick-like structures that support additional operations.
 
-\section*{Acknowledgments}
+\section*{Acknowledgements}
 
 Thanks to the anonymous JFP reviewers for their helpful feedback,
 which resulted in a much improved presentation.  Thanks also to Penn PL
