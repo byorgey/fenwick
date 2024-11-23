@@ -1568,11 +1568,7 @@ whether particular bits are set:
 \>[B]{}\Varid{set}\mathrel{=}\Varid{setTo}\;\Conid{I}{}\<[E]%
 \\
 \>[B]{}\Varid{clear}\mathrel{=}\Varid{setTo}\;\Conid{O}{}\<[E]%
-\ColumnHook
-\end{hscode}\resethooks
-\begin{hscode}\SaveRestoreHook
-\column{B}{@{}>{\hspre}l<{\hspost}@{}}%
-\column{E}{@{}>{\hspre}l<{\hspost}@{}}%
+\\[\blanklineskip]%
 \>[B]{}\Varid{test}\mathbin{::}\Conid{Int}\to \Conid{Bits}\to \Conid{Bool}{}\<[E]%
 \\
 \>[B]{}\Varid{test}\;\mathrm{0}\;(\Varid{bs}\mathrel{:\!.}\Varid{b})\mathrel{=}\Varid{b}\equiv \Conid{I}{}\<[E]%
@@ -1870,10 +1866,10 @@ will make some of our proofs more compact later.
 
 For example, we can verify that this produces identical results to
 \ensuremath{\Varid{f2b}\;\mathrm{4}} on the range $[1, 2^4]$ (for convenience, we define \ensuremath{(\Varid{f}\mathbin{===}\Varid{g})\;\Varid{k}\mathrel{=}\Varid{f}\;\Varid{k}\equiv \Varid{g}\;\Varid{k}}):
-\begin{tabbing}\ttfamily
-~ghci\char62{}~all~\char40{}f2b~4~\char61{}\char61{}\char61{}~fromBits~\char46{}~f2b\char39{}~4~\char46{}~toBits\char41{}~\char91{}1~\char46{}\char46{}~2\char94{}4\char93{}\\
-\ttfamily ~True
-\end{tabbing}
+\begin{Verbatim}
+ghci> all (f2b 4 === fromBits . f2b' 4 . toBits) [1 .. 2^4]
+True
+\end{Verbatim}
 
 We now turn to deriving \ensuremath{\Varid{b2f}\;\Varid{n}}, which converts back from binary to
 Fenwick indices. \ensuremath{\Varid{b2f}\;\Varid{n}} should be a left inverse to \ensuremath{\Varid{f2b}\;\Varid{n}}, that is,
@@ -1919,9 +1915,7 @@ binary indexed tree and conjugating by conversion to and from Fenwick
 indices.  First, in order to fuse away the resulting conversion, we
 will need a few lemmas.
 
-\todoi{give names to lemmas, cite by name (+ number)}
-
-\begin{lem} \label{lem:incshr}
+\begin{lem}[shr-inc-dec] \label{lem:incshr}
   For all \ensuremath{\Varid{bs}\mathbin{::}\Conid{Bits}} which are \ensuremath{\Varid{odd}} (that is, end with \ensuremath{\Conid{I}}),
   \begin{itemize}
   \item \ensuremath{(\Varid{shr}\mathbin{\circ}\Varid{dec})\;\Varid{bs}\mathrel{=}\Varid{shr}\;\Varid{bs}}
@@ -1932,7 +1926,7 @@ will need a few lemmas.
   Both are immediate by definition.
 \end{proof}
 
-\begin{lem} \label{lem:incwhile}
+\begin{lem}[while-inc-dec] \label{lem:incwhile}
   The following both hold for all \ensuremath{\Conid{Bits}} values:
   \begin{itemize}
   \item \ensuremath{\Varid{inc}\mathbin{\circ}\Varid{while}\;\Varid{odd}\;\Varid{shr}\mathrel{=}\Varid{while}\;\Varid{even}\;\Varid{shr}\mathbin{\circ}\Varid{inc}}
@@ -1948,7 +1942,7 @@ will need a few lemmas.
 Finally, we will need a lemma about shifting zero bits in and out of
 the right side of a value.
 
-\begin{lem} \label{lem:shlshr}
+\begin{lem}[shl-shr] \label{lem:shlshr}
   For all $0 < x < 2^{n+2}$,
   \[ \ensuremath{(\Varid{while}\;(not\mathbin{\circ}\Varid{test}\;(\Varid{n}\mathbin{+}\mathrm{1}))\;\Varid{shl}\mathbin{\circ}\Varid{while}\;\Varid{even}\;\Varid{shr})\;\Varid{x}\mathrel{=}\Varid{while}\;(not\mathbin{\circ}\Varid{test}\;(\Varid{n}\mathbin{+}\mathrm{1}))\;\Varid{shl}\;\Varid{x}}. \]
 \end{lem}
@@ -2004,24 +1998,23 @@ node whose active parent is the root!
 Now, to derive the corresponding operation on Fenwick indices, we
 conjugate by conversion to and from Fenwick indices, and compute as
 follows.  To make the computation easier to read, the portion being
-rewritten is underlined at each step.
+rewritten is underlined at each step. \newpage
 
 \begin{sproof}
   \stmt{\ensuremath{\Varid{b2f'}\;\Varid{n}\mathbin{\circ}\Varid{activeParentBinary}\mathbin{\circ}\Varid{f2b'}\;\Varid{n}}}
   \reason{=}{expand definitions}
   \stmt{\ensuremath{\Varid{unshift}\;(\Varid{n}\mathbin{+}\mathrm{1})\mathbin{\circ}\underline{\Varid{inc}\mathbin{\circ}\Varid{while}\;\Varid{odd}\;\Varid{shr}}\mathbin{\circ}\Varid{shr}\mathbin{\circ}\Varid{dec}\mathbin{\circ}\Varid{shift}\;(\Varid{n}\mathbin{+}\mathrm{1})}}
-  \reason{=}{\pref{lem:incwhile}}
+  \reason{=}{\pref{lem:incwhile} (while-inc-dec)}
   \stmt{\ensuremath{\Varid{unshift}\;(\Varid{n}\mathbin{+}\mathrm{1})\mathbin{\circ}\Varid{while}\;\Varid{even}\;\Varid{shr}\mathbin{\circ}\Varid{inc}\mathbin{\circ}\underline{\Varid{shr}\mathbin{\circ}\Varid{dec}}\mathbin{\circ}\Varid{shift}\;(\Varid{n}\mathbin{+}\mathrm{1})}}
-  \reason{=}{\pref{lem:incshr}; the output of \ensuremath{\Varid{shift}\;(\Varid{n}\mathbin{+}\mathrm{1})}
-    is always odd}
+  \reason{=}{\pref{lem:incshr} (shr-inc-dec); \ensuremath{\Varid{shift}\;(\Varid{n}\mathbin{+}\mathrm{1})\;\Varid{x}} is always odd}
   \stmt{\ensuremath{\Varid{unshift}\;(\Varid{n}\mathbin{+}\mathrm{1})\mathbin{\circ}\Varid{while}\;\Varid{even}\;\Varid{shr}\mathbin{\circ}\underline{\Varid{inc}\mathbin{\circ}\Varid{shr}}\mathbin{\circ}\Varid{shift}\;(\Varid{n}\mathbin{+}\mathrm{1})}}
-  \reason{=}{\pref{lem:incshr}}
+  \reason{=}{\pref{lem:incshr} (shr-inc-dec)}
   \stmt{\ensuremath{\Varid{unshift}\;(\Varid{n}\mathbin{+}\mathrm{1})\mathbin{\circ}\underline{\Varid{while}\;\Varid{even}\;\Varid{shr}\mathbin{\circ}\Varid{shr}}\mathbin{\circ}\Varid{inc}\mathbin{\circ}\Varid{shift}\;(\Varid{n}\mathbin{+}\mathrm{1})}}
   \reason{=}{\ensuremath{\Varid{while}\;\Varid{even}\;\Varid{shr}\mathbin{\circ}\Varid{shr}\mathrel{=}\Varid{while}\;\Varid{even}\;\Varid{shr}} on an even input}
   \stmt{\ensuremath{\underline{\Varid{unshift}\;(\Varid{n}\mathbin{+}\mathrm{1})}\mathbin{\circ}\Varid{while}\;\Varid{even}\;\Varid{shr}\mathbin{\circ}\Varid{inc}\mathbin{\circ}\Varid{shift}\;(\Varid{n}\mathbin{+}\mathrm{1})}}
   \reason{=}{Definition of \ensuremath{\Varid{unshift}}}
   \stmt{\ensuremath{\Varid{clear}\;(\Varid{n}\mathbin{+}\mathrm{1})\mathbin{\circ}\underline{\Varid{while}\;(not\mathbin{\circ}\Varid{test}\;(\Varid{n}\mathbin{+}\mathrm{1}))\;\Varid{shl}\mathbin{\circ}\Varid{while}\;\Varid{even}\;\Varid{shr}}\mathbin{\circ}\Varid{inc}\mathbin{\circ}\underline{\Varid{shift}\;(\Varid{n}\mathbin{+}\mathrm{1})}}}
-  \reason{=}{\pref{lem:shlshr}; definition of \ensuremath{\Varid{shift}}}
+  \reason{=}{\pref{lem:shlshr} (shl-shr); definition of \ensuremath{\Varid{shift}}}
   \stmt{\ensuremath{\Varid{clear}\;(\Varid{n}\mathbin{+}\mathrm{1})\mathbin{\circ}\Varid{while}\;(not\mathbin{\circ}\Varid{test}\;(\Varid{n}\mathbin{+}\mathrm{1}))\;\Varid{shl}\mathbin{\circ}\Varid{inc}\mathbin{\circ}\Varid{while}\;\Varid{even}\;\Varid{shr}\mathbin{\circ}\Varid{set}\;(\Varid{n}\mathbin{+}\mathrm{1})}}
 \end{sproof}
 In the final step, since the input $x$ satisfies $x \leq 2^n$, we have
@@ -2109,8 +2102,8 @@ throughout the operation.
 To make this more formal, we begin by defining a helper function
 \ensuremath{\Varid{atLSB}}, which does an operation ``at the LSB'', that is, it shifts
 out 0 bits until finding a 1, applies the given function, then
-restores the 0 bits:
-
+restores the 0 bits.
+\newpage
 \begin{hscode}\SaveRestoreHook
 \column{B}{@{}>{\hspre}l<{\hspost}@{}}%
 \column{E}{@{}>{\hspre}l<{\hspost}@{}}%
@@ -2124,7 +2117,7 @@ restores the 0 bits:
 \ColumnHook
 \end{hscode}\resethooks
 
-\begin{lem} \label{lem:addlsb}
+\begin{lem}[add-lsb] \label{lem:addlsb}
   For all \ensuremath{\Varid{x}\mathbin{::}\Conid{Bits}}, \ensuremath{\Varid{x}\mathbin{+}\Varid{lsb}\;\Varid{x}\mathrel{=}\Varid{atLSB}\;\Varid{inc}\;\Varid{x}} and \ensuremath{\Varid{x}\mathbin{-}\Varid{lsb}\;\Varid{x}\mathrel{=}\Varid{atLSB}\;\Varid{dec}\;\Varid{x}}.
 \end{lem}
 
@@ -2136,7 +2129,7 @@ We can formally relate the ``shifting with a sentinel'' scheme to
 the use of \ensuremath{\Varid{atLSB}}, with the following (admittedly rather technical)
 lemma:
 
-\begin{restatable}{lem}{sentinel} \label{lem:sentinel-scheme} Let $n \geq 1$ and let \ensuremath{\Varid{f}\mathbin{::}\Conid{Bits}\to \Conid{Bits}} be a function such that
+\begin{restatable}[sentinel]{lem}{sentinel} \label{lem:sentinel-scheme} Let $n \geq 1$ and let \ensuremath{\Varid{f}\mathbin{::}\Conid{Bits}\to \Conid{Bits}} be a function such that
   \begin{enumerate}
   \item \ensuremath{(\Varid{f}\mathbin{\circ}\Varid{set}\;(\Varid{n}\mathbin{+}\mathrm{1}))\;\Varid{x}\mathrel{=}(\Varid{set}\;(\Varid{n}\mathbin{+}\mathrm{1})\mathbin{\circ}\Varid{f})\;\Varid{x}} for any $0 < x < 2^n$, and
   \item $\ensuremath{\Varid{f}\;\Varid{x}} < 2^{n+1}$ for any $0 < x < 2^n + 2^{n-1}$.
@@ -2149,7 +2142,7 @@ The proof is rather tedious and not all that illuminating, so we omit
 it
 \ifJFP
 (an extended version including a full proof may be found on the
-author's website, at \url{http://ozark.hendrix.edu/~yorgey/pub/Fenwick.pdf}).
+author's website, at \url{http://ozark.hendrix.edu/~yorgey/pub/Fenwick-ext.pdf}).
 \else
 here (a detailed proof can be found in an appendix).
 \fi
@@ -2173,9 +2166,9 @@ is the correct way to implement \ensuremath{\Varid{update}}.
   \stmt{\ensuremath{\Varid{b2f'}\;\Varid{n}\mathbin{\circ}\Varid{activeParentBinary}\mathbin{\circ}\Varid{f2b'}\;\Varid{n}}}
   \reason{=}{Previous calculation}
   \stmt{\ensuremath{\Varid{unshift}\;(\Varid{n}\mathbin{+}\mathrm{1})\mathbin{\circ}\Varid{inc}\mathbin{\circ}\Varid{shift}\;(\Varid{n}\mathbin{+}\mathrm{1})}}
-  \reason{=}{\pref{lem:sentinel-scheme}}
+  \reason{=}{\pref{lem:sentinel-scheme} (sentinel)}
   \stmt{\ensuremath{\Varid{atLSB}\;\Varid{inc}}}
-  \reason{=}{\pref{lem:addlsb}}
+  \reason{=}{\pref{lem:addlsb} (add-lsb)}
   \stmt{\ensuremath{\lambda \Varid{x}\to \Varid{x}\mathbin{+}\Varid{lsb}\;\Varid{x}}}
 \end{sproof}
 \vspace{-3\baselineskip}
@@ -2275,13 +2268,13 @@ Under a binary indexing scheme, this can be implemented simply as:
   \stmt{\ensuremath{\underline{\Varid{unshift}\;(\Varid{n}\mathbin{+}\mathrm{1})}\mathbin{\circ}\Varid{while}\;\Varid{even}\;\Varid{shr}\mathbin{\circ}\Varid{dec}\mathbin{\circ}\Varid{shift}\;(\Varid{n}\mathbin{+}\mathrm{1})}}
   \reason{=}{Definition of \ensuremath{\Varid{unshift}}}
   \stmt{\ensuremath{\Varid{clear}\;(\Varid{n}\mathbin{+}\mathrm{1})\mathbin{\circ}\underline{\Varid{while}\;(not\mathbin{\circ}\Varid{test}\;(\Varid{n}\mathbin{+}\mathrm{1}))\;\Varid{shl}\mathbin{\circ}\Varid{while}\;\Varid{even}\;\Varid{shr}}\mathbin{\circ}\Varid{dec}\mathbin{\circ}\Varid{shift}\;(\Varid{n}\mathbin{+}\mathrm{1})}}
-  \reason{=}{\pref{lem:shlshr}}
+  \reason{=}{\pref{lem:shlshr} (shl-shr)}
   \stmt{\ensuremath{\underline{\Varid{clear}\;(\Varid{n}\mathbin{+}\mathrm{1})\mathbin{\circ}\Varid{while}\;(not\mathbin{\circ}\Varid{test}\;(\Varid{n}\mathbin{+}\mathrm{1}))\;\Varid{shl}}\mathbin{\circ}\Varid{dec}\mathbin{\circ}\Varid{shift}\;(\Varid{n}\mathbin{+}\mathrm{1})}}
   \reason{=}{Definition of \ensuremath{\Varid{unshift}}}
   \stmt{\ensuremath{\Varid{unshift}\;(\Varid{n}\mathbin{+}\mathrm{1})\mathbin{\circ}\Varid{dec}\mathbin{\circ}\Varid{shift}\;(\Varid{n}\mathbin{+}\mathrm{1})}}
-  \reason{=}{\pref{lem:sentinel-scheme}}
+  \reason{=}{\pref{lem:sentinel-scheme} (sentinel)}
   \stmt{\ensuremath{\Varid{atLSB}\;\Varid{dec}}}
-  \reason{=}{\pref{lem:addlsb}}
+  \reason{=}{\pref{lem:addlsb} (add-lsb)}
   \stmt{\ensuremath{\lambda \Varid{x}\to \Varid{x}\mathbin{-}\Varid{lsb}\;\Varid{x}}}
 \end{sproof}
 \vspace{-3\baselineskip}

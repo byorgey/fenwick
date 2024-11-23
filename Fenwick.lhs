@@ -194,7 +194,7 @@ import Prelude hiding (even, odd)
   a clever solution to the problem of maintaining a sequence of values
   while allowing both updates and range queries in sublinear time.
   Their implementation is concise and efficient---but also somewhat
-  baffling, consisting largely of nonobvious bitwise operations on
+  baffling, consisting largely of non-obvious bitwise operations on
   indices.  We begin with \emph{segment trees}, a much more
   straightforward, easy-to-verify, purely functional solution to the
   problem, and use equational reasoning to explain the implementation
@@ -539,7 +539,7 @@ After developing more intuition for segment trees
 (\pref{sec:seg-trees}), we will see how Fenwick trees can be viewed as
 a variant on segment trees (\pref{sec:fenwick}).  We will then take a
 detour into two's complement binary encoding, develop a suitable DSL
-for bit manipuations, and explain the implementation of the
+for bit manipulations, and explain the implementation of the
 \mintinline{java}{LSB} function (\pref{sec:twos-complement}).  Armed
 with the DSL, we will then derive functions for converting back and
 forth between Fenwick trees and standard binary trees
@@ -1206,9 +1206,6 @@ set, clear :: Int -> Bits -> Bits
 set = setTo I
 clear = setTo O
 
-\end{code}
-\begin{code}
-
 test :: Int -> Bits -> Bool
 test 0 (bs :. b) = b == I
 test n (bs :. _) = test (n-1) bs
@@ -1507,10 +1504,10 @@ f === g = \x -> f x == g x
 For example, we can verify that this produces identical results to
 |f2b 4| on the range $[1, 2^4]$ (for convenience, we define |(f === g)
 k = f k == g k|):
-\begin{verbatim}
+\begin{Verbatim}
 ghci> all (f2b 4 === fromBits . f2b' 4 . toBits) [1 .. 2^4]
 True
-\end{verbatim}
+\end{Verbatim}
 
 We now turn to deriving |b2f n|, which converts back from binary to
 Fenwick indices. |b2f n| should be a left inverse to |f2b n|, that is,
@@ -1553,9 +1550,7 @@ binary indexed tree and conjugating by conversion to and from Fenwick
 indices.  First, in order to fuse away the resulting conversion, we
 will need a few lemmas.
 
-\todoi{give names to lemmas, cite by name (+ number)}
-
-\begin{lem} \label{lem:incshr}
+\begin{lem}[shr-inc-dec] \label{lem:incshr}
   For all |bs :: Bits| which are |odd| (that is, end with |I|),
   \begin{itemize}
   \item |(shr . dec) bs = shr bs|
@@ -1566,7 +1561,7 @@ will need a few lemmas.
   Both are immediate by definition.
 \end{proof}
 
-\begin{lem} \label{lem:incwhile}
+\begin{lem}[while-inc-dec] \label{lem:incwhile}
   The following both hold for all |Bits| values:
   \begin{itemize}
   \item |inc . while odd shr = while even shr . inc|
@@ -1582,7 +1577,7 @@ will need a few lemmas.
 Finally, we will need a lemma about shifting zero bits in and out of
 the right side of a value.
 
-\begin{lem} \label{lem:shlshr}
+\begin{lem}[shl-shr] \label{lem:shlshr}
   For all $0 < x < 2^{n+2}$,
   \[ |(while (not . test (n+1)) shl . while even shr) x = while (not . test (n+1)) shl x|. \]
 \end{lem}
@@ -1636,24 +1631,23 @@ node whose active parent is the root!
 Now, to derive the corresponding operation on Fenwick indices, we
 conjugate by conversion to and from Fenwick indices, and compute as
 follows.  To make the computation easier to read, the portion being
-rewritten is underlined at each step.
+rewritten is underlined at each step. \newpage
 
 \begin{sproof}
   \stmt{|b2f' n . activeParentBinary . f2b' n|}
   \reason{=}{expand definitions}
   \stmt{|unshift (n+1) . ul(inc . while odd shr) . shr . dec . shift (n+1)|}
-  \reason{=}{\pref{lem:incwhile}}
+  \reason{=}{\pref{lem:incwhile} (while-inc-dec)}
   \stmt{|unshift (n+1) . while even shr . inc . ul(shr . dec) . shift (n+1)|}
-  \reason{=}{\pref{lem:incshr}; the output of |shift (n+1)|
-    is always odd}
+  \reason{=}{\pref{lem:incshr} (shr-inc-dec); |shift (n+1) x| is always odd}
   \stmt{|unshift (n+1) . while even shr . ul(inc . shr) . shift (n+1)|}
-  \reason{=}{\pref{lem:incshr}}
+  \reason{=}{\pref{lem:incshr} (shr-inc-dec)}
   \stmt{|unshift (n+1) . ul(while even shr . shr) . inc . shift (n+1)|}
   \reason{=}{|while even shr . shr = while even shr| on an even input}
   \stmt{|ul(unshift (n+1)) . while even shr . inc . shift (n+1)|}
   \reason{=}{Definition of |unshift|}
   \stmt{|clear (n+1) . ul(while (not . test (n+1)) shl . while even shr) . inc . ul(shift (n+1))|}
-  \reason{=}{\pref{lem:shlshr}; definition of |shift|}
+  \reason{=}{\pref{lem:shlshr} (shl-shr); definition of |shift|}
   \stmt{|clear (n+1) . while (not . test (n+1)) shl . inc . while even shr . set (n+1)|}
 \end{sproof}
 In the final step, since the input $x$ satisfies $x \leq 2^n$, we have
@@ -1741,8 +1735,8 @@ throughout the operation.
 To make this more formal, we begin by defining a helper function
 |atLSB|, which does an operation ``at the LSB'', that is, it shifts
 out 0 bits until finding a 1, applies the given function, then
-restores the 0 bits:
-
+restores the 0 bits.
+\newpage
 \begin{code}
 
 atLSB :: (Bits -> Bits) -> Bits -> Bits
@@ -1752,7 +1746,7 @@ atLSB f bs = f bs
 
 \end{code}
 
-\begin{lem} \label{lem:addlsb}
+\begin{lem}[add-lsb] \label{lem:addlsb}
   For all |x :: Bits|, |x + lsb x = atLSB inc x| and |x - lsb x =
   atLSB dec x|.
 \end{lem}
@@ -1765,7 +1759,7 @@ We can formally relate the ``shifting with a sentinel'' scheme to
 the use of |atLSB|, with the following (admittedly rather technical)
 lemma:
 
-\begin{restatable}{lem}{sentinel} \label{lem:sentinel-scheme} Let $n \geq 1$ and let |f
+\begin{restatable}[sentinel]{lem}{sentinel} \label{lem:sentinel-scheme} Let $n \geq 1$ and let |f
   :: Bits -> Bits| be a function such that
   \begin{enumerate}
   \item |(f . set (n+1)) x = (set (n+1) . f) x| for any $0 < x < 2^n$, and
@@ -1779,7 +1773,7 @@ The proof is rather tedious and not all that illuminating, so we omit
 it
 \ifJFP
 (an extended version including a full proof may be found on the
-author's website, at \url{http://ozark.hendrix.edu/~yorgey/pub/Fenwick.pdf}).
+author's website, at \url{http://ozark.hendrix.edu/~yorgey/pub/Fenwick-ext.pdf}).
 \else
 here (a detailed proof can be found in an appendix).
 \fi
@@ -1804,16 +1798,16 @@ is the correct way to implement |update|.
   \stmt{|b2f' n . activeParentBinary . f2b' n|}
   \reason{=}{Previous calculation}
   \stmt{|unshift (n+1) . inc . shift (n+1)|}
-  \reason{=}{\pref{lem:sentinel-scheme}}
+  \reason{=}{\pref{lem:sentinel-scheme} (sentinel)}
   \stmt{|atLSB inc|}
-  \reason{=}{\pref{lem:addlsb}}
+  \reason{=}{\pref{lem:addlsb} (add-lsb)}
   \stmt{|\x -> x + lsb x|}
 \end{sproof}
 \vspace{-3\baselineskip}
 \end{proof}
 
 We can carry out a similar process to derive an implementation for
-prefix query (which suppsedly involves \emph{subtracting} the LSB).
+prefix query (which supposedly involves \emph{subtracting} the LSB).
 Again, if we want to compute the sum of $[1, j]$, we can start at
 index $j$ in the Fenwick array, which stores the sum of the unique
 segment ending at $j$.  If the node at index $j$ stores the segment
@@ -1905,14 +1899,14 @@ prevSegmentBinary = dec . while even shr
   \stmt{|ul(unshift (n+1)) . while even shr . dec . shift (n+1)|}
   \reason{=}{Definition of |unshift|}
   \stmt{|clear (n+1) . ul(while (not . test (n+1)) shl . while even shr) . dec . shift (n+1)|}
-  \reason{=}{\pref{lem:shlshr}}
+  \reason{=}{\pref{lem:shlshr} (shl-shr)}
   \stmt{|ul(clear (n+1) . while (not . test (n+1)) shl) . dec . shift
     (n+1)|}
   \reason{=}{Definition of |unshift|}
   \stmt{|unshift (n+1) . dec . shift (n+1)|}
-  \reason{=}{\pref{lem:sentinel-scheme}}
+  \reason{=}{\pref{lem:sentinel-scheme} (sentinel)}
   \stmt{|atLSB dec|}
-  \reason{=}{\pref{lem:addlsb}}
+  \reason{=}{\pref{lem:addlsb} (add-lsb)}
   \stmt{|\x -> x - lsb x|}
 \end{sproof}
 \vspace{-3\baselineskip}
@@ -1930,7 +1924,7 @@ work, it would be interesting to explore some of the mentioned
 generalizations of segment trees, to see whether one can derive
 Fenwick-like structures that support additional operations.
 
-\section*{Acknowledgements}
+\section*{Acknowledgments}
 
 Thanks to the anonymous JFP reviewers for their helpful feedback,
 which resulted in a much improved presentation.  Thanks also to Penn PL
