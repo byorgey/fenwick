@@ -1631,7 +1631,7 @@ node whose active parent is the root!
 Now, to derive the corresponding operation on Fenwick indices, we
 conjugate by conversion to and from Fenwick indices, and compute as
 follows.  To make the computation easier to read, the portion being
-rewritten is underlined at each step.
+rewritten is underlined at each step. \newpage
 
 \begin{sproof}
   \stmt{|b2f' n . activeParentBinary . f2b' n|}
