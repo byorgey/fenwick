@@ -102,44 +102,44 @@ dia = vsep 0.5
     , text "range query" # fontSizeL 0.5 # translate (2.2 ^& (-0.5))
     ]
     # translateX (2.5 * leafWidth)
-  , text "$a_2 + a_3 + x + a_5$" # fontSizeL 0.6
+  , text "$a_2 + a_3 + v + a_5$" # fontSizeL 0.6
     # translateX (2.5 * leafWidth)
   ]
   where
-    draw2 4 = draw "x"
+    draw2 4 = draw "v"
     draw2 n = draw ("a_" ++ show n)
 \end{diagram}
 \end{center}
 \end{xframe}
 
 % IFTIME: use colors for ranges instead of brackets
-\begin{xframe}{Prefix queries}
-\begin{center}
-\begin{diagram}[width=150]
-import FenwickDiagrams
+% \begin{xframe}{Prefix queries}
+% \begin{center}
+% \begin{diagram}[width=150]
+% import FenwickDiagrams
 
-dia = vsep 0.5
-  [ drawArray draw (map (("a_"++) . show) [1 :: Int .. 8])
-  , rangeBracket 3 6
-  , text "=" # translateX (3.5 * leafWidth) <> strutY 1
-  , drawArray draw (map (("a_"++) . show) [1 :: Int .. 8])
-  , rangeBracket 1 6
-  , text "-" # translateX (3.5 * leafWidth) <> strutY 1
-  , drawArray draw (map (("a_"++) . show) [1 :: Int .. 8])
-  , rangeBracket 1 2
-  ]
-  # fontSizeL 0.7
-\end{diagram}
-\end{center}
-\end{xframe}
+% dia = vsep 0.5
+%   [ drawArray draw (map (("a_"++) . show) [1 :: Int .. 8])
+%   , rangeBracket 3 6
+%   , text "=" # translateX (3.5 * leafWidth) <> strutY 1
+%   , drawArray draw (map (("a_"++) . show) [1 :: Int .. 8])
+%   , rangeBracket 1 6
+%   , text "-" # translateX (3.5 * leafWidth) <> strutY 1
+%   , drawArray draw (map (("a_"++) . show) [1 :: Int .. 8])
+%   , rangeBracket 1 2
+%   ]
+%   # fontSizeL 0.7
+% \end{diagram}
+% \end{center}
+% \end{xframe}
 
 \begin{xframe}{Solutions}
   \begin{center}
   \begin{tabular}{ccc}
-    approach & update & prefix query \\
-    \onslide<2->{just store sequence} & $O(1)$ & $O(n)$ \\
-    \onslide<3->{cache prefix sums}    & $O(n)$ & $O(1)$ \\
-    \onslide<4->{cache more cleverly\dots?} & $O(\lg n)$ & $O(\lg n)$
+    approach & update & range query \\ \hline
+    \onslide<2->{just store sequence & $O(1)$ & $O(n)$ \\}
+    \onslide<3->{cache prefix sums    & $O(n)$ & $O(1)$ \\}
+    \onslide<4->{cache more cleverly\dots? & $O(\lg n)$? & $O(\lg n)$?}
   \end{tabular}
   \end{center}
 \end{xframe}
@@ -206,6 +206,36 @@ dia = vsep 0.5
 \end{diagram}
 \end{center}
 \end{xframe}
+
+\begin{xframe}{Fenwick trees}
+  \begin{center}
+    \begin{minipage}{0.45\textwidth}
+      \raisebox{-0.5\height}{\includegraphics[height=3in]{fenwick-p1}}
+    \end{minipage}
+    \hspace{0.25in}
+    \begin{minipage}{0.45\textwidth}
+      Peter Fenwick, 1994 \medskip
+
+      A New Data Structure for Cumulative Frequency Tables
+    \end{minipage}
+  \end{center}
+\end{xframe}
+
+\begin{xframe}{Ryabko trees?}
+  \begin{center}
+    \includegraphics[width=3.5in]{Ryabko}
+
+    \vspace{0.25in}
+      Boris Ryabko, 1989 \\
+      A fast on-line code
+  \end{center}
+\end{xframe}
+
+\begin{xframe}{Implementing Fenwick trees}
+  \inputminted[fontsize=\footnotesize]{java}{FenwickTree.java}
+\end{xframe}
+
+% XXX why do Fenwick trees work?
 
 % TODO: get rid of range bars in this diagram
 \begin{xframe}{Thinning segment trees}
@@ -299,24 +329,6 @@ nOpts = (showInactiveOpts False)
   \end{center}
 \end{xframe}
 
-\begin{xframe}{Fenwick trees}
-  \begin{center}
-    \begin{minipage}{0.45\textwidth}
-      \raisebox{-0.5\height}{\includegraphics[height=3in]{fenwick-p1}}
-    \end{minipage}
-    \hspace{0.25in}
-    \begin{minipage}{0.45\textwidth}
-      Peter Fenwick, 1994 \\
-      A New Data Structure for Cumulative Frequency Tables
-    \end{minipage}
-  \end{center}
-  % IFTIME show Ryabko paper too
-\end{xframe}
-
-\begin{xframe}{Implementing Fenwick trees}
-  \inputminted[fontsize=\footnotesize]{java}{FenwickTree.java}
-\end{xframe}
-
 % IF TIME, show why this definition of LSB works.
 % Otherwise leave it as exercise.  2's complement, to negate we flip
 % all the bits then increment.  This means -x has all opposite bits as
@@ -398,6 +410,7 @@ import Diagrams.Prelude hiding (Empty)
 import Diagrams.TwoD.Layout.Tree
 import Data.Maybe (fromJust)
 import Control.Monad.State
+import Control.Monad (when)
 
 -- bt depth root left?
 bt :: Int -> Int -> Bool -> State Int (BTree (Int, Maybe Int))
@@ -446,6 +459,7 @@ import Diagrams.Prelude hiding (Empty)
 import Diagrams.TwoD.Layout.Tree
 import Data.Maybe (fromJust)
 import Control.Monad.State
+import Control.Monad (when)
 
 -- bt depth root left?
 bt :: Int -> Int -> Bool -> State Int (BTree (Int, Maybe Int))
@@ -591,6 +605,7 @@ import Diagrams.Prelude hiding (Empty)
 import Diagrams.TwoD.Layout.Tree
 import Data.Maybe (fromJust)
 import Control.Monad.State
+import Control.Monad (when)
 
 -- bt depth root left?
 bt :: Int -> Int -> Bool -> State Int (BTree (Int, Maybe Int))
