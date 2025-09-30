@@ -8,7 +8,6 @@
 *.blg
 *.log
 *.out
-*.pdf
 *.ptb
 *.fdb_latexmk
 *.fls
@@ -24,6 +23,9 @@
 diagrams/
 
 fenwick.tex
+
+Fenwick.pdf
+ICFP/presentation/fenwick-ICFP.pdf
 
 *.hi
 *.o
