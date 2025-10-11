@@ -7,276 +7,46 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \let\Bbbk\undefined  % https://github.com/kosmikus/lhs2tex/issues/82
-%% ODER: format ==         = "\mathrel{==}"
-%% ODER: format /=         = "\neq "
-%
-%
-\makeatletter
-\@ifundefined{lhs2tex.lhs2tex.sty.read}%
-  {\@namedef{lhs2tex.lhs2tex.sty.read}{}%
-   \newcommand\SkipToFmtEnd{}%
-   \newcommand\EndFmtInput{}%
-   \long\def\SkipToFmtEnd#1\EndFmtInput{}%
-  }\SkipToFmtEnd
+%include polycode.fmt
 
-\newcommand\ReadOnlyOnce[1]{\@ifundefined{#1}{\@namedef{#1}{}}\SkipToFmtEnd}
-\usepackage{amstext}
-\usepackage{amssymb}
-\usepackage{stmaryrd}
-\DeclareFontFamily{OT1}{cmtex}{}
-\DeclareFontShape{OT1}{cmtex}{m}{n}
-  {<5><6><7><8>cmtex8
-   <9>cmtex9
-   <10><10.95><12><14.4><17.28><20.74><24.88>cmtex10}{}
-\DeclareFontShape{OT1}{cmtex}{m}{it}
-  {<-> ssub * cmtt/m/it}{}
-\newcommand{\texfamily}{\fontfamily{cmtex}\selectfont}
-\DeclareFontShape{OT1}{cmtt}{bx}{n}
-  {<5><6><7><8>cmtt8
-   <9>cmbtt9
-   <10><10.95><12><14.4><17.28><20.74><24.88>cmbtt10}{}
-\DeclareFontShape{OT1}{cmtex}{bx}{n}
-  {<-> ssub * cmtt/bx/n}{}
-\newcommand{\tex}[1]{\text{\texfamily#1}}	% NEU
+%subst pragma a = "\texttt{\string{-\#" a "\#-\string}}"
 
-\newcommand{\Sp}{\hskip.33334em\relax}
+%format :--:   = "\mathrel{:\!\text{---}\!:}"
+%format `inR`  = "\in"
+%format inR    = "(" `inR` ")"
+%format `subR` = "\subseteq"
+%format subR   = "(" `subR` ")"
 
+%format <>     = "\oplus "
+%format mempty = "0 "
 
-\newcommand{\Conid}[1]{\mathit{#1}}
-\newcommand{\Varid}[1]{\mathit{#1}}
-\newcommand{\anonymous}{\kern0.06em \vbox{\hrule\@width.5em}}
-\newcommand{\plus}{\mathbin{+\!\!\!+}}
-\newcommand{\bind}{\mathbin{>\!\!\!>\mkern-6.7mu=}}
-\newcommand{\rbind}{\mathbin{=\mkern-6.7mu<\!\!\!<}}% suggested by Neil Mitchell
-\newcommand{\sequ}{\mathbin{>\!\!\!>}}
-\renewcommand{\leq}{\leqslant}
-\renewcommand{\geq}{\geqslant}
-\usepackage{polytable}
+%format lo1
+%format lo2
+%format hi1
+%format hi2
 
-%mathindent has to be defined
-\@ifundefined{mathindent}%
-  {\newdimen\mathindent\mathindent\leftmargini}%
-  {}%
+%format ++ = "+\!+"
+%format `interleave` = "\interleaveop"
+%format interleave = "(" `interleave` ")"
+%format `find` = "\gnab"
+%format find = "(" `find` ")"
 
-\def\resethooks{%
-  \global\let\SaveRestoreHook\empty
-  \global\let\ColumnHook\empty}
-\newcommand*{\savecolumns}[1][default]%
-  {\g@addto@macro\SaveRestoreHook{\savecolumns[#1]}}
-\newcommand*{\restorecolumns}[1][default]%
-  {\g@addto@macro\SaveRestoreHook{\restorecolumns[#1]}}
-\newcommand*{\aligncolumn}[2]%
-  {\g@addto@macro\ColumnHook{\column{#1}{#2}}}
+%format pow (a) (b) = a "^ {" b "}"
 
-\resethooks
+%format * = "\cdot"
 
-\newcommand{\onelinecommentchars}{\quad-{}- }
-\newcommand{\commentbeginchars}{\enskip\{-}
-\newcommand{\commentendchars}{-\}\enskip}
+%format invBit = "\neg"
+%format .+. = "\oplus"
+%format .&. = "\land"
+%format .|. = "\lor"
+%format .&&. = "\owedge"
+%format :. = "\mathrel{:\!.}"
 
-\newcommand{\visiblecomments}{%
-  \let\onelinecomment=\onelinecommentchars
-  \let\commentbegin=\commentbeginchars
-  \let\commentend=\commentendchars}
+%format not = "not"
 
-\newcommand{\invisiblecomments}{%
-  \let\onelinecomment=\empty
-  \let\commentbegin=\empty
-  \let\commentend=\empty}
+%format ul(x) = "\underline{" x "}"
 
-\visiblecomments
-
-\newlength{\blanklineskip}
-\setlength{\blanklineskip}{0.66084ex}
-
-\newcommand{\hsindent}[1]{\quad}% default is fixed indentation
-\let\hspre\empty
-\let\hspost\empty
-\newcommand{\NB}{\textbf{NB}}
-\newcommand{\Todo}[1]{$\langle$\textbf{To do:}~#1$\rangle$}
-
-\EndFmtInput
-\makeatother
-%
-%
-%
-%
-%
-%
-% This package provides two environments suitable to take the place
-% of hscode, called "plainhscode" and "arrayhscode". 
-%
-% The plain environment surrounds each code block by vertical space,
-% and it uses \abovedisplayskip and \belowdisplayskip to get spacing
-% similar to formulas. Note that if these dimensions are changed,
-% the spacing around displayed math formulas changes as well.
-% All code is indented using \leftskip.
-%
-% Changed 19.08.2004 to reflect changes in colorcode. Should work with
-% CodeGroup.sty.
-%
-\ReadOnlyOnce{polycode.fmt}%
-\makeatletter
-
-\newcommand{\hsnewpar}[1]%
-  {{\parskip=0pt\parindent=0pt\par\vskip #1\noindent}}
-
-% can be used, for instance, to redefine the code size, by setting the
-% command to \small or something alike
-\newcommand{\hscodestyle}{}
-
-% The command \sethscode can be used to switch the code formatting
-% behaviour by mapping the hscode environment in the subst directive
-% to a new LaTeX environment.
-
-\newcommand{\sethscode}[1]%
-  {\expandafter\let\expandafter\hscode\csname #1\endcsname
-   \expandafter\let\expandafter\endhscode\csname end#1\endcsname}
-
-% "compatibility" mode restores the non-polycode.fmt layout.
-
-\newenvironment{compathscode}%
-  {\par\noindent
-   \advance\leftskip\mathindent
-   \hscodestyle
-   \let\\=\@normalcr
-   \let\hspre\(\let\hspost\)%
-   \pboxed}%
-  {\endpboxed\)%
-   \par\noindent
-   \ignorespacesafterend}
-
-\newcommand{\compaths}{\sethscode{compathscode}}
-
-% "plain" mode is the proposed default.
-% It should now work with \centering.
-% This required some changes. The old version
-% is still available for reference as oldplainhscode.
-
-\newenvironment{plainhscode}%
-  {\hsnewpar\abovedisplayskip
-   \advance\leftskip\mathindent
-   \hscodestyle
-   \let\hspre\(\let\hspost\)%
-   \pboxed}%
-  {\endpboxed%
-   \hsnewpar\belowdisplayskip
-   \ignorespacesafterend}
-
-\newenvironment{oldplainhscode}%
-  {\hsnewpar\abovedisplayskip
-   \advance\leftskip\mathindent
-   \hscodestyle
-   \let\\=\@normalcr
-   \(\pboxed}%
-  {\endpboxed\)%
-   \hsnewpar\belowdisplayskip
-   \ignorespacesafterend}
-
-% Here, we make plainhscode the default environment.
-
-\newcommand{\plainhs}{\sethscode{plainhscode}}
-\newcommand{\oldplainhs}{\sethscode{oldplainhscode}}
-\plainhs
-
-% The arrayhscode is like plain, but makes use of polytable's
-% parray environment which disallows page breaks in code blocks.
-
-\newenvironment{arrayhscode}%
-  {\hsnewpar\abovedisplayskip
-   \advance\leftskip\mathindent
-   \hscodestyle
-   \let\\=\@normalcr
-   \(\parray}%
-  {\endparray\)%
-   \hsnewpar\belowdisplayskip
-   \ignorespacesafterend}
-
-\newcommand{\arrayhs}{\sethscode{arrayhscode}}
-
-% The mathhscode environment also makes use of polytable's parray 
-% environment. It is supposed to be used only inside math mode 
-% (I used it to typeset the type rules in my thesis).
-
-\newenvironment{mathhscode}%
-  {\parray}{\endparray}
-
-\newcommand{\mathhs}{\sethscode{mathhscode}}
-
-% texths is similar to mathhs, but works in text mode.
-
-\newenvironment{texthscode}%
-  {\(\parray}{\endparray\)}
-
-\newcommand{\texths}{\sethscode{texthscode}}
-
-% The framed environment places code in a framed box.
-
-\def\codeframewidth{\arrayrulewidth}
-\RequirePackage{calc}
-
-\newenvironment{framedhscode}%
-  {\parskip=\abovedisplayskip\par\noindent
-   \hscodestyle
-   \arrayrulewidth=\codeframewidth
-   \tabular{@{}|p{\linewidth-2\arraycolsep-2\arrayrulewidth-2pt}|@{}}%
-   \hline\framedhslinecorrect\\{-1.5ex}%
-   \let\endoflinesave=\\
-   \let\\=\@normalcr
-   \(\pboxed}%
-  {\endpboxed\)%
-   \framedhslinecorrect\endoflinesave{.5ex}\hline
-   \endtabular
-   \parskip=\belowdisplayskip\par\noindent
-   \ignorespacesafterend}
-
-\newcommand{\framedhslinecorrect}[2]%
-  {#1[#2]}
-
-\newcommand{\framedhs}{\sethscode{framedhscode}}
-
-% The inlinehscode environment is an experimental environment
-% that can be used to typeset displayed code inline.
-
-\newenvironment{inlinehscode}%
-  {\(\def\column##1##2{}%
-   \let\>\undefined\let\<\undefined\let\\\undefined
-   \newcommand\>[1][]{}\newcommand\<[1][]{}\newcommand\\[1][]{}%
-   \def\fromto##1##2##3{##3}%
-   \def\nextline{}}{\) }%
-
-\newcommand{\inlinehs}{\sethscode{inlinehscode}}
-
-% The joincode environment is a separate environment that
-% can be used to surround and thereby connect multiple code
-% blocks.
-
-\newenvironment{joincode}%
-  {\let\orighscode=\hscode
-   \let\origendhscode=\endhscode
-   \def\endhscode{\def\hscode{\endgroup\def\@currenvir{hscode}\\}\begingroup}
-   %\let\SaveRestoreHook=\empty
-   %\let\ColumnHook=\empty
-   %\let\resethooks=\empty
-   \orighscode\def\hscode{\endgroup\def\@currenvir{hscode}}}%
-  {\origendhscode
-   \global\let\hscode=\orighscode
-   \global\let\endhscode=\origendhscode}%
-
-\makeatother
-\EndFmtInput
-%
-
-
-
-
-
-
-
-
-
-
-
+%format len(x) = "|" x "|"
 
 
 \mode<presentation>
@@ -704,38 +474,20 @@ dn i = text ("$" ++ showIntAtBase 2 ("01"!!) i "" ++ "$") <> circle 1 # fc white
 \section{Binary EDSL}
 
 \begin{xframe}{Bits}
-  \begin{hscode}\SaveRestoreHook
-\column{B}{@{}>{\hspre}l<{\hspost}@{}}%
-\column{4}{@{}>{\hspre}l<{\hspost}@{}}%
-\column{11}{@{}>{\hspre}l<{\hspost}@{}}%
-\column{E}{@{}>{\hspre}l<{\hspost}@{}}%
-\>[B]{}\mathbf{data}\;\Conid{Bit}\mathrel{=}\Conid{O}\mid \Conid{I}{}\<[E]%
-\\[\blanklineskip]%
-\>[B]{}\neg\mathbin{::}\Conid{Bit}\to \Conid{Bit}{}\<[E]%
-\\
-\>[B]{}\neg\;\Conid{O}\mathrel{=}\Conid{I}{}\<[E]%
-\\
-\>[B]{}\neg\;\Conid{I}\mathrel{=}\Conid{O}{}\<[E]%
-\\[\blanklineskip]%
-\>[B]{}(\land),(\lor)\mathbin{::}\Conid{Bit}\to \Conid{Bit}\to \Conid{Bit}{}\<[E]%
-\\
-\>[B]{}\Conid{O}{}\<[4]%
-\>[4]{}\land\anonymous {}\<[11]%
-\>[11]{}\mathrel{=}\Conid{O}{}\<[E]%
-\\
-\>[B]{}\Conid{I}{}\<[4]%
-\>[4]{}\land\Varid{b}{}\<[11]%
-\>[11]{}\mathrel{=}\Varid{b}{}\<[E]%
-\\[\blanklineskip]%
-\>[B]{}\Conid{I}{}\<[4]%
-\>[4]{}\lor\anonymous {}\<[11]%
-\>[11]{}\mathrel{=}\Conid{I}{}\<[E]%
-\\
-\>[B]{}\Conid{O}{}\<[4]%
-\>[4]{}\lor\Varid{b}{}\<[11]%
-\>[11]{}\mathrel{=}\Varid{b}{}\<[E]%
-\ColumnHook
-\end{hscode}\resethooks
+  \begin{code}
+data Bit = O | I
+
+invBit :: Bit -> Bit
+invBit O = I
+invBit I = O
+
+(.&.), (.|.) :: Bit -> Bit -> Bit
+O  .&. _  = O
+I  .&. b  = b
+
+I  .|. _  = I
+O  .|. b  = b
+  \end{code}
 \end{xframe}
 
 \begin{xframe}{2's complement}
@@ -755,16 +507,13 @@ dn i = text ("$" ++ showIntAtBase 2 ("01"!!) i "" ++ "$") <> circle 1 # fc white
 \end{xframe}
 
 \begin{xframe}{Encoding infinite 2's complement bit strings?}
-  \begin{hscode}\SaveRestoreHook
-\column{B}{@{}>{\hspre}l<{\hspost}@{}}%
-\column{E}{@{}>{\hspre}l<{\hspost}@{}}%
-\>[B]{}\mathbf{type}\;\Conid{Bits}\mathrel{=}[\mskip1.5mu \Conid{Bit}\mskip1.5mu]\mathbin{?}{}\<[E]%
-\ColumnHook
-\end{hscode}\resethooks
+  \begin{code}
+type Bits = [Bit] ?
+\end{code}
 \onslide<2>{
 \begin{itemize}
-\item No decidable equality, can't convert \ensuremath{\Conid{Bits}\to \Conid{Int}}
-\item ``Junk'' values like \ensuremath{\Varid{cycle}\;[\mskip1.5mu \Conid{O},\Conid{I}\mskip1.5mu]\mathrel{=}[\mskip1.5mu \Conid{O},\Conid{I},\Conid{O},\Conid{I},\Conid{O},\Conid{I},\mathbin{...}\mskip1.5mu]}
+\item No decidable equality, can't convert |Bits -> Int|
+\item ``Junk'' values like |cycle [O,I] = [O,I,O,I,O,I, ...]|
 \end{itemize}
 }
 \end{xframe}
@@ -772,131 +521,76 @@ dn i = text ("$" ++ showIntAtBase 2 ("01"!!) i "" ++ "$") <> circle 1 # fc white
 \begin{xframe}{Encoding infinite 2's complement bit strings}
   Valid bit strings must have some finite part followed by an infinite
   tail of all 0's or all 1's.
-  \begin{hscode}\SaveRestoreHook
-\column{B}{@{}>{\hspre}l<{\hspost}@{}}%
-\column{3}{@{}>{\hspre}l<{\hspost}@{}}%
-\column{9}{@{}>{\hspre}l<{\hspost}@{}}%
-\column{33}{@{}>{\hspre}l<{\hspost}@{}}%
-\column{E}{@{}>{\hspre}l<{\hspost}@{}}%
-\>[B]{}\mathbf{data}\;\Conid{Bits}\;\mathbf{where}{}\<[E]%
-\\
-\>[B]{}\hsindent{3}{}\<[3]%
-\>[3]{}\Conid{Rep}{}\<[9]%
-\>[9]{}\mathbin{::}\Conid{Bit}\to \Conid{Bits}{}\<[E]%
-\\
-\>[B]{}\hsindent{3}{}\<[3]%
-\>[3]{}(\mathrel{:\!.}){}\<[9]%
-\>[9]{}\mathbin{::}\Conid{Bits}\to \Conid{Bit}\to \Conid{Bits}{}\<[33]%
-\>[33]{}\mbox{\onelinecomment  see paper for real details}{}\<[E]%
-\ColumnHook
-\end{hscode}\resethooks
+  \begin{code}
+data Bits where
+  Rep   :: Bit -> Bits
+  (:.)  :: Bits -> Bit -> Bits  -- see paper for real details
+  \end{code}
 
 Examples:
 \begin{itemize}
-\item $2 = \dots 000010$ = \ensuremath{\Conid{Rep}\;\Conid{O}\mathrel{:\!.}\Conid{I}\mathrel{:\!.}\Conid{O}}
-\item $-5 = \dots 1111011$ = \ensuremath{\Conid{Rep}\;\Conid{I}\mathrel{:\!.}\Conid{O}\mathrel{:\!.}\Conid{I}\mathrel{:\!.}\Conid{I}}
+\item $2 = \dots 000010$ = |Rep O :. I :. O|
+\item $-5 = \dots 1111011$ = |Rep I :. O :. I :. I|
 \end{itemize}
 \end{xframe}
 
 \begin{xframe}{Operations on infinite bit strings}
-  \begin{hscode}\SaveRestoreHook
-\column{B}{@{}>{\hspre}l<{\hspost}@{}}%
-\column{E}{@{}>{\hspre}l<{\hspost}@{}}%
-\>[B]{}(\owedge)\mathbin{::}\Conid{Bits}\to \Conid{Bits}\to \Conid{Bits}{}\<[E]%
-\\
-\>[B]{}\Conid{Rep}\;\Varid{x}\owedge\Conid{Rep}\;\Varid{y}\mathrel{=}\Conid{Rep}\;(\Varid{x}\land\Varid{y}){}\<[E]%
-\\
-\>[B]{}(\Varid{xs}\mathrel{:\!.}\Varid{x})\owedge(\Varid{ys}\mathrel{:\!.}\Varid{y})\mathrel{=}(\Varid{xs}\owedge\Varid{ys})\mathrel{:\!.}(\Varid{x}\land\Varid{y}){}\<[E]%
-\ColumnHook
-\end{hscode}\resethooks
+  \begin{code}
+(.&&.) :: Bits -> Bits -> Bits
+Rep x .&&. Rep y = Rep (x .&. y)
+(xs :. x) .&&. (ys :. y) = (xs .&&. ys) :. (x .&. y)
+  \end{code}
 \end{xframe}
 
 \begin{xframe}{Operations on infinite bit strings}
-\begin{hscode}\SaveRestoreHook
-\column{B}{@{}>{\hspre}l<{\hspost}@{}}%
-\column{16}{@{}>{\hspre}l<{\hspost}@{}}%
-\column{E}{@{}>{\hspre}l<{\hspost}@{}}%
-\>[B]{}\Varid{inc}\mathbin{::}\Conid{Bits}\to \Conid{Bits}{}\<[E]%
-\\
-\>[B]{}\Varid{inc}\;(\Conid{Rep}\;\Conid{I}){}\<[16]%
-\>[16]{}\mathrel{=}\Conid{Rep}\;\Conid{O}{}\<[E]%
-\\
-\>[B]{}\Varid{inc}\;(\Varid{bs}\mathrel{:\!.}\Conid{O}){}\<[16]%
-\>[16]{}\mathrel{=}\Varid{bs}\mathrel{:\!.}\Conid{I}{}\<[E]%
-\\
-\>[B]{}\Varid{inc}\;(\Varid{bs}\mathrel{:\!.}\Conid{I}){}\<[16]%
-\>[16]{}\mathrel{=}\Varid{inc}\;\Varid{bs}\mathrel{:\!.}\Conid{O}{}\<[E]%
-\\[\blanklineskip]%
-\>[B]{}\Varid{inv}\mathbin{::}\Conid{Bits}\to \Conid{Bits}{}\<[E]%
-\\
-\>[B]{}\Varid{inv}\;(\Conid{Rep}\;\Varid{b})\mathrel{=}\Conid{Rep}\;(\neg\;\Varid{b}){}\<[E]%
-\\
-\>[B]{}\Varid{inv}\;(\Varid{bs}\mathrel{:\!.}\Varid{b})\mathrel{=}\Varid{inv}\;\Varid{bs}\mathrel{:\!.}\neg\;\Varid{b}{}\<[E]%
-\\[\blanklineskip]%
-\>[B]{}\Varid{neg}\mathbin{::}\Conid{Bits}\to \Conid{Bits}{}\<[E]%
-\\
-\>[B]{}\Varid{neg}\mathrel{=}\Varid{inc}\mathbin{\circ}\Varid{inv}{}\<[E]%
-\ColumnHook
-\end{hscode}\resethooks
+\begin{code}
+inc :: Bits -> Bits
+inc (Rep I)    = Rep O
+inc (bs :. O)  = bs :. I
+inc (bs :. I)  = inc bs :. O
+
+inv :: Bits -> Bits
+inv (Rep b) = Rep (invBit b)
+inv (bs :. b) = inv bs :. invBit b
+
+neg :: Bits -> Bits
+neg = inc . inv
+\end{code}
 \end{xframe}
 
 \begin{xframe}{LSB}
-  \begin{hscode}\SaveRestoreHook
-\column{B}{@{}>{\hspre}l<{\hspost}@{}}%
-\column{16}{@{}>{\hspre}l<{\hspost}@{}}%
-\column{E}{@{}>{\hspre}l<{\hspost}@{}}%
-\>[B]{}\Varid{lsb}\mathbin{::}\Conid{Bits}\to \Conid{Bits}{}\<[E]%
-\\
-\>[B]{}\Varid{lsb}\;(\anonymous \mathrel{:\!.}\Conid{I}){}\<[16]%
-\>[16]{}\mathrel{=}\Conid{Rep}\;\Conid{O}\mathrel{:\!.}\Conid{I}{}\<[E]%
-\\
-\>[B]{}\Varid{lsb}\;(\Varid{bs}\mathrel{:\!.}\Conid{O}){}\<[16]%
-\>[16]{}\mathrel{=}\Varid{lsb}\;\Varid{bs}\mathrel{:\!.}\Conid{O}{}\<[E]%
-\\
-\>[B]{}\Varid{lsb}\;(\Conid{Rep}\;\Conid{O}){}\<[16]%
-\>[16]{}\mathrel{=}\Conid{Rep}\;\Conid{O}{}\<[E]%
-\ColumnHook
-\end{hscode}\resethooks
+  \begin{code}
+lsb :: Bits -> Bits
+lsb (_ :. I)   = Rep O :. I
+lsb (bs :. O)  = lsb bs :. O
+lsb (Rep O)    = Rep O
+  \end{code}
 \onslide<2->{
   \inputminted[fontsize=\footnotesize,firstline=15,lastline=15]{java}{FenwickTree.java}
 }
 \bigskip
 \onslide<3->{
   \begin{center}
-    \ensuremath{\Varid{lsb}\;\Varid{x}\mathrel{=}\Varid{x}\owedge\Varid{neg}\;\Varid{x}}
+    |lsb x = x .&&. neg x|
 
-    Proof: induction on \ensuremath{\Varid{x}}.
+    Proof: induction on |x|.
   \end{center}
 }
 \end{xframe}
 
-\begin{xframe}{Other operations on \ensuremath{\Conid{Bits}}}
-  \begin{hscode}\SaveRestoreHook
-\column{B}{@{}>{\hspre}l<{\hspost}@{}}%
-\column{3}{@{}>{\hspre}l<{\hspost}@{}}%
-\column{16}{@{}>{\hspre}l<{\hspost}@{}}%
-\column{E}{@{}>{\hspre}l<{\hspost}@{}}%
-\>[B]{}\Varid{set},\Varid{clear}{}\<[E]%
-\\
-\>[B]{}\Varid{test},\Varid{even},\Varid{odd}{}\<[E]%
-\\
-\>[B]{}\Varid{shl},\Varid{shr}{}\<[E]%
-\\[\blanklineskip]%
-\>[B]{}\Varid{while}\mathbin{::}(\Varid{a}\to \Conid{Bool})\to (\Varid{a}\to \Varid{a})\to \Varid{a}\to \Varid{a}{}\<[E]%
-\\
-\>[B]{}\Varid{while}\;\Varid{p}\;\Varid{f}\;\Varid{x}{}\<[E]%
-\\
-\>[B]{}\hsindent{3}{}\<[3]%
-\>[3]{}\mid \Varid{p}\;\Varid{x}{}\<[16]%
-\>[16]{}\mathrel{=}\Varid{while}\;\Varid{p}\;\Varid{f}\;(\Varid{f}\;\Varid{x}){}\<[E]%
-\\
-\>[B]{}\hsindent{3}{}\<[3]%
-\>[3]{}\mid \Varid{otherwise}{}\<[16]%
-\>[16]{}\mathrel{=}\Varid{x}{}\<[E]%
-\ColumnHook
-\end{hscode}\resethooks
+\begin{xframe}{Other operations on |Bits|}
+  \begin{code}
+set, clear
+test, even, odd
+shl, shr
 
-\onslide<2->{\& various rewriting lemmas, e.g. \ensuremath{\Varid{inc}\mathbin{\circ}\Varid{while}\;\Varid{odd}\;\Varid{shr}\mathrel{=}\Varid{while}\;\Varid{even}\;\Varid{shr}\mathbin{\circ}\Varid{inc}}}
+while :: (a -> Bool) -> (a -> a) -> a -> a
+while p f x
+  | p x        = while p f (f x)
+  | otherwise  = x
+\end{code}
+
+\onslide<2->{\& various rewriting lemmas, e.g. |inc . while odd shr = while even shr . inc|}
 \end{xframe}
 
 \section{Fenwick/binary conversion}
@@ -944,38 +638,19 @@ dia = evalState (bt 5 2 True) 1 # drawRightLeaning dn
 \end{xframe}
 
 \begin{xframe}{\ftb}
-  \begin{hscode}\SaveRestoreHook
-\column{B}{@{}>{\hspre}l<{\hspost}@{}}%
-\column{11}{@{}>{\hspre}l<{\hspost}@{}}%
-\column{28}{@{}>{\hspre}l<{\hspost}@{}}%
-\column{E}{@{}>{\hspre}l<{\hspost}@{}}%
-\>[B]{}(\interleaveop)\mathbin{::}[\mskip1.5mu \Varid{a}\mskip1.5mu]\to [\mskip1.5mu \Varid{a}\mskip1.5mu]\to [\mskip1.5mu \Varid{a}\mskip1.5mu]{}\<[E]%
-\\
-\>[B]{}[\mskip1.5mu \mskip1.5mu]{}\<[11]%
-\>[11]{}\interleaveop\anonymous {}\<[28]%
-\>[28]{}\mathrel{=}[\mskip1.5mu \mskip1.5mu]{}\<[E]%
-\\
-\>[B]{}(\Varid{x}\mathbin{:}\Varid{xs}){}\<[11]%
-\>[11]{}\interleaveop\Varid{ys}{}\<[28]%
-\>[28]{}\mathrel{=}\Varid{x}\mathbin{:}(\Varid{ys}\interleaveop\Varid{xs}){}\<[E]%
-\ColumnHook
-\end{hscode}\resethooks
+  \begin{code}
+interleave :: [a] -> [a] -> [a]
+[]        `interleave` _   = []
+(x : xs)  `interleave` ys  = x : (ys `interleave` xs)
+  \end{code}
 
-  \begin{hscode}\SaveRestoreHook
-\column{B}{@{}>{\hspre}l<{\hspost}@{}}%
-\column{6}{@{}>{\hspre}l<{\hspost}@{}}%
-\column{E}{@{}>{\hspre}l<{\hspost}@{}}%
-\>[B]{}\Varid{b}\mathbin{::}\Conid{Int}\to [\mskip1.5mu \Conid{Int}\mskip1.5mu]{}\<[E]%
-\\
-\>[B]{}\Varid{b}\;\mathrm{0}{}\<[6]%
-\>[6]{}\mathrel{=}[\mskip1.5mu \mathrm{2}\mskip1.5mu]{}\<[E]%
-\\
-\>[B]{}\Varid{b}\;\Varid{n}{}\<[6]%
-\>[6]{}\mathrel{=}\Varid{map}\;(\mathrm{2}\cdot)\;[\mskip1.5mu \mathrm{2}^ {\Varid{n}}\mathinner{\ldotp\ldotp}\mathrm{2}^ {\Varid{n}}\mathbin{+}\mathrm{2}^ {\Varid{n}\mathbin{-}\mathrm{1}}\mathbin{-}\mathrm{1}\mskip1.5mu]\interleaveop\Varid{b}\;(\Varid{n}\mathbin{-}\mathrm{1}){}\<[E]%
-\ColumnHook
-\end{hscode}\resethooks
+  \begin{code}
+b :: Int -> [Int]
+b 0  = [2]
+b n  = map (2*) [pow 2 n .. pow 2 n + pow 2 (n-1) - 1] `interleave` b (n-1)
+  \end{code}
 
-\[ \ensuremath{\Varid{f2b}\;\Varid{n}\;\Varid{k}\mathrel{=}\Varid{b}\;\Varid{n}\mathbin{!}\Varid{k}} = \begin{cases} \ensuremath{\Varid{f2b}\;(\Varid{n}\mathbin{-}\mathrm{1})\;(\Varid{k}\mathbin{/}\mathrm{2})} & k \text{ even} \\ 2^{n+1}
+\[ |f2b n k = b n ! k| = \begin{cases} |f2b (n-1) (k/2)| & k \text{ even} \\ 2^{n+1}
     + k - 1 & k \text{ odd} \end{cases} \]
 
   % \begin{align*}
@@ -1025,31 +700,24 @@ dia = evalState (bt 5 2 True) 1 # drawRightLeaning dn
 % \end{xframe}
 
 \begin{xframe}{\ftb}
-  \[ \ensuremath{\Varid{f2b}\;\Varid{n}\;\Varid{k}} = \begin{cases} \ensuremath{\Varid{f2b}\;(\Varid{n}\mathbin{-}\mathrm{1})\;(\Varid{k}\mathbin{/}\mathrm{2})} & k \text{ even} \\ 2^{n+1}
+  \[ |f2b n k| = \begin{cases} |f2b (n-1) (k/2)| & k \text{ even} \\ 2^{n+1}
     + k - 1 & k \text{ odd} \end{cases} \]
 
 \begin{center}
 \onslide<2->{
-\begin{hscode}\SaveRestoreHook
-\column{B}{@{}>{\hspre}l<{\hspost}@{}}%
-\column{E}{@{}>{\hspre}l<{\hspost}@{}}%
-\>[B]{}\Varid{f2b}\;\Varid{n}\mathrel{=}\Varid{dec}\mathbin{\circ}\Varid{while}\;\Varid{even}\;\Varid{shr}\mathbin{\circ}\Varid{set}\;(\Varid{n}\mathbin{+}\mathrm{1}){}\<[E]%
-\ColumnHook
-\end{hscode}\resethooks
-%
+\begin{code}
+f2b n = dec . while even shr . set (n+1)
+\end{code}%
 }%
 \onslide<3->{%
-\begin{hscode}\SaveRestoreHook
-\column{B}{@{}>{\hspre}l<{\hspost}@{}}%
-\column{E}{@{}>{\hspre}l<{\hspost}@{}}%
-\>[B]{}\Varid{b2f}\;\Varid{n}\mathrel{=}\Varid{clear}\;(\Varid{n}\mathbin{+}\mathrm{1})\mathbin{\circ}\Varid{while}\;(not\mathbin{\circ}\Varid{test}\;(\Varid{n}\mathbin{+}\mathrm{1}))\;\Varid{shl}\mathbin{\circ}\Varid{inc}{}\<[E]%
-\ColumnHook
-\end{hscode}\resethooks
+\begin{code}
+b2f n = clear (n+1) . while (not . test (n+1)) shl . inc
+\end{code}
 }
 \end{center}
 \end{xframe}
 
-\begin{xframe}{update via \ensuremath{\Varid{activeParent}}}
+\begin{xframe}{update via |activeParent|}
 \begin{center}
 \begin{diagram}[width=300]
 {-# LANGUAGE LambdaCase #-}
@@ -1071,18 +739,18 @@ nOpts = (showInactiveOpts False)
   }
 \end{diagram} \bigskip
 
-\onslide<2->{\ensuremath{\Varid{activeParent}\mathrel{=}\Varid{b2f}\mathbin{\circ}\Varid{while}\;\Varid{odd}\;\Varid{shr}\mathbin{\circ}\Varid{shr}\mathbin{\circ}\Varid{f2b}}}
+\onslide<2->{|activeParent = b2f . while odd shr . shr . f2b|}
 \end{center}
 % TODO: make picture with arrows pointing up the tree, showing how
 % finding the active parent in BT corresponds to finding parent (shl), then
 % finding parents until reaching an even node
 \end{xframe}
 
-\begin{xframe}{Calculating \ensuremath{\Varid{activeParent}}}
+\begin{xframe}{Calculating |activeParent|}
   \begin{sproof}
-    \stmt{\ensuremath{\Varid{activeParent}\mathrel{=}\Varid{b2f}\mathbin{\circ}\Varid{while}\;\Varid{odd}\;\Varid{shr}\mathbin{\circ}\Varid{shr}\mathbin{\circ}\Varid{f2b}}}
+    \stmt{|activeParent = b2f . while odd shr . shr . f2b|}
     \reason{=}{inline + rewrite\dots}
-    \stmt{\ensuremath{\Varid{clear}\;(\Varid{n}\mathbin{+}\mathrm{1})\mathbin{\circ}\Varid{while}\;(not\mathbin{\circ}\Varid{test}\;(\Varid{n}\mathbin{+}\mathrm{1}))\;\Varid{shl}\mathbin{\circ}\Varid{inc}\mathbin{\circ}\Varid{while}\;\Varid{even}\;\Varid{shr}\mathbin{\circ}\Varid{set}\;(\Varid{n}\mathbin{+}\mathrm{1})}}
+    \stmt{|clear (n+1) . while (not . test (n+1)) shl . inc . while even shr . set (n+1)|}
   \end{sproof}
 
 \begin{center}
@@ -1095,8 +763,8 @@ nOpts = (showInactiveOpts False)
 
   drawBits :: FBits -> Diagram B
   drawBits (0, _, _) = mempty
-  drawBits (n, [], bs :. b) = drawBits (n-1, [], bs) ||| drawBit mempty b
-  drawBits (n, (s:ss), bs :. b) = drawBits (n-1, ss, bs) ||| drawBit s b
+  drawBits (n, [], bs :. b) = drawBits (n-1, [], bs) |||||| drawBit mempty b
+  drawBits (n, (s:ss), bs :. b) = drawBits (n-1, ss, bs) |||||| drawBit s b
 
   bitColor O = grey
   bitColor I = blue
@@ -1137,7 +805,7 @@ nOpts = (showInactiveOpts False)
 
 \begin{xframe}{update}
   \begin{center}
-    \ensuremath{\Varid{activeParent}\mathrel{=}\mathbin{...}\mathrel{=}\lambda \Varid{x}\to \Varid{x}\mathbin{+}\Varid{lsb}\;\Varid{x}}
+    |activeParent = ... = \x -> x + lsb x|
   \end{center}
   \vspace{1em}
 
@@ -1178,7 +846,7 @@ nOpts = (showInactiveOpts False)
       n = length sampleArray
 
       de (_, (Recurse, _)) x _ y
-        | location x ^. _x > location y ^. _x =
+        || location x ^. _x > location y ^. _x =
              beneath (arrowBetween' arrOpts (location y) (location x) # lw veryThick
                       <> (location x ~~ location y))
       de _ x _ y = beneath (location x ~~ location y)
@@ -1200,44 +868,23 @@ nOpts = (showInactiveOpts False)
 \end{xframe}
 
 \begin{xframe}
-  \begin{hscode}\SaveRestoreHook
-\column{B}{@{}>{\hspre}l<{\hspost}@{}}%
-\column{3}{@{}>{\hspre}l<{\hspost}@{}}%
-\column{5}{@{}>{\hspre}l<{\hspost}@{}}%
-\column{9}{@{}>{\hspre}l<{\hspost}@{}}%
-\column{E}{@{}>{\hspre}l<{\hspost}@{}}%
-\>[B]{}\mathbf{data}\;\Conid{Bits}\;\mathbf{where}{}\<[E]%
-\\
-\>[B]{}\hsindent{3}{}\<[3]%
-\>[3]{}\Conid{Rep}{}\<[9]%
-\>[9]{}\mathbin{::}\Conid{Bit}\to \Conid{Bits}{}\<[E]%
-\\
-\>[B]{}\hsindent{3}{}\<[3]%
-\>[3]{}\Conid{Snoc}{}\<[9]%
-\>[9]{}\mathbin{::}\mathbin{!}\Conid{Bits}\to \Conid{Bit}\to \Conid{Bits}{}\<[E]%
-\\[\blanklineskip]%
-\>[B]{}\Varid{toSnoc}\mathbin{::}\Conid{Bits}\to \Conid{Bits}{}\<[E]%
-\\
-\>[B]{}\Varid{toSnoc}\;(\Conid{Rep}\;\Varid{a})\mathrel{=}\Conid{Snoc}\;(\Conid{Rep}\;\Varid{a})\;\Varid{a}{}\<[E]%
-\\
-\>[B]{}\Varid{toSnoc}\;\Varid{as}\mathrel{=}\Varid{as}{}\<[E]%
-\\[\blanklineskip]%
-\>[B]{}\Varid{pattern}\;(\mathrel{:\!.})\mathbin{::}\Conid{Bits}\to \Conid{Bit}\to \Conid{Bits}{}\<[E]%
-\\
-\>[B]{}\Varid{pattern}\;(\mathrel{:\!.})\;\Varid{bs}\;\Varid{b}\leftarrow (\Varid{toSnoc}\to \Conid{Snoc}\;\Varid{bs}\;\Varid{b}){}\<[E]%
-\\
-\>[B]{}\hsindent{3}{}\<[3]%
-\>[3]{}\mathbf{where}{}\<[E]%
-\\
-\>[3]{}\hsindent{2}{}\<[5]%
-\>[5]{}\Conid{Rep}\;\Varid{b}\mathrel{:\!.}\Varid{b'}\mid \Varid{b}\equiv \Varid{b'}\mathrel{=}\Conid{Rep}\;\Varid{b}{}\<[E]%
-\\
-\>[3]{}\hsindent{2}{}\<[5]%
-\>[5]{}\Varid{bs}\mathrel{:\!.}\Varid{b}\mathrel{=}\Conid{Snoc}\;\Varid{bs}\;\Varid{b}{}\<[E]%
-\\[\blanklineskip]%
-\>[B]{}\texttt{\string{-\# COMPLETE (:.) \#-\string}}{}\<[E]%
-\ColumnHook
-\end{hscode}\resethooks
+  \begin{code}
+data Bits where
+  Rep   :: Bit -> Bits
+  Snoc  :: !Bits -> Bit -> Bits
+
+toSnoc :: Bits -> Bits
+toSnoc (Rep a) = Snoc (Rep a) a
+toSnoc as = as
+
+pattern (:.) :: Bits -> Bit -> Bits
+pattern (:.) bs b <- (toSnoc -> Snoc bs b)
+  where
+    Rep b :. b' | b == b' = Rep b
+    bs :. b = Snoc bs b
+
+{-# COMPLETE (:.) #-}
+  \end{code}
 \end{xframe}
 
 
